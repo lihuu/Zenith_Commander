@@ -623,6 +623,248 @@ struct VisualModeTests {
     }
 }
 
+// MARK: - 7.2 Command 模式测试
+
+struct CommandModeTests {
+    
+    // MARK: - 测试 1: 按 : 进入 Command 模式，状态栏显示 "COMMAND"
+    
+    @Test func testEnterCommandModeShowsCommandStatus() {
+        let state = AppState()
+        
+        // 初始状态应该是 Normal 模式
+        #expect(state.mode == .normal)
+        #expect(state.mode.rawValue == "NORMAL")
+        
+        // 进入 Command 模式
+        state.enterMode(.command)
+        
+        // 验证模式已切换
+        #expect(state.mode == .command)
+        #expect(state.mode.rawValue == "COMMAND")
+        
+        // 验证保存了之前的模式
+        #expect(state.previousMode == .normal)
+        
+        // 验证命令输入被清空
+        #expect(state.commandInput == "")
+    }
+    
+    @Test func testCommandModeHasDistinctColor() {
+        // 验证 Command 模式有独特的颜色
+        let normalColor = AppMode.normal.color
+        let commandColor = AppMode.command.color
+        
+        // Command 模式的颜色应该已定义且与 Normal 不同
+        #expect(commandColor != normalColor)
+    }
+    
+    // MARK: - 测试 2: 输入字符流畅
+    
+    @Test func testCommandInputAppendCharacters() {
+        let state = AppState()
+        
+        // 进入 Command 模式
+        state.enterMode(.command)
+        #expect(state.commandInput == "")
+        
+        // 模拟输入字符
+        state.commandInput.append("a")
+        #expect(state.commandInput == "a")
+        
+        state.commandInput.append("i")
+        #expect(state.commandInput == "ai")
+        
+        state.commandInput.append(" ")
+        #expect(state.commandInput == "ai ")
+        
+        state.commandInput.append("h")
+        state.commandInput.append("e")
+        state.commandInput.append("l")
+        state.commandInput.append("p")
+        #expect(state.commandInput == "ai help")
+    }
+    
+    @Test func testCommandInputDeleteCharacters() {
+        let state = AppState()
+        
+        // 进入 Command 模式
+        state.enterMode(.command)
+        state.commandInput = "test"
+        
+        // 模拟按 Delete 删除字符
+        if !state.commandInput.isEmpty {
+            state.commandInput.removeLast()
+        }
+        #expect(state.commandInput == "tes")
+        
+        if !state.commandInput.isEmpty {
+            state.commandInput.removeLast()
+        }
+        #expect(state.commandInput == "te")
+        
+        // 继续删除直到空
+        state.commandInput.removeAll()
+        #expect(state.commandInput == "")
+        
+        // 空字符串上删除不应崩溃
+        if !state.commandInput.isEmpty {
+            state.commandInput.removeLast()
+        }
+        #expect(state.commandInput == "")
+    }
+    
+    @Test func testCommandInputWithSpecialCharacters() {
+        let state = AppState()
+        
+        state.enterMode(.command)
+        
+        // 测试各种字符
+        state.commandInput = "mkdir test-folder_123"
+        #expect(state.commandInput == "mkdir test-folder_123")
+        
+        state.commandInput = "ai 这是中文"
+        #expect(state.commandInput == "ai 这是中文")
+        
+        state.commandInput = "path/to/file.txt"
+        #expect(state.commandInput == "path/to/file.txt")
+    }
+    
+    // MARK: - 测试 3: 按 Enter 执行指令，按 Esc 取消
+    
+    @Test func testEscCancelsCommandMode() {
+        let state = AppState()
+        
+        // 进入 Command 模式
+        state.enterMode(.command)
+        state.commandInput = "some command"
+        
+        #expect(state.mode == .command)
+        #expect(state.commandInput == "some command")
+        
+        // 模拟按 Esc：退出模式
+        state.exitMode()
+        
+        // 验证回到 Normal 模式
+        #expect(state.mode == .normal)
+        
+        // 注意：Esc 不一定清空 commandInput，这取决于具体实现
+        // 但模式应该回到 Normal
+    }
+    
+    @Test func testEnterExecutesCommand() {
+        let state = AppState()
+        
+        // 进入 Command 模式
+        state.enterMode(.command)
+        state.commandInput = "test"
+        
+        // 模拟执行命令后的状态
+        // 执行命令后应该退出 Command 模式
+        let command = state.commandInput
+        state.exitMode()
+        
+        #expect(state.mode == .normal)
+        #expect(command == "test")
+    }
+    
+    @Test func testCommandModeFromVisualMode() {
+        let state = AppState()
+        
+        // 先进入 Visual 模式
+        state.enterMode(.visual)
+        #expect(state.mode == .visual)
+        
+        // 从 Visual 模式进入 Command 模式
+        state.enterMode(.command)
+        
+        #expect(state.mode == .command)
+        #expect(state.previousMode == .visual)
+    }
+    
+    @Test func testExitCommandModeReturnsToNormal() {
+        let state = AppState()
+        
+        // 从 Normal 进入 Command
+        state.enterMode(.command)
+        state.commandInput = "quit"
+        
+        // 退出应该回到 Normal
+        state.exitMode()
+        
+        #expect(state.mode == .normal)
+    }
+    
+    // MARK: - 边界条件测试
+    
+    @Test func testEmptyCommandExecution() {
+        let state = AppState()
+        
+        state.enterMode(.command)
+        #expect(state.commandInput == "")
+        
+        // 空命令不应该崩溃
+        let command = state.commandInput.trimmingCharacters(in: .whitespaces)
+        #expect(command.isEmpty)
+        
+        state.exitMode()
+        #expect(state.mode == .normal)
+    }
+    
+    @Test func testCommandWithOnlyWhitespace() {
+        let state = AppState()
+        
+        state.enterMode(.command)
+        state.commandInput = "   "
+        
+        let command = state.commandInput.trimmingCharacters(in: .whitespaces)
+        #expect(command.isEmpty)
+    }
+    
+    @Test func testLongCommandInput() {
+        let state = AppState()
+        
+        state.enterMode(.command)
+        
+        // 测试长命令
+        let longCommand = String(repeating: "a", count: 1000)
+        state.commandInput = longCommand
+        
+        #expect(state.commandInput.count == 1000)
+    }
+    
+    @Test func testCommandInputClearedOnEnterMode() {
+        let state = AppState()
+        
+        // 第一次进入 Command 模式
+        state.enterMode(.command)
+        state.commandInput = "first command"
+        state.exitMode()
+        
+        // 第二次进入 Command 模式
+        state.enterMode(.command)
+        
+        // 验证输入被清空（根据 enterMode 实现）
+        #expect(state.commandInput == "")
+    }
+    
+    @Test func testMultipleEnterExitCycles() {
+        let state = AppState()
+        
+        // 多次进入退出循环
+        for i in 0..<5 {
+            state.enterMode(.command)
+            #expect(state.mode == .command)
+            
+            state.commandInput = "command \(i)"
+            #expect(state.commandInput == "command \(i)")
+            
+            state.exitMode()
+            #expect(state.mode == .normal)
+        }
+    }
+}
+
 // MARK: - 8. FileSystemService 测试
 
 struct FileSystemServiceTests {

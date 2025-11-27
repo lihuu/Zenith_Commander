@@ -2,21 +2,21 @@
 //  AppState.swift
 //  Zenith Commander
 //
-//  全局应用状态管理 (使用 @Observable - Swift 5.9+)
+//  全局应用状态管理 (使用 ObservableObject + Combine)
 //
 
 import Foundation
 import SwiftUI
+import Combine
 
 /// 标签页状态
-@Observable
-class TabState: Identifiable {
+class TabState: Identifiable, ObservableObject {
     let id: UUID
     var drive: DriveInfo
-    var currentPath: URL
-    var files: [FileItem]
-    var cursorIndex: Int
-    var scrollOffset: CGFloat
+    @Published var currentPath: URL
+    @Published var files: [FileItem]
+    @Published var cursorIndex: Int
+    @Published var scrollOffset: CGFloat
     
     init(drive: DriveInfo, path: URL) {
         self.id = UUID()
@@ -44,13 +44,12 @@ class TabState: Identifiable {
 }
 
 /// 面板状态
-@Observable
-class PaneState {
+class PaneState: ObservableObject {
     var side: PaneSide
-    var tabs: [TabState]
-    var activeTabIndex: Int
-    var viewMode: ViewMode
-    var selections: Set<String> // 存储选中的文件 ID
+    @Published var tabs: [TabState]
+    @Published var activeTabIndex: Int
+    @Published var viewMode: ViewMode
+    @Published var selections: Set<String> // 存储选中的文件 ID
     var visualAnchor: Int? // Visual 模式的锚点位置
     
     init(side: PaneSide, initialPath: URL, drive: DriveInfo) {
@@ -168,47 +167,46 @@ class PaneState {
 }
 
 /// 全局应用状态
-@Observable
-class AppState {
+class AppState: ObservableObject {
     // MARK: - 面板状态
-    var leftPane: PaneState
-    var rightPane: PaneState
-    var activePane: PaneSide = .left
+    @Published var leftPane: PaneState
+    @Published var rightPane: PaneState
+    @Published var activePane: PaneSide = .left
     
     // MARK: - 模态状态
-    var mode: AppMode = .normal
+    @Published var mode: AppMode = .normal
     var previousMode: AppMode = .normal
     
     // MARK: - 输入状态
-    var commandInput: String = ""
-    var filterInput: String = ""
-    var inputBuffer: String = ""
+    @Published var commandInput: String = ""
+    @Published var filterInput: String = ""
+    @Published var inputBuffer: String = ""
     
     // MARK: - 剪贴板
-    var clipboard: [FileItem] = []
-    var clipboardOperation: ClipboardOperation = .copy
+    @Published var clipboard: [FileItem] = []
+    @Published var clipboardOperation: ClipboardOperation = .copy
     
     // MARK: - UI 状态
-    var toastMessage: String?
-    var showDriveSelector: Bool = false
-    var driveSelectorCursor: Int = 0
-    var availableDrives: [DriveInfo] = []
+    @Published var toastMessage: String?
+    @Published var showDriveSelector: Bool = false
+    @Published var driveSelectorCursor: Int = 0
+    @Published var availableDrives: [DriveInfo] = []
     
     // MARK: - AI 状态
-    var aiResult: String = ""
-    var isAiLoading: Bool = false
+    @Published var aiResult: String = ""
+    @Published var isAiLoading: Bool = false
     
     // MARK: - 批量重命名状态
-    var showRenameModal: Bool = false
-    var renameFindText: String = ""
-    var renameReplaceText: String = ""
-    var renameUseRegex: Bool = false
+    @Published var showRenameModal: Bool = false
+    @Published var renameFindText: String = ""
+    @Published var renameReplaceText: String = ""
+    @Published var renameUseRegex: Bool = false
     
     // MARK: - 右键菜单状态
-    var contextMenuPosition: CGPoint?
-    var contextMenuFile: FileItem?
+    @Published var contextMenuPosition: CGPoint?
+    @Published var contextMenuFile: FileItem?
     
-    init() {
+    init(testDirectory: URL? = nil) {
         // 获取默认驱动器
         let defaultDrive = DriveInfo(
             id: "macintosh-hd",
@@ -219,10 +217,16 @@ class AppState {
             availableCapacity: 0
         )
         
-        // 初始化面板，默认路径为用户主目录
-        let homePath = FileManager.default.homeDirectoryForCurrentUser
-        leftPane = PaneState(side: .left, initialPath: homePath, drive: defaultDrive)
-        rightPane = PaneState(side: .right, initialPath: homePath.appendingPathComponent("Downloads"), drive: defaultDrive)
+        // 如果提供了测试目录，使用测试目录；否则使用用户主目录
+        if let testDir = testDirectory {
+            leftPane = PaneState(side: .left, initialPath: testDir, drive: defaultDrive)
+            rightPane = PaneState(side: .right, initialPath: testDir, drive: defaultDrive)
+        } else {
+            // 初始化面板，默认路径为用户主目录
+            let homePath = FileManager.default.homeDirectoryForCurrentUser
+            leftPane = PaneState(side: .left, initialPath: homePath, drive: defaultDrive)
+            rightPane = PaneState(side: .right, initialPath: homePath.appendingPathComponent("Downloads"), drive: defaultDrive)
+        }
     }
     
     // MARK: - 计算属性

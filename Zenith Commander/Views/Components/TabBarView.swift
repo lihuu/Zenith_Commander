@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct TabBarView: View {
-    @Bindable var pane: PaneState
+    @ObservedObject var pane: PaneState
     let isActivePane: Bool
     let onTabSwitch: (Int) -> Void
     let onTabClose: (Int) -> Void

@@ -8,9 +8,7 @@
 import SwiftUI
 
 struct MainView: View {
-    @State private var appState = AppState()
-    @State private var leftPaneView: PaneView?
-    @State private var rightPaneView: PaneView?
+    @StateObject private var appState = AppState()
     
     var body: some View {
         VStack(spacing: 0) {
@@ -19,7 +17,6 @@ struct MainView: View {
                 HStack(spacing: 0) {
                     // 左面板
                     PaneView(
-                        appState: appState,
                         pane: appState.leftPane,
                         side: .left
                     )
@@ -32,13 +29,13 @@ struct MainView: View {
                     
                     // 右面板
                     PaneView(
-                        appState: appState,
                         pane: appState.rightPane,
                         side: .right
                     )
                     .frame(width: geometry.size.width / 2 - 1)
                 }
             }
+            .environmentObject(appState)
             
             // 状态栏
             StatusBarView(
@@ -509,4 +506,5 @@ struct MainView: View {
 #Preview {
     MainView()
         .frame(width: 1200, height: 800)
+        .environmentObject(AppState())
 }
