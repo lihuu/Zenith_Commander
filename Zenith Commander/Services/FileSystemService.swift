@@ -8,6 +8,14 @@
 import Foundation
 import AppKit
 
+/// 目录加载结果
+enum DirectoryLoadResult {
+    case success([FileItem])
+    case permissionDenied(URL)
+    case notFound(URL)
+    case error(Error)
+}
+
 /// 文件系统服务
 class FileSystemService {
     static let shared = FileSystemService()
@@ -16,10 +24,65 @@ class FileSystemService {
     
     private init() {}
     
+    // MARK: - 权限检查
+    
+    /// 检查是否有读取权限
+    func hasReadPermission(for path: URL) -> Bool {
+        return fileManager.isReadableFile(atPath: path.path)
+    }
+    
+    /// 检查目录是否存在
+    func directoryExists(at path: URL) -> Bool {
+        var isDirectory: ObjCBool = false
+        let exists = fileManager.fileExists(atPath: path.path, isDirectory: &isDirectory)
+        return exists && isDirectory.boolValue
+    }
+    
+    /// 请求用户选择文件夹授权（通过 NSOpenPanel）
+    func requestFolderAccess(for path: URL, completion: @escaping (URL?) -> Void) {
+        DispatchQueue.main.async {
+            let openPanel = NSOpenPanel()
+            openPanel.message = "Zenith Commander needs access to this folder.\nPlease select the folder to grant access."
+            openPanel.prompt = "Grant Access"
+            openPanel.canChooseFiles = false
+            openPanel.canChooseDirectories = true
+            openPanel.allowsMultipleSelection = false
+            openPanel.directoryURL = path
+            openPanel.canCreateDirectories = false
+            
+            openPanel.begin { response in
+                if response == .OK, let selectedURL = openPanel.url {
+                    // 启动安全作用域访问
+                    _ = selectedURL.startAccessingSecurityScopedResource()
+                    completion(selectedURL)
+                } else {
+                    completion(nil)
+                }
+            }
+        }
+    }
+    
+    /// 打开系统偏好设置 - 安全与隐私
+    func openSystemPreferencesPrivacy() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+    
     // MARK: - 目录操作
     
-    /// 加载目录内容
-    func loadDirectory(at path: URL, showHidden: Bool = false) -> [FileItem] {
+    /// 加载目录内容（带权限检查）
+    func loadDirectoryWithPermissionCheck(at path: URL, showHidden: Bool = false) -> DirectoryLoadResult {
+        // 检查目录是否存在
+        guard directoryExists(at: path) else {
+            return .notFound(path)
+        }
+        
+        // 检查读取权限
+        guard hasReadPermission(for: path) else {
+            return .permissionDenied(path)
+        }
+        
         do {
             let contents = try fileManager.contentsOfDirectory(
                 at: path,
@@ -33,7 +96,7 @@ class FileSystemService {
                 options: showHidden ? [] : [.skipsHiddenFiles]
             )
             
-            return contents.compactMap { url in
+            let files = contents.compactMap { url in
                 FileItem.fromURL(url)
             }.sorted { item1, item2 in
                 // 文件夹优先，然后按名称排序
@@ -44,8 +107,26 @@ class FileSystemService {
                 }
                 return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
             }
-        } catch {
+            
+            return .success(files)
+        } catch let error as NSError {
+            // 检查是否是权限错误
+            if error.domain == NSCocoaErrorDomain && 
+               (error.code == NSFileReadNoPermissionError || error.code == 257) {
+                return .permissionDenied(path)
+            }
             print("Error loading directory: \(error)")
+            return .error(error)
+        }
+    }
+    
+    /// 加载目录内容（简单版本，兼容旧代码）
+    func loadDirectory(at path: URL, showHidden: Bool = false) -> [FileItem] {
+        let result = loadDirectoryWithPermissionCheck(at: path, showHidden: showHidden)
+        switch result {
+        case .success(let files):
+            return files
+        default:
             return []
         }
     }
