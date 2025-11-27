@@ -20,6 +20,7 @@ struct StatusBarView: View {
             
             // 状态文本
             Text(statusText)
+                .accessibilityIdentifier("status_text")
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
                 .foregroundColor(Theme.textSecondary)
                 .lineLimit(1)
@@ -75,6 +76,7 @@ struct ModeIndicator: View {
     
     var body: some View {
         Text(mode.rawValue)
+            .accessibilityIdentifier("mode_indicator")
             .font(.system(size: 10, weight: .bold, design: .monospaced))
             .foregroundColor(mode.color)
             .padding(.horizontal, 6)

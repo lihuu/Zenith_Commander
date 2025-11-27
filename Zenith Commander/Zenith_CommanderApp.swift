@@ -11,12 +11,25 @@ import AppKit
 @main
 struct Zenith_CommanderApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @StateObject private var appState: AppState
+
+    init() {
+        var testDirectory: URL? = nil
+        let arguments = ProcessInfo.processInfo.arguments
+        if let index = arguments.firstIndex(of: "-testDirectory") {
+            if arguments.count > index + 1 {
+                testDirectory = URL(fileURLWithPath: arguments[index + 1])
+            }
+        }
+        _appState = StateObject(wrappedValue: AppState(testDirectory: testDirectory))
+    }
     
     var body: some Scene {
         WindowGroup {
-            MainView()
+            ContentView()
                 .frame(minWidth: 900, minHeight: 600)
                 .background(Theme.background)
+                .environmentObject(appState)
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1200, height: 800)

@@ -8,8 +8,8 @@
 import SwiftUI
 
 struct PaneView: View {
-    @Bindable var appState: AppState
-    @Bindable var pane: PaneState
+    @EnvironmentObject var appState: AppState
+    @ObservedObject var pane: PaneState
     let side: PaneSide
     
     @State private var permissionDeniedPath: URL? = nil
@@ -426,9 +426,9 @@ struct ViewModeToggle: View {
 #Preview {
     let appState = AppState()
     return PaneView(
-        appState: appState,
         pane: appState.leftPane,
         side: .left
     )
+    .environmentObject(appState)
     .frame(width: 400, height: 600)
 }

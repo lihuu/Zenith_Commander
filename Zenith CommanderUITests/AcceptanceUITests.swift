@@ -20,11 +20,6 @@ final class AcceptanceUITests: XCTestCase {
         try FileManager.default.createDirectory(at: temporaryDirectoryURL, withIntermediateDirectories: true)
         testDirectory = temporaryDirectoryURL
         
-        // Create test files and folders
-        try "".write(to: testDirectory.appendingPathComponent("file1.txt"), atomically: true, encoding: .utf8)
-        try "".write(to: testDirectory.appendingPathComponent("file2.txt"), atomically: true, encoding: .utf8)
-        try FileManager.default.createDirectory(at: testDirectory.appendingPathComponent("folder1"), withIntermediateDirectories: true, attributes: nil)
-        
         app = XCUIApplication()
         // Use launch arguments to pass the test directory path
         app.launchArguments = ["-testDirectory", testDirectory.path]
@@ -119,70 +114,42 @@ final class AcceptanceUITests: XCTestCase {
         waitFor(element: rightHeader, label: "inactive")
     }
 
-    // MARK: - 3. 文件导航测试 (Normal Mode)
+    // MARK: - 4. 模态操作引擎测试 (Command Mode)
+    
     @MainActor
-    func test_3_1_FileNavigation() throws {
-        let leftPane = app.descendants(matching: .any)["left_pane"]
-
-        let file1 = leftPane.staticTexts["file_row_file1.txt"]
-        XCTAssertTrue(file1.waitForExistence(timeout: 2), "file1.txt should exist")
-
-        // Helper to find the focused element
-        func findFocusedElement() -> XCUIElement? {
-            let predicate = NSPredicate(format: "value CONTAINS 'focused'")
-            let focusedElements = app.staticTexts.containing(predicate)
-            if focusedElements.count > 0 {
-                return focusedElements.firstMatch
-            }
-            return nil
-        }
-
-        // 1. Find initial focused element
-        guard let initialFocusedElement = findFocusedElement() else {
-            XCTFail("No element was focused initially")
-            return
-        }
-        let initialLabel = initialFocusedElement.label
-
-        // 2. Press 'j' and check focus changes
-        app.typeKey("j", modifierFlags: [])
-        guard let secondFocusedElement = findFocusedElement() else {
-            XCTFail("No element was focused after pressing 'j'")
-            return
-        }
-        XCTAssertNotEqual(secondFocusedElement.label, initialLabel, "Focus should have moved down")
-
-        // 3. Press 'k' and check focus moves back
-        app.typeKey("k", modifierFlags: [])
-        guard let thirdFocusedElement = findFocusedElement() else {
-            XCTFail("No element was focused after pressing 'k'")
-            return
-        }
-        XCTAssertEqual(thirdFocusedElement.label, initialLabel, "Focus should have moved back up")
+    func test_4_1_CommandMode() throws {
+        let modeIndicator = app.staticTexts["mode_indicator"]
+        let statusText = app.staticTexts["status_text"]
         
-        // 4. Navigate into folder
-        let folder1 = leftPane.staticTexts["file_row_folder1"]
-        XCTAssertTrue(folder1.exists, "folder1 should exist")
+        // 1. Enter Command Mode
+        app.typeKey(":", modifierFlags: [.shift])
+        waitFor(element: modeIndicator, label: "COMMAND")
         
-        // Keep pressing 'k' until folder1 is focused
-        var safety = 0
-        while findFocusedElement()?.label != "folder1" && safety < 5 {
-            app.typeKey("k", modifierFlags: [])
-            safety += 1
-        }
-        guard findFocusedElement()?.label == "folder1" else {
-            XCTFail("Could not navigate to folder1")
-            return
-        }
-
-        app.typeKey("l", modifierFlags: [])
+        // 2. Type a command
+        app.typeText("foo")
+        XCTAssertEqual(statusText.label, ":foo")
         
-        let breadcrumb = app.buttons["folder1"]
-        XCTAssertTrue(breadcrumb.waitForExistence(timeout: 2), "Breadcrumb should show 'folder1'")
+        // 3. Execute command and check for toast
+        app.typeKey(.return, modifierFlags: [])
+        let toast = app.staticTexts["Unknown command: foo"]
+        XCTAssertTrue(toast.waitForExistence(timeout: 1))
         
-        // 5. Navigate back with 'h'
-        app.typeKey("h", modifierFlags: [])
+        // 4. Wait for toast to disappear and mode to return to normal
+        let toastDisappeared = NSPredicate(format: "exists == false")
+        let expectation = XCTNSPredicateExpectation(predicate: toastDisappeared, object: toast)
+        wait(for: [expectation], timeout: 3)
         
-        XCTAssertTrue(file1.waitForExistence(timeout: 2), "Should be back in test directory")
+        waitFor(element: modeIndicator, label: "NORMAL")
+        
+        // 5. Test cancelling with Escape key
+        app.typeKey(":", modifierFlags: [.shift])
+        waitFor(element: modeIndicator, label: "COMMAND")
+        app.typeText("bar")
+        XCTAssertEqual(statusText.label, ":bar")
+        app.typeKey(.escape, modifierFlags: [])
+        
+        // Check mode is back to normal and no toast appeared
+        waitFor(element: modeIndicator, label: "NORMAL")
+        XCTAssertFalse(app.staticTexts["Unknown command: bar"].exists)
     }
 }

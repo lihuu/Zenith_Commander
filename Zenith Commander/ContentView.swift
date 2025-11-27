@@ -19,4 +19,5 @@ struct ContentView: View {
 #Preview {
     ContentView()
         .frame(width: 1200, height: 800)
+        .environmentObject(AppState())
 }
