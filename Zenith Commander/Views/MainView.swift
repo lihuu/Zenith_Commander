@@ -44,7 +44,7 @@ struct MainView: View {
             StatusBarView(
                 mode: appState.mode,
                 statusText: appState.statusText,
-                itemCount: appState.currentPane.currentFiles.count,
+                itemCount: appState.currentPane.activeTab.files.count,
                 selectedCount: appState.currentPane.selections.count
             )
         }
@@ -209,7 +209,7 @@ struct MainView: View {
             
         case KeyEquivalent("G"):
             if modifiers.contains(.shift) {
-                pane.cursorIndex = max(0, pane.currentFiles.count - 1)
+                pane.cursorIndex = max(0, pane.activeTab.files.count - 1)
                 return .handled
             }
             return .ignored
@@ -347,7 +347,7 @@ struct MainView: View {
     
     private func moveCursor(direction: CursorDirection) {
         let pane = appState.currentPane
-        let fileCount = pane.currentFiles.count
+        let fileCount = pane.activeTab.files.count
         guard fileCount > 0 else { return }
         
         switch direction {
@@ -360,7 +360,7 @@ struct MainView: View {
     
     private func enterDirectory() {
         let pane = appState.currentPane
-        guard let file = pane.currentFiles[safe: pane.cursorIndex] else { return }
+        guard let file = pane.activeTab.files[safe: pane.cursorIndex] else { return }
         
         if file.type == .folder {
             pane.activeTab.currentPath = file.path

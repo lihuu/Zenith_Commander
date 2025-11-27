@@ -66,7 +66,7 @@ struct PaneView: View {
                 
                 // 文件数量和视图切换
                 HStack {
-                    Text("\(pane.currentFiles.count) items")
+                    Text("\(pane.activeTab.files.count) items")
                         .font(.system(size: 10))
                         .foregroundColor(Theme.textTertiary)
                     
@@ -84,7 +84,7 @@ struct PaneView: View {
                 .background(Theme.borderLight)
             
             // 主内容区域
-            if let deniedPath = permissionDeniedPath, pane.currentFiles.isEmpty {
+            if let deniedPath = permissionDeniedPath, pane.activeTab.files.isEmpty {
                 // 显示权限请求视图
                 PermissionRequestView(
                     path: deniedPath,
@@ -128,7 +128,7 @@ struct PaneView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 0) {
-                    ForEach(Array(pane.currentFiles.enumerated()), id: \.element.id) { index, file in
+                    ForEach(Array(pane.activeTab.files.enumerated()), id: \.element.id) { index, file in
                         FileRowView(
                             file: file,
                             isActive: index == pane.cursorIndex,
@@ -147,7 +147,7 @@ struct PaneView: View {
                         }
                     }
                     
-                    if pane.currentFiles.isEmpty {
+                    if pane.activeTab.files.isEmpty {
                         emptyDirectoryView
                     }
                 }
@@ -157,6 +157,7 @@ struct PaneView: View {
                     proxy.scrollTo(newValue, anchor: .center)
                 }
             }
+            .id(pane.activeTab.currentPath)
         }
     }
     
@@ -167,7 +168,7 @@ struct PaneView: View {
                     columns: [GridItem(.adaptive(minimum: 90, maximum: 100), spacing: 8)],
                     spacing: 8
                 ) {
-                    ForEach(Array(pane.currentFiles.enumerated()), id: \.element.id) { index, file in
+                    ForEach(Array(pane.activeTab.files.enumerated()), id: \.element.id) { index, file in
                         FileGridItemView(
                             file: file,
                             isActive: index == pane.cursorIndex,
@@ -188,7 +189,7 @@ struct PaneView: View {
                 }
                 .padding(8)
                 
-                if pane.currentFiles.isEmpty {
+                if pane.activeTab.files.isEmpty {
                     emptyDirectoryView
                 }
             }
@@ -197,6 +198,7 @@ struct PaneView: View {
                     proxy.scrollTo(newValue, anchor: .center)
                 }
             }
+            .id(pane.activeTab.currentPath)
         }
     }
     
@@ -327,7 +329,7 @@ struct PaneView: View {
     }
     
     func enterDirectory() {
-        guard let file = pane.currentFiles[safe: pane.cursorIndex] else { return }
+        guard let file = pane.activeTab.files[safe: pane.cursorIndex] else { return }
         if file.type == .folder {
             navigateTo(file.path)
         } else {
@@ -374,10 +376,10 @@ struct PaneView: View {
         let filesToDelete: [FileItem]
         
         if selections.isEmpty {
-            guard let file = pane.currentFiles[safe: pane.cursorIndex] else { return }
+            guard let file = pane.activeTab.files[safe: pane.cursorIndex] else { return }
             filesToDelete = [file]
         } else {
-            filesToDelete = pane.currentFiles.filter { selections.contains($0.id) }
+            filesToDelete = pane.activeTab.files.filter { selections.contains($0.id) }
         }
         
         do {
