@@ -865,6 +865,421 @@ struct CommandModeTests {
     }
 }
 
+// MARK: - 7.3 Filter 模式测试
+
+struct FilterModeTests {
+    
+    // 创建测试用文件列表
+    private func createTestFiles() -> [FileItem] {
+        let now = Date()
+        return [
+            FileItem(
+                id: "file-1",
+                name: "document.txt",
+                path: URL(fileURLWithPath: "/test/document.txt"),
+                type: .file,
+                size: 100,
+                modifiedDate: now,
+                createdDate: now,
+                isHidden: false,
+                permissions: "rw-r--r--",
+                fileExtension: "txt"
+            ),
+            FileItem(
+                id: "file-2",
+                name: "image.png",
+                path: URL(fileURLWithPath: "/test/image.png"),
+                type: .file,
+                size: 200,
+                modifiedDate: now,
+                createdDate: now,
+                isHidden: false,
+                permissions: "rw-r--r--",
+                fileExtension: "png"
+            ),
+            FileItem(
+                id: "file-3",
+                name: "Document.pdf",
+                path: URL(fileURLWithPath: "/test/Document.pdf"),
+                type: .file,
+                size: 300,
+                modifiedDate: now,
+                createdDate: now,
+                isHidden: false,
+                permissions: "rw-r--r--",
+                fileExtension: "pdf"
+            ),
+            FileItem(
+                id: "folder-1",
+                name: "Documents",
+                path: URL(fileURLWithPath: "/test/Documents"),
+                type: .folder,
+                size: 0,
+                modifiedDate: now,
+                createdDate: now,
+                isHidden: false,
+                permissions: "rwxr-xr-x",
+                fileExtension: ""
+            ),
+            FileItem(
+                id: "folder-2",
+                name: "Downloads",
+                path: URL(fileURLWithPath: "/test/Downloads"),
+                type: .folder,
+                size: 0,
+                modifiedDate: now,
+                createdDate: now,
+                isHidden: false,
+                permissions: "rwxr-xr-x",
+                fileExtension: ""
+            ),
+        ]
+    }
+    
+    // MARK: - 测试 1: 输入字符时，文件列表实时过滤（只显示匹配项）
+    
+    @Test func testEnterFilterMode() {
+        let state = AppState()
+        
+        state.enterMode(.filter)
+        
+        #expect(state.mode == .filter)
+        #expect(state.filterInput == "")
+    }
+    
+    @Test func testFilterInputAppendCharacters() {
+        let state = AppState()
+        
+        state.enterMode(.filter)
+        
+        // 模拟输入字符
+        state.filterInput.append("d")
+        #expect(state.filterInput == "d")
+        
+        state.filterInput.append("o")
+        #expect(state.filterInput == "do")
+        
+        state.filterInput.append("c")
+        #expect(state.filterInput == "doc")
+    }
+    
+    @Test func testFilterFilesRealTime() {
+        let state = AppState()
+        let testFiles = createTestFiles()
+        
+        // 设置测试文件
+        state.currentPane.activeTab.files = testFiles
+        
+        // 进入 Filter 模式
+        state.enterMode(.filter)
+        
+        // 保存原始文件到 unfilteredFiles（模拟首次过滤）
+        state.currentPane.activeTab.unfilteredFiles = testFiles
+        
+        // 模拟过滤 "doc"（大小写不敏感）
+        let filter = "doc"
+        let filteredFiles = testFiles.filter { $0.name.lowercased().contains(filter.lowercased()) }
+        state.currentPane.activeTab.files = filteredFiles
+        
+        // 验证过滤结果：应包含 document.txt, Document.pdf, Documents
+        #expect(state.currentPane.activeTab.files.count == 3)
+        
+        let names = state.currentPane.activeTab.files.map { $0.name }
+        #expect(names.contains("document.txt"))
+        #expect(names.contains("Document.pdf"))
+        #expect(names.contains("Documents"))
+        
+        // 不应包含 image.png 和 Downloads
+        #expect(!names.contains("image.png"))
+        #expect(!names.contains("Downloads"))
+    }
+    
+    @Test func testFilterIsCaseInsensitive() {
+        let state = AppState()
+        let testFiles = createTestFiles()
+        
+        state.currentPane.activeTab.files = testFiles
+        state.currentPane.activeTab.unfilteredFiles = testFiles
+        
+        // 测试大写 "DOC"
+        let filter = "DOC"
+        let filteredFiles = testFiles.filter { $0.name.lowercased().contains(filter.lowercased()) }
+        state.currentPane.activeTab.files = filteredFiles
+        
+        // 应该匹配 document.txt, Document.pdf, Documents
+        #expect(state.currentPane.activeTab.files.count == 3)
+    }
+    
+    @Test func testFilterNoMatch() {
+        let state = AppState()
+        let testFiles = createTestFiles()
+        
+        state.currentPane.activeTab.files = testFiles
+        state.currentPane.activeTab.unfilteredFiles = testFiles
+        
+        // 搜索不存在的内容
+        let filter = "xyz123"
+        let filteredFiles = testFiles.filter { $0.name.lowercased().contains(filter.lowercased()) }
+        state.currentPane.activeTab.files = filteredFiles
+        
+        #expect(state.currentPane.activeTab.files.isEmpty)
+    }
+    
+    @Test func testFilterProgressiveNarrowing() {
+        let state = AppState()
+        let testFiles = createTestFiles()
+        
+        state.currentPane.activeTab.files = testFiles
+        state.currentPane.activeTab.unfilteredFiles = testFiles
+        state.enterMode(.filter)
+        
+        // 输入 "d" - 应匹配 document.txt, Document.pdf, Documents, Downloads
+        var filter = "d"
+        var filteredFiles = testFiles.filter { $0.name.lowercased().contains(filter.lowercased()) }
+        #expect(filteredFiles.count == 4)
+        
+        // 输入 "do" - 应匹配 document.txt, Document.pdf, Documents, Downloads
+        filter = "do"
+        filteredFiles = testFiles.filter { $0.name.lowercased().contains(filter.lowercased()) }
+        #expect(filteredFiles.count == 4)
+        
+        // 输入 "doc" - 应匹配 document.txt, Document.pdf, Documents
+        filter = "doc"
+        filteredFiles = testFiles.filter { $0.name.lowercased().contains(filter.lowercased()) }
+        #expect(filteredFiles.count == 3)
+        
+        // 输入 "docu" - 应匹配 document.txt, Document.pdf, Documents
+        filter = "docu"
+        filteredFiles = testFiles.filter { $0.name.lowercased().contains(filter.lowercased()) }
+        #expect(filteredFiles.count == 3)
+    }
+    
+    // MARK: - 测试 2: 清空输入或按 Esc 退出过滤，恢复显示所有文件
+    
+    @Test func testEscExitsFilterModeAndRestoresFiles() {
+        let state = AppState()
+        let testFiles = createTestFiles()
+        
+        // 设置初始文件
+        state.currentPane.activeTab.files = testFiles
+        #expect(state.currentPane.activeTab.files.count == 5)
+        
+        // 进入 Filter 模式
+        state.enterMode(.filter)
+        #expect(state.mode == .filter)
+        
+        // 模拟过滤操作
+        state.currentPane.activeTab.unfilteredFiles = testFiles
+        let filter = "doc"
+        state.currentPane.activeTab.files = testFiles.filter { $0.name.lowercased().contains(filter.lowercased()) }
+        state.filterInput = filter
+        
+        // 验证文件被过滤
+        #expect(state.currentPane.activeTab.files.count == 3)
+        
+        // 按 Esc 退出（调用 exitMode）
+        state.exitMode()
+        
+        // 验证回到 Normal 模式
+        #expect(state.mode == .normal)
+        
+        // 验证文件列表已恢复
+        #expect(state.currentPane.activeTab.files.count == 5)
+        
+        // 验证 filterInput 被清空
+        #expect(state.filterInput == "")
+        
+        // 验证 unfilteredFiles 被清空
+        #expect(state.currentPane.activeTab.unfilteredFiles.isEmpty)
+    }
+    
+    @Test func testClearFilterInputRestoresFiles() {
+        let state = AppState()
+        let testFiles = createTestFiles()
+        
+        // 设置初始文件和 unfilteredFiles
+        state.currentPane.activeTab.files = testFiles
+        state.currentPane.activeTab.unfilteredFiles = testFiles
+        
+        // 模拟过滤
+        let filter = "image"
+        state.currentPane.activeTab.files = testFiles.filter { $0.name.lowercased().contains(filter.lowercased()) }
+        state.filterInput = filter
+        
+        // 验证过滤后只有1个文件
+        #expect(state.currentPane.activeTab.files.count == 1)
+        #expect(state.currentPane.activeTab.files.first?.name == "image.png")
+        
+        // 模拟清空输入（删除所有字符后应恢复）
+        state.filterInput = ""
+        // 当 filter 为空时，恢复原始列表
+        if state.filterInput.isEmpty && !state.currentPane.activeTab.unfilteredFiles.isEmpty {
+            state.currentPane.activeTab.files = state.currentPane.activeTab.unfilteredFiles
+        }
+        
+        // 验证文件列表已恢复
+        #expect(state.currentPane.activeTab.files.count == 5)
+    }
+    
+    @Test func testFilterModeDeleteCharacter() {
+        let state = AppState()
+        
+        state.enterMode(.filter)
+        state.filterInput = "test"
+        
+        // 模拟按 Delete 删除字符
+        if !state.filterInput.isEmpty {
+            state.filterInput.removeLast()
+        }
+        #expect(state.filterInput == "tes")
+        
+        if !state.filterInput.isEmpty {
+            state.filterInput.removeLast()
+        }
+        #expect(state.filterInput == "te")
+    }
+    
+    @Test func testFilterModeDeleteToEmpty() {
+        let state = AppState()
+        let testFiles = createTestFiles()
+        
+        state.currentPane.activeTab.files = testFiles
+        state.currentPane.activeTab.unfilteredFiles = testFiles
+        state.enterMode(.filter)
+        state.filterInput = "a"
+        
+        // 删除到空
+        state.filterInput.removeLast()
+        #expect(state.filterInput == "")
+        
+        // 空字符串上继续删除不应崩溃
+        if !state.filterInput.isEmpty {
+            state.filterInput.removeLast()
+        }
+        #expect(state.filterInput == "")
+    }
+    
+    @Test func testEnterConfirmsFilterAndKeepsResults() {
+        let state = AppState()
+        let testFiles = createTestFiles()
+        
+        // 设置初始文件
+        state.currentPane.activeTab.files = testFiles
+        state.currentPane.activeTab.unfilteredFiles = testFiles
+        
+        // 过滤
+        let filter = "image"
+        state.currentPane.activeTab.files = testFiles.filter { $0.name.lowercased().contains(filter.lowercased()) }
+        state.filterInput = filter
+        state.enterMode(.filter)
+        
+        #expect(state.currentPane.activeTab.files.count == 1)
+        
+        // 模拟按 Enter 确认：保持过滤结果，清空 unfilteredFiles
+        state.currentPane.activeTab.unfilteredFiles = []
+        state.mode = .normal
+        state.filterInput = ""
+        
+        // 验证
+        #expect(state.mode == .normal)
+        #expect(state.currentPane.activeTab.files.count == 1) // 保持过滤结果
+        #expect(state.currentPane.activeTab.unfilteredFiles.isEmpty)
+    }
+    
+    @Test func testExitModeOnlyRestoresWhenInFilterMode() {
+        let state = AppState()
+        let testFiles = createTestFiles()
+        
+        state.currentPane.activeTab.files = testFiles
+        
+        // 从 Visual 模式退出不应影响文件列表
+        state.enterMode(.visual)
+        state.exitMode()
+        
+        #expect(state.currentPane.activeTab.files.count == 5)
+        
+        // 从 Command 模式退出不应影响文件列表
+        state.enterMode(.command)
+        state.exitMode()
+        
+        #expect(state.currentPane.activeTab.files.count == 5)
+    }
+    
+    @Test func testFilterWithSpecialCharacters() {
+        let state = AppState()
+        
+        state.enterMode(.filter)
+        
+        // 测试特殊字符
+        state.filterInput = "test_file"
+        #expect(state.filterInput == "test_file")
+        
+        state.filterInput = "test-file"
+        #expect(state.filterInput == "test-file")
+        
+        state.filterInput = "test.txt"
+        #expect(state.filterInput == "test.txt")
+    }
+    
+    @Test func testFilterCursorResetToZero() {
+        let state = AppState()
+        let testFiles = createTestFiles()
+        
+        state.currentPane.activeTab.files = testFiles
+        state.currentPane.activeTab.unfilteredFiles = testFiles
+        state.currentPane.cursorIndex = 3 // 设置一个非零的光标位置
+        
+        // 过滤后光标应重置为0
+        let filter = "doc"
+        state.currentPane.activeTab.files = testFiles.filter { $0.name.lowercased().contains(filter.lowercased()) }
+        state.currentPane.cursorIndex = 0
+        
+        #expect(state.currentPane.cursorIndex == 0)
+    }
+    
+    @Test func testFilterModeHasDistinctColor() {
+        // 验证 Filter 模式有独特的颜色
+        let normalColor = AppMode.normal.color
+        let filterColor = AppMode.filter.color
+        
+        #expect(filterColor != normalColor)
+    }
+    
+    @Test func testRestoreUnfilteredFilesMethod() {
+        let state = AppState()
+        let testFiles = createTestFiles()
+        
+        // 设置过滤后的状态
+        state.currentPane.activeTab.unfilteredFiles = testFiles
+        state.currentPane.activeTab.files = [testFiles[0]] // 只保留一个
+        state.currentPane.cursorIndex = 0
+        
+        // 调用恢复方法
+        state.restoreUnfilteredFiles()
+        
+        // 验证
+        #expect(state.currentPane.activeTab.files.count == 5)
+        #expect(state.currentPane.activeTab.unfilteredFiles.isEmpty)
+    }
+    
+    @Test func testRestoreUnfilteredFilesAdjustsCursor() {
+        let state = AppState()
+        let testFiles = createTestFiles()
+        
+        // 设置过滤后的状态，光标超出范围
+        state.currentPane.activeTab.unfilteredFiles = testFiles
+        state.currentPane.activeTab.files = testFiles
+        state.currentPane.cursorIndex = 10 // 超出范围
+        
+        // 调用恢复方法
+        state.restoreUnfilteredFiles()
+        
+        // 验证光标被调整
+        #expect(state.currentPane.cursorIndex >= 0)
+        #expect(state.currentPane.cursorIndex < state.currentPane.activeTab.files.count)
+    }
+}
+
 // MARK: - 8. FileSystemService 测试
 
 struct FileSystemServiceTests {

@@ -320,19 +320,24 @@ struct MainView: View {
         
         switch key {
         case .return:
-            applyFilter()
-            appState.exitMode()
+            // 按 Enter 确认过滤，保持当前过滤结果，清空 unfilteredFiles
+            let pane = appState.currentPane
+            pane.activeTab.unfilteredFiles = []
+            appState.mode = .normal
+            appState.filterInput = ""
             return .handled
             
         case .delete:
             if !appState.filterInput.isEmpty {
                 appState.filterInput.removeLast()
+                // 实时更新过滤
+                applyFilter()
             }
             return .handled
             
         default:
             let char = key.character
-            if char.isLetter || char.isNumber || char == "." || char == "_" || char == "-" {
+            if char.isLetter || char.isNumber || char == "." || char == "_" || char == "-" || char == " " {
                 appState.filterInput.append(char)
                 // 实时过滤
                 applyFilter()
@@ -493,16 +498,26 @@ struct MainView: View {
     }
     
     private func applyFilter() {
+        let pane = appState.currentPane
+        let tab = pane.activeTab
         let filter = appState.filterInput.lowercased()
-        if filter.isEmpty {
-            // 重新加载完整列表
-            refreshCurrentPane()
-        } else {
-            let pane = appState.currentPane
-            let allFiles = FileSystemService.shared.loadDirectory(at: pane.activeTab.currentPath)
-            pane.activeTab.files = allFiles.filter { $0.name.lowercased().contains(filter) }
-            pane.cursorIndex = 0
+        
+        // 首次过滤时保存原始文件列表
+        if tab.unfilteredFiles.isEmpty && !tab.files.isEmpty {
+            tab.unfilteredFiles = tab.files
         }
+        
+        if filter.isEmpty {
+            // 过滤词为空时，恢复原始列表
+            if !tab.unfilteredFiles.isEmpty {
+                tab.files = tab.unfilteredFiles
+            }
+        } else {
+            // 从原始列表过滤
+            let sourceFiles = tab.unfilteredFiles.isEmpty ? tab.files : tab.unfilteredFiles
+            tab.files = sourceFiles.filter { $0.name.lowercased().contains(filter) }
+        }
+        pane.cursorIndex = 0
     }
     
     private func deleteSelectedFiles() {

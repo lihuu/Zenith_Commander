@@ -18,6 +18,9 @@ class TabState: Identifiable, ObservableObject {
     @Published var cursorIndex: Int
     @Published var scrollOffset: CGFloat
     
+    /// 未过滤的原始文件列表（用于 Filter 模式恢复）
+    var unfilteredFiles: [FileItem] = []
+    
     init(drive: DriveInfo, path: URL) {
         self.id = UUID()
         self.drive = drive
@@ -295,9 +298,26 @@ class AppState: ObservableObject {
         if mode == .driveSelect {
             showDriveSelector = false
         }
+        // 退出 Filter 模式时，恢复未过滤的文件列表
+        if mode == .filter {
+            restoreUnfilteredFiles()
+        }
         mode = .normal
         commandInput = ""
         filterInput = ""
+    }
+    
+    /// 恢复未过滤的文件列表
+    func restoreUnfilteredFiles() {
+        let tab = currentPane.activeTab
+        if !tab.unfilteredFiles.isEmpty {
+            tab.files = tab.unfilteredFiles
+            tab.unfilteredFiles = []
+            currentPane.cursorIndex = min(currentPane.cursorIndex, tab.files.count - 1)
+            if currentPane.cursorIndex < 0 {
+                currentPane.cursorIndex = 0
+            }
+        }
     }
     
     // MARK: - Toast 通知
