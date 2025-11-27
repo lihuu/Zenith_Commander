@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 struct MainView: View {
     @StateObject private var appState = AppState()
@@ -229,28 +230,30 @@ struct MainView: View {
         
         switch key {
         case KeyEquivalent("j"):
-            moveCursor(direction: .down)
-            // 更新选择范围（从锚点到当前光标）
-            pane.updateVisualSelection()
+            moveVisualCursor(direction: .down)
             return .handled
             
         case KeyEquivalent("k"):
-            moveCursor(direction: .up)
-            // 更新选择范围（从锚点到当前光标）
-            pane.updateVisualSelection()
+            moveVisualCursor(direction: .up)
             return .handled
             
         case KeyEquivalent("g"):
             // 跳到顶部
-            pane.cursorIndex = 0
-            pane.updateVisualSelection()
+            Task { @MainActor in
+                pane.activeTab.cursorIndex = 0
+                pane.updateVisualSelection()
+                pane.objectWillChange.send()
+            }
             return .handled
             
         case KeyEquivalent("G"):
             // 跳到底部
             if modifiers.contains(.shift) {
-                pane.cursorIndex = max(0, pane.activeTab.files.count - 1)
-                pane.updateVisualSelection()
+                Task { @MainActor in
+                    pane.activeTab.cursorIndex = max(0, pane.activeTab.files.count - 1)
+                    pane.updateVisualSelection()
+                    pane.objectWillChange.send()
+                }
                 return .handled
             }
             return .ignored
@@ -377,11 +380,33 @@ struct MainView: View {
         let fileCount = pane.activeTab.files.count
         guard fileCount > 0 else { return }
         
-        switch direction {
-        case .up:
-            pane.cursorIndex = max(0, pane.cursorIndex - 1)
-        case .down:
-            pane.cursorIndex = min(fileCount - 1, pane.cursorIndex + 1)
+        // 使用 Task 延迟执行，避免在视图更新期间修改状态
+        Task { @MainActor in
+            switch direction {
+            case .up:
+                pane.activeTab.cursorIndex = max(0, pane.activeTab.cursorIndex - 1)
+            case .down:
+                pane.activeTab.cursorIndex = min(fileCount - 1, pane.activeTab.cursorIndex + 1)
+            }
+            // 手动触发 objectWillChange
+            pane.objectWillChange.send()
+        }
+    }
+    
+    private func moveVisualCursor(direction: CursorDirection) {
+        let pane = appState.currentPane
+        let fileCount = pane.activeTab.files.count
+        guard fileCount > 0 else { return }
+        
+        Task { @MainActor in
+            switch direction {
+            case .up:
+                pane.activeTab.cursorIndex = max(0, pane.activeTab.cursorIndex - 1)
+            case .down:
+                pane.activeTab.cursorIndex = min(fileCount - 1, pane.activeTab.cursorIndex + 1)
+            }
+            pane.updateVisualSelection()
+            pane.objectWillChange.send()
         }
     }
     

@@ -37,6 +37,9 @@ struct PaneView: View {
                     loadCurrentDirectoryWithPermissionCheck()
                 }
             )
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier(side == .left ? "left_pane_header" : "right_pane_header")
+            .accessibilityLabel(isActivePane ? "active" : "inactive")
             
             // 权限错误横幅
             if showPermissionError, let deniedPath = permissionDeniedPath {
