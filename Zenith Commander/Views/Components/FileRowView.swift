@@ -51,6 +51,14 @@ struct FileRowView: View {
                 .stroke(cursorBorderColor, lineWidth: isActive && !isPaneActive ? 1 : 0)
                 .padding(1)
         )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("file_row_\(file.name)")
+        .accessibilityLabel(file.name)
+        .accessibilityValue(
+            "\(file.formattedSize), \(file.formattedDate)" +
+            (isActive ? ", focused" : "") +
+            (isSelected ? ", selected" : "")
+        )
     }
     
     // MARK: - 颜色计算
@@ -148,6 +156,13 @@ struct FileGridItemView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 6)
                 .stroke(borderColor, lineWidth: isActive ? 2 : 0)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("file_grid_item_\(file.name)")
+        .accessibilityLabel(file.name)
+        .accessibilityValue(
+            (isActive ? "focused" : "") +
+            (isSelected ? ", selected" : "")
         )
     }
     
