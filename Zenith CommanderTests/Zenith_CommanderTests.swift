@@ -336,6 +336,293 @@ struct AppStateTests {
     }
 }
 
+// MARK: - 7.1 Visual 模式测试
+
+struct VisualModeTests {
+    
+    func createTestDrive() -> DriveInfo {
+        return DriveInfo(
+            id: "test-drive",
+            name: "Test Drive",
+            path: URL(fileURLWithPath: "/"),
+            type: .system,
+            totalCapacity: 500_000_000_000,
+            availableCapacity: 100_000_000_000
+        )
+    }
+    
+    func createTestFileItems(count: Int) -> [FileItem] {
+        return (0..<count).map { index in
+            FileItem(
+                id: "file-\(index)",
+                name: "File \(index).txt",
+                path: URL(fileURLWithPath: "/test/file\(index).txt"),
+                type: .file,
+                size: 1000,
+                modifiedDate: Date(),
+                createdDate: Date(),
+                isHidden: false,
+                permissions: "rw-r--r--",
+                fileExtension: "txt"
+            )
+        }
+    }
+    
+    // MARK: - 测试 1: 按 v 进入 Visual 模式，状态栏显示 "VISUAL"
+    
+    @Test func testEnterVisualModeShowsVisualStatus() {
+        let state = AppState()
+        
+        // 初始状态应该是 Normal 模式
+        #expect(state.mode == .normal)
+        #expect(state.mode.rawValue == "NORMAL")
+        
+        // 进入 Visual 模式
+        state.enterMode(.visual)
+        
+        // 验证模式已切换
+        #expect(state.mode == .visual)
+        #expect(state.mode.rawValue == "VISUAL")
+        
+        // 验证保存了之前的模式
+        #expect(state.previousMode == .normal)
+    }
+    
+    @Test func testVisualModeHasDistinctColor() {
+        // 验证 Visual 模式有独特的颜色（不同于 Normal 模式）
+        let normalColor = AppMode.normal.color
+        let visualColor = AppMode.visual.color
+        
+        // Visual 模式的颜色应该已定义（不会崩溃）
+        #expect(visualColor != normalColor)
+    }
+    
+    // MARK: - 测试 2: Visual 模式下 j/k 移动，光标移动过的文件自动选中
+    
+    @Test func testVisualModeStartSelection() {
+        let state = AppState()
+        let pane = state.currentPane
+        
+        // 设置测试文件
+        pane.activeTab.files = createTestFileItems(count: 5)
+        pane.cursorIndex = 2  // 从第 3 个文件开始
+        
+        // 进入 Visual 模式并开始选择
+        state.enterMode(.visual)
+        pane.startVisualSelection()
+        
+        // 验证锚点被设置
+        #expect(pane.visualAnchor == 2)
+        
+        // 验证当前文件被选中
+        #expect(pane.selections.contains("file-2"))
+        #expect(pane.selections.count == 1)
+    }
+    
+    @Test func testVisualModeSelectDownWithJ() {
+        let state = AppState()
+        let pane = state.currentPane
+        
+        // 设置测试文件
+        pane.activeTab.files = createTestFileItems(count: 5)
+        pane.cursorIndex = 1  // 从第 2 个文件开始
+        
+        // 进入 Visual 模式
+        state.enterMode(.visual)
+        pane.startVisualSelection()
+        
+        // 模拟按 j 向下移动
+        pane.cursorIndex = 2
+        pane.updateVisualSelection()
+        
+        // 验证选中了从锚点到当前位置的文件 (file-1, file-2)
+        #expect(pane.selections.count == 2)
+        #expect(pane.selections.contains("file-1"))
+        #expect(pane.selections.contains("file-2"))
+        
+        // 再按 j 继续向下
+        pane.cursorIndex = 3
+        pane.updateVisualSelection()
+        
+        // 验证选中范围扩展 (file-1, file-2, file-3)
+        #expect(pane.selections.count == 3)
+        #expect(pane.selections.contains("file-1"))
+        #expect(pane.selections.contains("file-2"))
+        #expect(pane.selections.contains("file-3"))
+    }
+    
+    @Test func testVisualModeSelectUpWithK() {
+        let state = AppState()
+        let pane = state.currentPane
+        
+        // 设置测试文件
+        pane.activeTab.files = createTestFileItems(count: 5)
+        pane.cursorIndex = 3  // 从第 4 个文件开始
+        
+        // 进入 Visual 模式
+        state.enterMode(.visual)
+        pane.startVisualSelection()
+        
+        // 模拟按 k 向上移动
+        pane.cursorIndex = 2
+        pane.updateVisualSelection()
+        
+        // 验证选中了从当前位置到锚点的文件 (file-2, file-3)
+        #expect(pane.selections.count == 2)
+        #expect(pane.selections.contains("file-2"))
+        #expect(pane.selections.contains("file-3"))
+        
+        // 再按 k 继续向上
+        pane.cursorIndex = 1
+        pane.updateVisualSelection()
+        
+        // 验证选中范围扩展 (file-1, file-2, file-3)
+        #expect(pane.selections.count == 3)
+        #expect(pane.selections.contains("file-1"))
+        #expect(pane.selections.contains("file-2"))
+        #expect(pane.selections.contains("file-3"))
+    }
+    
+    @Test func testVisualModeSelectionContractsWhenDirectionChanges() {
+        let state = AppState()
+        let pane = state.currentPane
+        
+        // 设置测试文件
+        pane.activeTab.files = createTestFileItems(count: 5)
+        pane.cursorIndex = 2  // 从第 3 个文件开始（锚点）
+        
+        // 进入 Visual 模式
+        state.enterMode(.visual)
+        pane.startVisualSelection()
+        
+        // 向下移动选择 (file-2, file-3, file-4)
+        pane.cursorIndex = 4
+        pane.updateVisualSelection()
+        #expect(pane.selections.count == 3)
+        #expect(pane.selections.contains("file-2"))
+        #expect(pane.selections.contains("file-3"))
+        #expect(pane.selections.contains("file-4"))
+        
+        // 按 k 向上移动，选择应该收缩
+        pane.cursorIndex = 3
+        pane.updateVisualSelection()
+        
+        // 验证 file-4 被取消选中，只剩 file-2 和 file-3
+        #expect(pane.selections.count == 2)
+        #expect(pane.selections.contains("file-2"))
+        #expect(pane.selections.contains("file-3"))
+        #expect(!pane.selections.contains("file-4"))
+        
+        // 继续向上移动，收缩到只有锚点
+        pane.cursorIndex = 2
+        pane.updateVisualSelection()
+        #expect(pane.selections.count == 1)
+        #expect(pane.selections.contains("file-2"))
+        
+        // 继续向上移动，选择应该向上扩展
+        pane.cursorIndex = 1
+        pane.updateVisualSelection()
+        #expect(pane.selections.count == 2)
+        #expect(pane.selections.contains("file-1"))
+        #expect(pane.selections.contains("file-2"))
+    }
+    
+    // MARK: - 测试 3: 按 Esc 退出 Visual 模式，清除选择
+    
+    @Test func testEscExitsVisualModeAndClearsSelection() {
+        let state = AppState()
+        let pane = state.currentPane
+        
+        // 设置测试文件
+        pane.activeTab.files = createTestFileItems(count: 5)
+        pane.cursorIndex = 1
+        
+        // 进入 Visual 模式并选择一些文件
+        state.enterMode(.visual)
+        pane.startVisualSelection()
+        
+        pane.cursorIndex = 3
+        pane.updateVisualSelection()
+        
+        // 验证有选中的文件
+        #expect(pane.selections.count == 3)
+        #expect(pane.visualAnchor != nil)
+        
+        // 模拟按 Esc：清除选择并退出模式
+        pane.clearSelections()
+        state.exitMode()
+        
+        // 验证回到 Normal 模式
+        #expect(state.mode == .normal)
+        
+        // 验证选择被清除
+        #expect(pane.selections.isEmpty)
+        
+        // 验证锚点被清除
+        #expect(pane.visualAnchor == nil)
+    }
+    
+    @Test func testClearSelectionsAlsoClearsAnchor() {
+        let state = AppState()
+        let pane = state.currentPane
+        
+        // 设置测试文件
+        pane.activeTab.files = createTestFileItems(count: 5)
+        pane.cursorIndex = 2
+        
+        // 开始选择
+        pane.startVisualSelection()
+        #expect(pane.visualAnchor == 2)
+        #expect(!pane.selections.isEmpty)
+        
+        // 清除选择
+        pane.clearSelections()
+        
+        // 验证锚点和选择都被清除
+        #expect(pane.visualAnchor == nil)
+        #expect(pane.selections.isEmpty)
+    }
+    
+    // MARK: - 边界条件测试
+    
+    @Test func testVisualModeWithEmptyFileList() {
+        let state = AppState()
+        let pane = state.currentPane
+        
+        // 空文件列表
+        pane.activeTab.files = []
+        pane.cursorIndex = 0
+        
+        state.enterMode(.visual)
+        pane.startVisualSelection()
+        
+        // 不应该崩溃，选择应该为空
+        #expect(pane.selections.isEmpty)
+    }
+    
+    @Test func testVisualModeSelectionAtBoundaries() {
+        let state = AppState()
+        let pane = state.currentPane
+        
+        // 设置测试文件
+        pane.activeTab.files = createTestFileItems(count: 3)
+        pane.cursorIndex = 0  // 从第一个文件开始
+        
+        state.enterMode(.visual)
+        pane.startVisualSelection()
+        
+        // 移动到最后一个文件
+        pane.cursorIndex = 2
+        pane.updateVisualSelection()
+        
+        // 应该选中所有文件
+        #expect(pane.selections.count == 3)
+        #expect(pane.selections.contains("file-0"))
+        #expect(pane.selections.contains("file-1"))
+        #expect(pane.selections.contains("file-2"))
+    }
+}
+
 // MARK: - 8. FileSystemService 测试
 
 struct FileSystemServiceTests {

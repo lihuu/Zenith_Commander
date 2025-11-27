@@ -51,6 +51,7 @@ class PaneState {
     var activeTabIndex: Int
     var viewMode: ViewMode
     var selections: Set<String> // 存储选中的文件 ID
+    var visualAnchor: Int? // Visual 模式的锚点位置
     
     init(side: PaneSide, initialPath: URL, drive: DriveInfo) {
         self.side = side
@@ -58,6 +59,7 @@ class PaneState {
         self.activeTabIndex = 0
         self.viewMode = .list
         self.selections = []
+        self.visualAnchor = nil
     }
     
     /// 当前活动标签页
@@ -113,6 +115,7 @@ class PaneState {
     /// 清除选择
     func clearSelections() {
         selections.removeAll()
+        visualAnchor = nil
     }
     
     /// 切换选择状态
@@ -126,9 +129,41 @@ class PaneState {
     
     /// 选择当前光标所在文件
     func selectCurrentFile() {
-        guard cursorIndex < currentFiles.count else { return }
-        let file = currentFiles[cursorIndex]
+        guard cursorIndex < activeTab.files.count else { return }
+        let file = activeTab.files[cursorIndex]
         selections.insert(file.id)
+    }
+    
+    /// 开始 Visual 模式选择
+    func startVisualSelection() {
+        visualAnchor = cursorIndex
+        // 选中当前文件
+        selectCurrentFile()
+    }
+    
+    /// 更新 Visual 模式选择范围
+    /// 选择从锚点到当前光标之间的所有文件
+    func updateVisualSelection() {
+        guard let anchor = visualAnchor else {
+            // 如果没有锚点，设置当前位置为锚点
+            startVisualSelection()
+            return
+        }
+        
+        let files = activeTab.files
+        guard !files.isEmpty else { return }
+        
+        // 计算选择范围
+        let start = min(anchor, cursorIndex)
+        let end = max(anchor, cursorIndex)
+        
+        // 清除旧选择，重新选择范围内的文件
+        selections.removeAll()
+        for i in start...end {
+            if i < files.count {
+                selections.insert(files[i].id)
+            }
+        }
     }
 }
 
