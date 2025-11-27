@@ -89,6 +89,10 @@ struct MainView: View {
         
         // ESC - 退出当前模式
         if key == .escape {
+            // 如果在 Visual 模式，清除选中状态
+            if appState.mode == .visual {
+                appState.currentPane.clearSelections()
+            }
             appState.exitMode()
             return .handled
         }
@@ -145,6 +149,8 @@ struct MainView: View {
         // 模式切换
         case KeyEquivalent("v"):
             appState.enterMode(.visual)
+            // 进入 Visual 模式时设置锚点并选中当前文件
+            pane.startVisualSelection()
             return .handled
             
         case KeyEquivalent(":"):
@@ -227,16 +233,40 @@ struct MainView: View {
         switch key {
         case KeyEquivalent("j"):
             moveCursor(direction: .down)
-            pane.selectCurrentFile()
+            // 更新选择范围（从锚点到当前光标）
+            pane.updateVisualSelection()
             return .handled
             
         case KeyEquivalent("k"):
             moveCursor(direction: .up)
-            pane.selectCurrentFile()
+            // 更新选择范围（从锚点到当前光标）
+            pane.updateVisualSelection()
             return .handled
+            
+        case KeyEquivalent("g"):
+            // 跳到顶部
+            pane.cursorIndex = 0
+            pane.updateVisualSelection()
+            return .handled
+            
+        case KeyEquivalent("G"):
+            // 跳到底部
+            if modifiers.contains(.shift) {
+                pane.cursorIndex = max(0, pane.activeTab.files.count - 1)
+                pane.updateVisualSelection()
+                return .handled
+            }
+            return .ignored
             
         case KeyEquivalent("y"):
             appState.yankSelectedFiles()
+            appState.exitMode()
+            pane.clearSelections()
+            return .handled
+            
+        case KeyEquivalent("d"):
+            // 删除选中文件
+            deleteSelectedFiles()
             appState.exitMode()
             pane.clearSelections()
             return .handled
@@ -246,7 +276,7 @@ struct MainView: View {
             appState.showRenameModal = true
             return .handled
             
-        case KeyEquivalent("v"):
+        case KeyEquivalent("v"), .escape:
             // 退出 Visual 模式
             pane.clearSelections()
             appState.exitMode()
@@ -450,6 +480,28 @@ struct MainView: View {
             let allFiles = FileSystemService.shared.loadDirectory(at: pane.activeTab.currentPath)
             pane.activeTab.files = allFiles.filter { $0.name.lowercased().contains(filter) }
             pane.cursorIndex = 0
+        }
+    }
+    
+    private func deleteSelectedFiles() {
+        let pane = appState.currentPane
+        let selections = pane.selections
+        let filesToDelete: [FileItem]
+        
+        if selections.isEmpty {
+            guard let file = pane.activeTab.files[safe: pane.cursorIndex] else { return }
+            filesToDelete = [file]
+        } else {
+            filesToDelete = pane.activeTab.files.filter { selections.contains($0.id) }
+        }
+        
+        do {
+            try FileSystemService.shared.trashFiles(filesToDelete)
+            appState.showToast("\(filesToDelete.count) file(s) moved to Trash")
+            pane.clearSelections()
+            refreshCurrentPane()
+        } catch {
+            appState.showToast("Error: \(error.localizedDescription)")
         }
     }
 }
