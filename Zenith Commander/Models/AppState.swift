@@ -183,6 +183,7 @@ class AppState: ObservableObject {
     // MARK: - 输入状态
     @Published var commandInput: String = ""
     @Published var filterInput: String = ""
+    @Published var filterUseRegex: Bool = false
     @Published var inputBuffer: String = ""
     
     // MARK: - 剪贴板
@@ -250,7 +251,8 @@ class AppState: ObservableObject {
         case .command:
             return ":\(commandInput)"
         case .filter:
-            return "/\(filterInput)"
+            let prefix = filterUseRegex ? "/regex: " : "/"
+            return "\(prefix)\(filterInput)"
         default:
             let tab = currentPane.activeTab
             let currentFile = tab.files.isEmpty ? "" : tab.files[safe: tab.cursorIndex]?.name ?? ""
@@ -305,6 +307,7 @@ class AppState: ObservableObject {
         mode = .normal
         commandInput = ""
         filterInput = ""
+        filterUseRegex = false
     }
     
     /// 恢复未过滤的文件列表

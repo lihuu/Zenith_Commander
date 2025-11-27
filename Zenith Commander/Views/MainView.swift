@@ -157,6 +157,13 @@ struct MainView: View {
             
         case KeyEquivalent("/"):
             appState.enterMode(.filter)
+            appState.filterUseRegex = false
+            return .handled
+        
+        // 正则表达式过滤 (Shift + /)
+        case KeyEquivalent("?"):
+            appState.enterMode(.filter)
+            appState.filterUseRegex = true
             return .handled
             
         // 驱动器选择 (Shift + D)
@@ -325,6 +332,7 @@ struct MainView: View {
             pane.activeTab.unfilteredFiles = []
             appState.mode = .normal
             appState.filterInput = ""
+            appState.filterUseRegex = false
             return .handled
             
         case .delete:
@@ -337,7 +345,18 @@ struct MainView: View {
             
         default:
             let char = key.character
-            if char.isLetter || char.isNumber || char == "." || char == "_" || char == "-" || char == " " {
+            // 普通过滤支持常用字符，正则表达式支持更多特殊字符
+            let isValidChar: Bool
+            if appState.filterUseRegex {
+                // 正则表达式模式：支持更多字符
+                isValidChar = char.isLetter || char.isNumber || char.isWhitespace ||
+                    "._-*+?^$[](){}|\\".contains(char)
+            } else {
+                // 普通模式：支持基本字符
+                isValidChar = char.isLetter || char.isNumber || "._- ".contains(char)
+            }
+            
+            if isValidChar {
                 appState.filterInput.append(char)
                 // 实时过滤
                 applyFilter()
@@ -500,7 +519,7 @@ struct MainView: View {
     private func applyFilter() {
         let pane = appState.currentPane
         let tab = pane.activeTab
-        let filter = appState.filterInput.lowercased()
+        let filter = appState.filterInput
         
         // 首次过滤时保存原始文件列表
         if tab.unfilteredFiles.isEmpty && !tab.files.isEmpty {
@@ -515,7 +534,24 @@ struct MainView: View {
         } else {
             // 从原始列表过滤
             let sourceFiles = tab.unfilteredFiles.isEmpty ? tab.files : tab.unfilteredFiles
-            tab.files = sourceFiles.filter { $0.name.lowercased().contains(filter) }
+            
+            if appState.filterUseRegex {
+                // 正则表达式过滤
+                do {
+                    let regex = try NSRegularExpression(pattern: filter, options: [.caseInsensitive])
+                    tab.files = sourceFiles.filter { file in
+                        let range = NSRange(file.name.startIndex..., in: file.name)
+                        return regex.firstMatch(in: file.name, options: [], range: range) != nil
+                    }
+                } catch {
+                    // 正则表达式无效时，不过滤
+                    tab.files = sourceFiles
+                }
+            } else {
+                // 普通字符串匹配（大小写不敏感）
+                let lowerFilter = filter.lowercased()
+                tab.files = sourceFiles.filter { $0.name.lowercased().contains(lowerFilter) }
+            }
         }
         pane.cursorIndex = 0
     }

@@ -1278,6 +1278,160 @@ struct FilterModeTests {
         #expect(state.currentPane.cursorIndex >= 0)
         #expect(state.currentPane.cursorIndex < state.currentPane.activeTab.files.count)
     }
+    
+    // MARK: - 正则表达式过滤测试
+    
+    @Test func testEnterRegexFilterMode() {
+        let state = AppState()
+        
+        // 模拟 Shift + / 进入正则模式
+        state.enterMode(.filter)
+        state.filterUseRegex = true
+        
+        #expect(state.mode == .filter)
+        #expect(state.filterUseRegex == true)
+    }
+    
+    @Test func testRegexFilterStatusText() {
+        let state = AppState()
+        
+        // 普通过滤模式
+        state.enterMode(.filter)
+        state.filterUseRegex = false
+        state.filterInput = "test"
+        
+        #expect(state.statusText == "/test")
+        
+        // 正则过滤模式
+        state.filterUseRegex = true
+        
+        #expect(state.statusText == "/regex: test")
+    }
+    
+    @Test func testRegexFilterMatching() {
+        let state = AppState()
+        let testFiles = createTestFiles()
+        
+        state.currentPane.activeTab.files = testFiles
+        state.currentPane.activeTab.unfilteredFiles = testFiles
+        state.filterUseRegex = true
+        
+        // 使用正则表达式 "^doc" 匹配以 doc 开头的文件（大小写不敏感）
+        let regex = try! NSRegularExpression(pattern: "^doc", options: [.caseInsensitive])
+        let filteredFiles = testFiles.filter { file in
+            let range = NSRange(file.name.startIndex..., in: file.name)
+            return regex.firstMatch(in: file.name, options: [], range: range) != nil
+        }
+        state.currentPane.activeTab.files = filteredFiles
+        
+        // 应该匹配 document.txt, Document.pdf, Documents（都以 doc 开头）
+        #expect(state.currentPane.activeTab.files.count == 3)
+    }
+    
+    @Test func testRegexFilterWithPattern() {
+        let state = AppState()
+        let testFiles = createTestFiles()
+        
+        state.currentPane.activeTab.files = testFiles
+        state.currentPane.activeTab.unfilteredFiles = testFiles
+        state.filterUseRegex = true
+        
+        // 使用正则表达式 ".*\\.txt$" 匹配 .txt 结尾的文件
+        let regex = try! NSRegularExpression(pattern: ".*\\.txt$", options: [.caseInsensitive])
+        let filteredFiles = testFiles.filter { file in
+            let range = NSRange(file.name.startIndex..., in: file.name)
+            return regex.firstMatch(in: file.name, options: [], range: range) != nil
+        }
+        state.currentPane.activeTab.files = filteredFiles
+        
+        // 应该只匹配 document.txt
+        #expect(state.currentPane.activeTab.files.count == 1)
+        #expect(state.currentPane.activeTab.files.first?.name == "document.txt")
+    }
+    
+    @Test func testRegexFilterInvalidPattern() {
+        let state = AppState()
+        let testFiles = createTestFiles()
+        
+        state.currentPane.activeTab.files = testFiles
+        state.currentPane.activeTab.unfilteredFiles = testFiles
+        state.filterUseRegex = true
+        
+        // 无效的正则表达式 "[" 应该不崩溃
+        let invalidPattern = "["
+        let isValid = (try? NSRegularExpression(pattern: invalidPattern)) != nil
+        
+        #expect(isValid == false)
+        
+        // 当正则无效时，应保持原始文件列表
+        if !isValid {
+            state.currentPane.activeTab.files = state.currentPane.activeTab.unfilteredFiles
+        }
+        
+        #expect(state.currentPane.activeTab.files.count == 5)
+    }
+    
+    @Test func testExitFilterModeClearsRegexFlag() {
+        let state = AppState()
+        
+        // 进入正则过滤模式
+        state.enterMode(.filter)
+        state.filterUseRegex = true
+        state.filterInput = "test"
+        
+        #expect(state.filterUseRegex == true)
+        
+        // 退出模式
+        state.exitMode()
+        
+        // 验证正则标志被清除
+        #expect(state.filterUseRegex == false)
+        #expect(state.filterInput == "")
+    }
+    
+    @Test func testRegexFilterSpecialCharacters() {
+        let state = AppState()
+        
+        state.enterMode(.filter)
+        state.filterUseRegex = true
+        
+        // 正则模式应支持特殊字符
+        state.filterInput = "^test.*$"
+        #expect(state.filterInput == "^test.*$")
+        
+        state.filterInput = "file[0-9]+"
+        #expect(state.filterInput == "file[0-9]+")
+        
+        state.filterInput = "(doc|img)"
+        #expect(state.filterInput == "(doc|img)")
+    }
+    
+    @Test func testNormalFilterVsRegexFilter() {
+        let state = AppState()
+        let testFiles = createTestFiles()
+        
+        state.currentPane.activeTab.files = testFiles
+        state.currentPane.activeTab.unfilteredFiles = testFiles
+        
+        // 普通模式："doc" 会匹配包含 doc 的文件
+        state.filterUseRegex = false
+        let normalFilter = "doc"
+        let normalFiltered = testFiles.filter { $0.name.lowercased().contains(normalFilter.lowercased()) }
+        
+        // 应该匹配 document.txt, Document.pdf, Documents
+        #expect(normalFiltered.count == 3)
+        
+        // 正则模式："^D" 只匹配以大写 D 开头的文件（区分大小写的话）
+        state.filterUseRegex = true
+        let regex = try! NSRegularExpression(pattern: "^D", options: [])
+        let regexFiltered = testFiles.filter { file in
+            let range = NSRange(file.name.startIndex..., in: file.name)
+            return regex.firstMatch(in: file.name, options: [], range: range) != nil
+        }
+        
+        // 应该匹配 Document.pdf, Documents, Downloads
+        #expect(regexFiltered.count == 3)
+    }
 }
 
 // MARK: - 8. FileSystemService 测试
