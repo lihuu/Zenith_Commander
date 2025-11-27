@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 struct PaneView: View {
     @EnvironmentObject var appState: AppState
@@ -298,17 +299,21 @@ struct PaneView: View {
             pane.activeTab.files = files
             permissionDeniedPath = nil
             showPermissionError = false
+            // 手动触发 UI 刷新
+            pane.objectWillChange.send()
             
         case .permissionDenied(let path):
             pane.activeTab.files = []
             permissionDeniedPath = path
             showPermissionError = true
+            pane.objectWillChange.send()
             
         case .notFound(let path):
             pane.activeTab.files = []
             appState.showToast("Directory not found: \(path.lastPathComponent)")
             permissionDeniedPath = nil
             showPermissionError = false
+            pane.objectWillChange.send()
             // 尝试返回上级目录
             leaveDirectory()
             
@@ -317,6 +322,7 @@ struct PaneView: View {
             appState.showToast("Error: \(message)")
             permissionDeniedPath = nil
             showPermissionError = false
+            pane.objectWillChange.send()
         }
     }
     

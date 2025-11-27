@@ -212,18 +212,76 @@ class FileSystemService {
     
     // MARK: - 文件操作
     
-    /// 复制文件
+    /// 生成唯一的文件名（处理重名情况）
+    /// 规则：原名 -> 原名 Copy -> 原名 Copy1 -> 原名 Copy2 ...
+    func generateUniqueFileName(for fileName: String, in directory: URL) -> String {
+        let destURL = directory.appendingPathComponent(fileName)
+        
+        // 如果不存在同名文件，直接返回原名
+        if !fileManager.fileExists(atPath: destURL.path) {
+            return fileName
+        }
+        
+        // 分离文件名和扩展名
+        let nameWithoutExtension: String
+        let fileExtension: String
+        
+        if fileName.contains(".") && !fileName.hasPrefix(".") {
+            let components = fileName.split(separator: ".", maxSplits: 1, omittingEmptySubsequences: false)
+            if components.count == 2 {
+                // 处理多重扩展名的情况，如 file.tar.gz
+                let lastDotIndex = fileName.lastIndex(of: ".")!
+                nameWithoutExtension = String(fileName[..<lastDotIndex])
+                fileExtension = String(fileName[lastDotIndex...])
+            } else {
+                nameWithoutExtension = fileName
+                fileExtension = ""
+            }
+        } else {
+            // 隐藏文件或无扩展名
+            nameWithoutExtension = fileName
+            fileExtension = ""
+        }
+        
+        // 尝试 "原名 Copy"
+        let copyName = "\(nameWithoutExtension) Copy\(fileExtension)"
+        let copyURL = directory.appendingPathComponent(copyName)
+        if !fileManager.fileExists(atPath: copyURL.path) {
+            return copyName
+        }
+        
+        // 尝试 "原名 Copy1", "原名 Copy2", ...
+        var counter = 1
+        while true {
+            let numberedName = "\(nameWithoutExtension) Copy\(counter)\(fileExtension)"
+            let numberedURL = directory.appendingPathComponent(numberedName)
+            if !fileManager.fileExists(atPath: numberedURL.path) {
+                return numberedName
+            }
+            counter += 1
+            
+            // 防止无限循环（理论上不应该发生）
+            if counter > 10000 {
+                let timestamp = Int(Date().timeIntervalSince1970)
+                return "\(nameWithoutExtension) Copy\(timestamp)\(fileExtension)"
+            }
+        }
+    }
+    
+    /// 复制文件（自动处理重名）
     func copyFiles(_ files: [FileItem], to destination: URL) throws {
         for file in files {
-            let destURL = destination.appendingPathComponent(file.name)
+            let uniqueName = generateUniqueFileName(for: file.name, in: destination)
+            let destURL = destination.appendingPathComponent(uniqueName)
             try fileManager.copyItem(at: file.path, to: destURL)
         }
     }
     
-    /// 移动文件
+    /// 移动文件（自动处理重名）
     func moveFiles(_ files: [FileItem], to destination: URL) throws {
         for file in files {
-            let destURL = destination.appendingPathComponent(file.name)
+            let uniqueName = generateUniqueFileName(for: file.name, in: destination)
+            let destURL = destination.appendingPathComponent(uniqueName)
             try fileManager.moveItem(at: file.path, to: destURL)
         }
     }
