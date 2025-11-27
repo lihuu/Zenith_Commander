@@ -111,6 +111,9 @@ struct PaneView: View {
         .onAppear {
             loadCurrentDirectoryWithPermissionCheck()
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(side == .left ? "left_pane" : "right_pane")
+        .accessibilityLabel(side == .left ? "Left Pane" : "Right Pane")
     }
     
     // MARK: - 文件列表视图
