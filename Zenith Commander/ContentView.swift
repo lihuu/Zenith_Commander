@@ -7,18 +7,16 @@
 
 import SwiftUI
 
+// This file is kept for compatibility
+// The main view is now in MainView.swift
+
 struct ContentView: View {
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
+        MainView()
     }
 }
 
 #Preview {
     ContentView()
+        .frame(width: 1200, height: 800)
 }
