@@ -44,9 +44,9 @@ Zenith Commander - 验收测试清单 (Acceptance Checklist)
    - [x] 在 Visual 模式下按 j/k：光标移动过的文件自动变为选中状态。
    - [x] 按 Esc：退出 Visual 模式，清除选择。
          Command Mode (命令模式)
-   - [ ] 按 : 键：状态栏变为输入框。
-   - [ ] 输入字符流畅，无卡顿。
-   - [ ] 按 Enter 执行指令（如测试指令），按 Esc 取消并返回 Normal 模式。
+   - [x] 按 : 键：状态栏变为输入框。
+   - [x] 输入字符流畅，无卡顿。
+   - [x] 按 Enter 执行指令（如测试指令），按 Esc 取消并返回 Normal 模式。
          Filter Mode (过滤模式)
 
    - [ ] 按 / 键：状态栏变为过滤输入框。

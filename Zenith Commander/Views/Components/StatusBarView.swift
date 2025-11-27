@@ -20,6 +20,8 @@ struct StatusBarView: View {
             
             // 状态文本
             Text(statusText)
+                .accessibilityLabel(statusText)
+                .accessibilityValue(statusText)
                 .accessibilityIdentifier("status_text")
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
                 .foregroundColor(Theme.textSecondary)
@@ -76,13 +78,15 @@ struct ModeIndicator: View {
     
     var body: some View {
         Text(mode.rawValue)
-            .accessibilityIdentifier("mode_indicator")
             .font(.system(size: 10, weight: .bold, design: .monospaced))
             .foregroundColor(mode.color)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(mode.backgroundColor)
             .cornerRadius(3)
+            .accessibilityLabel(mode.rawValue)
+            .accessibilityValue(mode.rawValue)
+            .accessibilityIdentifier("mode_indicator")
     }
 }
 
