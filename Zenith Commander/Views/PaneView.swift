@@ -12,6 +12,9 @@ struct PaneView: View {
     @Bindable var pane: PaneState
     let side: PaneSide
     
+    @State private var permissionDeniedPath: URL? = nil
+    @State private var showPermissionError: Bool = false
+    
     var isActivePane: Bool {
         appState.activePane == side
     }
@@ -24,15 +27,29 @@ struct PaneView: View {
                 isActivePane: isActivePane,
                 onTabSwitch: { index in
                     pane.switchTab(to: index)
+                    loadCurrentDirectoryWithPermissionCheck()
                 },
                 onTabClose: { index in
                     pane.closeTab(at: index)
                 },
                 onTabAdd: {
                     pane.addTab()
-                    loadCurrentDirectory()
+                    loadCurrentDirectoryWithPermissionCheck()
                 }
             )
+            
+            // 权限错误横幅
+            if showPermissionError, let deniedPath = permissionDeniedPath {
+                PermissionErrorBanner(
+                    message: "Cannot access: \(deniedPath.lastPathComponent)",
+                    onDismiss: {
+                        showPermissionError = false
+                    },
+                    onRequestAccess: {
+                        requestFolderAccess()
+                    }
+                )
+            }
             
             // 面包屑导航区域
             VStack(spacing: 4) {
@@ -66,8 +83,25 @@ struct PaneView: View {
             Divider()
                 .background(Theme.borderLight)
             
-            // 文件列表
-            fileListView
+            // 主内容区域
+            if let deniedPath = permissionDeniedPath, pane.currentFiles.isEmpty {
+                // 显示权限请求视图
+                PermissionRequestView(
+                    path: deniedPath,
+                    onRequestAccess: {
+                        requestFolderAccess()
+                    },
+                    onOpenSettings: {
+                        FileSystemService.shared.openSystemPreferencesPrivacy()
+                    },
+                    onGoBack: {
+                        leaveDirectory()
+                    }
+                )
+            } else {
+                // 文件列表
+                fileListView
+            }
         }
         .background(Theme.background)
         .opacity(isActivePane ? 1.0 : 0.85)
@@ -75,7 +109,7 @@ struct PaneView: View {
             appState.setActivePane(side)
         }
         .onAppear {
-            loadCurrentDirectory()
+            loadCurrentDirectoryWithPermissionCheck()
         }
     }
     
@@ -245,12 +279,51 @@ struct PaneView: View {
         pane.activeTab.currentPath = path
         pane.cursorIndex = 0
         pane.clearSelections()
-        loadCurrentDirectory()
+        loadCurrentDirectoryWithPermissionCheck()
     }
     
-    func loadCurrentDirectory() {
-        let files = FileSystemService.shared.loadDirectory(at: pane.activeTab.currentPath)
-        pane.activeTab.files = files
+    func loadCurrentDirectoryWithPermissionCheck() {
+        let result = FileSystemService.shared.loadDirectoryWithPermissionCheck(at: pane.activeTab.currentPath)
+        
+        switch result {
+        case .success(let files):
+            pane.activeTab.files = files
+            permissionDeniedPath = nil
+            showPermissionError = false
+            
+        case .permissionDenied(let path):
+            pane.activeTab.files = []
+            permissionDeniedPath = path
+            showPermissionError = true
+            
+        case .notFound(let path):
+            pane.activeTab.files = []
+            appState.showToast("Directory not found: \(path.lastPathComponent)")
+            permissionDeniedPath = nil
+            showPermissionError = false
+            // 尝试返回上级目录
+            leaveDirectory()
+            
+        case .error(let message):
+            pane.activeTab.files = []
+            appState.showToast("Error: \(message)")
+            permissionDeniedPath = nil
+            showPermissionError = false
+        }
+    }
+    
+    func requestFolderAccess() {
+        if let deniedPath = permissionDeniedPath {
+            // 使用 NSOpenPanel 请求用户授权
+            FileSystemService.shared.requestFolderAccess(for: deniedPath) { grantedURL in
+                if let _ = grantedURL {
+                    // 用户授权成功，重新加载目录
+                    DispatchQueue.main.async {
+                        self.loadCurrentDirectoryWithPermissionCheck()
+                    }
+                }
+            }
+        }
     }
     
     func enterDirectory() {
@@ -266,7 +339,10 @@ struct PaneView: View {
         let parent = FileSystemService.shared.parentDirectory(of: pane.activeTab.currentPath)
         // 检查是否已经在根目录
         if parent.path != pane.activeTab.currentPath.path {
-            navigateTo(parent)
+            pane.activeTab.currentPath = parent
+            pane.cursorIndex = 0
+            pane.clearSelections()
+            loadCurrentDirectoryWithPermissionCheck()
         }
     }
     
@@ -287,7 +363,7 @@ struct PaneView: View {
                 appState.clipboard.removeAll()
             }
             
-            loadCurrentDirectory()
+            loadCurrentDirectoryWithPermissionCheck()
         } catch {
             appState.showToast("Error: \(error.localizedDescription)")
         }
@@ -308,7 +384,7 @@ struct PaneView: View {
             try FileSystemService.shared.trashFiles(filesToDelete)
             appState.showToast("\(filesToDelete.count) file(s) moved to Trash")
             pane.clearSelections()
-            loadCurrentDirectory()
+            loadCurrentDirectoryWithPermissionCheck()
         } catch {
             appState.showToast("Error: \(error.localizedDescription)")
         }
