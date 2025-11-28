@@ -74,9 +74,7 @@ Zenith Commander 的核心在于键盘操作。以下是默认的键位映射：
 - [x] 多标签页支持
 - [x] 批量重命名 (含 Regex 支持)
 - [x] 列表/网格视图切换
-- [x] Gemini AI 集成
 - [ ] 插件系统 (Lua/JS)
-- [ ] 内置终端 (Embedded Terminal)
 - [ ] Git 状态深度集成
 
 ## 🤝 贡献
