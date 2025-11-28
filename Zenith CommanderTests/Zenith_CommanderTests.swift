@@ -522,6 +522,81 @@ struct GridViewNavigationTests {
     }
 }
 
+// MARK: - 父目录项 (..) 测试
+
+@Suite("Parent Directory Item Tests")
+struct ParentDirectoryItemTests {
+    
+    @Test func testParentDirectoryItemCreation() {
+        let parentPath = URL(fileURLWithPath: "/Users/test")
+        let item = FileItem.parentDirectoryItem(for: parentPath)
+        
+        #expect(item.id == "..")
+        #expect(item.name == "..")
+        #expect(item.path == parentPath)
+        #expect(item.type == .folder)
+        #expect(item.isParentDirectory == true)
+    }
+    
+    @Test func testParentDirectoryItemIcon() {
+        let parentPath = URL(fileURLWithPath: "/Users/test")
+        let item = FileItem.parentDirectoryItem(for: parentPath)
+        
+        // 父目录项应该使用特殊的返回箭头图标
+        #expect(item.iconName == "arrow.turn.up.left")
+    }
+    
+    @Test func testRegularFolderIsNotParentDirectory() {
+        let now = Date()
+        let regularFolder = FileItem(
+            id: "folder_1",
+            name: "Documents",
+            path: URL(fileURLWithPath: "/Users/test/Documents"),
+            type: .folder,
+            size: 0,
+            modifiedDate: now,
+            createdDate: now,
+            isHidden: false,
+            permissions: "755",
+            fileExtension: ""
+        )
+        
+        #expect(regularFolder.isParentDirectory == false)
+        #expect(regularFolder.iconName == "folder.fill")
+    }
+    
+    @Test func testLoadDirectoryIncludesParentItem() {
+        let service = FileSystemService.shared
+        
+        // 测试非根目录应该包含 ".." 项
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let result = service.loadDirectoryWithPermissionCheck(at: documentsPath)
+        
+        if case .success(let files) = result {
+            // 非根目录的第一个项目应该是 ".."
+            if let firstItem = files.first {
+                #expect(firstItem.isParentDirectory == true)
+                #expect(firstItem.name == "..")
+            }
+        }
+    }
+    
+    @Test func testRootDirectoryNoParentItem() {
+        let service = FileSystemService.shared
+        
+        // 测试根目录不应该包含 ".." 项
+        let rootPath = URL(fileURLWithPath: "/")
+        let result = service.loadDirectoryWithPermissionCheck(at: rootPath)
+        
+        if case .success(let files) = result {
+            // 根目录的第一个项目不应该是 ".."
+            if let firstItem = files.first {
+                #expect(firstItem.isParentDirectory == false)
+            }
+        }
+    }
+}
+
 // MARK: - 7. AppState 测试 (模态操作引擎)
 
 struct AppStateTests {

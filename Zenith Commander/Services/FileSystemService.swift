@@ -96,7 +96,7 @@ class FileSystemService {
                 options: showHidden ? [] : [.skipsHiddenFiles]
             )
             
-            let files = contents.compactMap { url in
+            var files = contents.compactMap { url in
                 FileItem.fromURL(url)
             }.sorted { item1, item2 in
                 // 文件夹优先，然后按名称排序
@@ -106,6 +106,13 @@ class FileSystemService {
                     return false
                 }
                 return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+            }
+            
+            // 如果不是根目录，在列表开头添加 ".." 父目录项
+            let parentPath = path.deletingLastPathComponent()
+            if parentPath.path != path.path {
+                let parentItem = FileItem.parentDirectoryItem(for: parentPath)
+                files.insert(parentItem, at: 0)
             }
             
             return .success(files)

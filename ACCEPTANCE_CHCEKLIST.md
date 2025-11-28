@@ -74,7 +74,7 @@ Zenith Commander - 验收测试清单 (Acceptance Checklist)
           Grid View:
 
     - [x] 图片/文件显示为缩略图（或大图标）。
-    - [ ] 键盘方向键（上下左右）导航逻辑正确。
+    - [x] 键盘方向键（上下左右）导航逻辑正确。
 
           批量重命名 (Batch Rename)
 
@@ -88,8 +88,8 @@ Zenith Commander - 验收测试清单 (Acceptance Checklist)
 
     右键菜单:
 
-    - [ ] 在文件上右键，弹出包含 Open, Rename, Copy 的菜单。
-    - [ ] 在空白处右键，弹出目录级操作菜单。
+    - [x] 在文件上右键，弹出包含 Open, Rename, Copy 的菜单。
+    - [x] 在空白处右键，弹出目录级操作菜单。
 
     终端集成:
 
