@@ -595,6 +595,89 @@ struct ParentDirectoryItemTests {
             }
         }
     }
+    
+    // MARK: - 父目录项只读限制测试
+    
+    @Test func testParentDirectoryCannotBeSelected() {
+        let drive = DriveInfo(
+            id: "test-drive",
+            name: "Macintosh HD",
+            path: URL(fileURLWithPath: "/"),
+            type: .system,
+            totalCapacity: 500_000_000_000,
+            availableCapacity: 100_000_000_000
+        )
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/Users"), drive: drive)
+        
+        // 尝试选中父目录项
+        pane.toggleSelection(for: "..")
+        
+        // 父目录项不应该被选中
+        #expect(pane.selections.contains("..") == false)
+    }
+    
+    @Test func testParentDirectoryExcludedFromVisualSelection() {
+        let drive = DriveInfo(
+            id: "test-drive",
+            name: "Macintosh HD",
+            path: URL(fileURLWithPath: "/"),
+            type: .system,
+            totalCapacity: 500_000_000_000,
+            availableCapacity: 100_000_000_000
+        )
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/Users"), drive: drive)
+        
+        // 添加父目录项和普通文件
+        let parentItem = FileItem.parentDirectoryItem(for: URL(fileURLWithPath: "/"))
+        let now = Date()
+        let regularFile = FileItem(
+            id: "file_1",
+            name: "test.txt",
+            path: URL(fileURLWithPath: "/Users/test.txt"),
+            type: .file,
+            size: 1024,
+            modifiedDate: now,
+            createdDate: now,
+            isHidden: false,
+            permissions: "rw-r--r--",
+            fileExtension: "txt"
+        )
+        
+        pane.activeTab.files = [parentItem, regularFile]
+        
+        // 设置 Visual 模式选择范围（包含父目录项）
+        pane.visualAnchor = 0
+        pane.cursorIndex = 1
+        pane.updateVisualSelection()
+        
+        // 父目录项不应该在选择集中
+        #expect(pane.selections.contains("..") == false)
+        // 普通文件应该被选中
+        #expect(pane.selections.contains("file_1") == true)
+    }
+    
+    @Test func testSelectCurrentFileSkipsParentDirectory() {
+        let drive = DriveInfo(
+            id: "test-drive",
+            name: "Macintosh HD",
+            path: URL(fileURLWithPath: "/"),
+            type: .system,
+            totalCapacity: 500_000_000_000,
+            availableCapacity: 100_000_000_000
+        )
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/Users"), drive: drive)
+        
+        // 添加父目录项
+        let parentItem = FileItem.parentDirectoryItem(for: URL(fileURLWithPath: "/"))
+        pane.activeTab.files = [parentItem]
+        pane.cursorIndex = 0
+        
+        // 尝试选择当前文件（父目录项）
+        pane.selectCurrentFile()
+        
+        // 父目录项不应该被选中
+        #expect(pane.selections.isEmpty == true)
+    }
 }
 
 // MARK: - 7. AppState 测试 (模态操作引擎)
