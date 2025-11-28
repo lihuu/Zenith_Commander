@@ -517,6 +517,7 @@ struct PaneView: View {
 
 // MARK: - 视图模式切换按钮
 struct ViewModeToggle: View {
+    @ObservedObject private var themeManager = ThemeManager.shared
     @Binding var viewMode: ViewMode
     
     var body: some View {

@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct StatusBarView: View {
+    @ObservedObject private var themeManager = ThemeManager.shared
+    
     let mode: AppMode
     let statusText: String
     let driveName: String
@@ -120,6 +122,8 @@ struct StatusBarView: View {
 }
 
 struct ModeIndicator: View {
+    @ObservedObject private var themeManager = ThemeManager.shared
+    
     let mode: AppMode
     
     var body: some View {

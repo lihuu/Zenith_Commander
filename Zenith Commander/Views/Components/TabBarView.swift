@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct TabBarView: View {
+    @ObservedObject private var themeManager = ThemeManager.shared
     @ObservedObject var pane: PaneState
     let isActivePane: Bool
     let onTabSwitch: (Int) -> Void
@@ -55,6 +56,8 @@ struct TabBarView: View {
 }
 
 struct TabItemView: View {
+    @ObservedObject private var themeManager = ThemeManager.shared
+    
     let tab: TabState
     let isActive: Bool
     let isPaneActive: Bool

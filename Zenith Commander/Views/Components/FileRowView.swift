@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct FileRowView: View {
+    @ObservedObject private var themeManager = ThemeManager.shared
+    
     let file: FileItem
     let isActive: Bool       // 光标所在
     let isSelected: Bool     // 被选中

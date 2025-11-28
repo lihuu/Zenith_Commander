@@ -99,7 +99,10 @@ class ThemeManager: ObservableObject {
     @Published var mode: ThemeMode {
         didSet {
             UserDefaults.standard.set(mode.rawValue, forKey: "themeMode")
-            updateCurrentTheme()
+            // 延迟更新以避免在视图更新期间发布更改
+            DispatchQueue.main.async { [weak self] in
+                self?.updateCurrentTheme()
+            }
         }
     }
     
@@ -111,16 +114,29 @@ class ThemeManager: ObservableObject {
     
     private init() {
         // 从 UserDefaults 读取保存的主题模式
+        let savedThemeMode: ThemeMode
         if let savedMode = UserDefaults.standard.string(forKey: "themeMode"),
            let themeMode = ThemeMode(rawValue: savedMode) {
-            self.mode = themeMode
+            savedThemeMode = themeMode
         } else {
-            self.mode = .auto
+            savedThemeMode = .auto
         }
         
-        // 初始化当前主题
-        self.current = DarkTheme()
-        updateCurrentTheme()
+        // 初始化当前主题 - 必须先初始化所有存储属性
+        let initialTheme: ThemeColors
+        switch savedThemeMode {
+        case .light:
+            initialTheme = LightTheme()
+        case .dark:
+            initialTheme = DarkTheme()
+        case .auto:
+            let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            initialTheme = isDark ? DarkTheme() : LightTheme()
+        }
+        
+        // 设置存储属性
+        self.mode = savedThemeMode
+        self.current = initialTheme
         
         // 监听系统外观变化
         setupAppearanceObserver()
@@ -140,21 +156,26 @@ class ThemeManager: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             if self?.mode == .auto {
-                self?.updateCurrentTheme()
+                // 延迟更新以避免在视图更新期间发布更改
+                DispatchQueue.main.async {
+                    self?.updateCurrentTheme()
+                }
             }
         }
     }
     
     /// 更新当前主题
     private func updateCurrentTheme() {
+        let newTheme: ThemeColors
         switch mode {
         case .light:
-            current = LightTheme()
+            newTheme = LightTheme()
         case .dark:
-            current = DarkTheme()
+            newTheme = DarkTheme()
         case .auto:
-            current = isSystemDarkMode ? DarkTheme() : LightTheme()
+            newTheme = isSystemDarkMode ? DarkTheme() : LightTheme()
         }
+        current = newTheme
     }
     
     /// 检测系统是否为深色模式

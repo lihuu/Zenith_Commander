@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct DriveSelectorView: View {
+    @ObservedObject private var themeManager = ThemeManager.shared
+    
     let drives: [DriveInfo]
     let cursorIndex: Int
     let onSelect: (DriveInfo) -> Void
@@ -60,6 +62,8 @@ struct DriveSelectorView: View {
 }
 
 struct DriveRowView: View {
+    @ObservedObject private var themeManager = ThemeManager.shared
+    
     let drive: DriveInfo
     let isSelected: Bool
     let onSelect: () -> Void
