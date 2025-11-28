@@ -1710,6 +1710,203 @@ struct FileSystemServiceTests {
         // 文件夹也应该添加 Copy 后缀
         #expect(result == "MyFolder Copy")
     }
+    
+    // MARK: - New File 测试
+    
+    @Test func testCreateFile_Basic() throws {
+        let service = FileSystemService.shared
+        let fileManager = FileManager.default
+        let tempDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_\(UUID().uuidString)")
+        
+        // 创建测试目录
+        try fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        
+        defer {
+            try? fileManager.removeItem(at: tempDir)
+        }
+        
+        // 创建新文件
+        let createdURL = try service.createFile(at: tempDir, name: "test.txt")
+        
+        // 验证文件被创建
+        #expect(fileManager.fileExists(atPath: createdURL.path))
+        #expect(createdURL.lastPathComponent == "test.txt")
+    }
+    
+    @Test func testCreateFile_WithConflict_AutoRename() throws {
+        let service = FileSystemService.shared
+        let fileManager = FileManager.default
+        let tempDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_\(UUID().uuidString)")
+        
+        // 创建测试目录
+        try fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        
+        defer {
+            try? fileManager.removeItem(at: tempDir)
+        }
+        
+        // 创建已存在的文件
+        let existingFile = tempDir.appendingPathComponent("test.txt")
+        fileManager.createFile(atPath: existingFile.path, contents: nil)
+        
+        // 创建同名文件应该自动重命名
+        let createdURL = try service.createFile(at: tempDir, name: "test.txt")
+        
+        // 验证文件被创建且名称被修改
+        #expect(fileManager.fileExists(atPath: createdURL.path))
+        #expect(createdURL.lastPathComponent == "test Copy.txt")
+    }
+    
+    @Test func testCreateFile_MultipleConflicts() throws {
+        let service = FileSystemService.shared
+        let fileManager = FileManager.default
+        let tempDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_\(UUID().uuidString)")
+        
+        // 创建测试目录
+        try fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        
+        defer {
+            try? fileManager.removeItem(at: tempDir)
+        }
+        
+        // 创建多个冲突的文件
+        fileManager.createFile(atPath: tempDir.appendingPathComponent("untitled.txt").path, contents: nil)
+        fileManager.createFile(atPath: tempDir.appendingPathComponent("untitled Copy.txt").path, contents: nil)
+        
+        // 创建同名文件应该自动重命名为 Copy1
+        let createdURL = try service.createFile(at: tempDir, name: "untitled.txt")
+        
+        // 验证文件被创建且名称被正确修改
+        #expect(fileManager.fileExists(atPath: createdURL.path))
+        #expect(createdURL.lastPathComponent == "untitled Copy1.txt")
+    }
+    
+    @Test func testCreateFile_EmptyFile() throws {
+        let service = FileSystemService.shared
+        let fileManager = FileManager.default
+        let tempDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_\(UUID().uuidString)")
+        
+        // 创建测试目录
+        try fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        
+        defer {
+            try? fileManager.removeItem(at: tempDir)
+        }
+        
+        // 创建新文件
+        let createdURL = try service.createFile(at: tempDir, name: "empty.txt")
+        
+        // 验证文件是空的
+        let data = try Data(contentsOf: createdURL)
+        #expect(data.isEmpty)
+    }
+    
+    // MARK: - New Folder 测试
+    
+    @Test func testCreateDirectory_Basic() throws {
+        let service = FileSystemService.shared
+        let fileManager = FileManager.default
+        let tempDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_\(UUID().uuidString)")
+        
+        // 创建测试目录
+        try fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        
+        defer {
+            try? fileManager.removeItem(at: tempDir)
+        }
+        
+        // 创建新文件夹
+        let createdURL = try service.createDirectory(at: tempDir, name: "NewFolder")
+        
+        // 验证文件夹被创建
+        var isDirectory: ObjCBool = false
+        let exists = fileManager.fileExists(atPath: createdURL.path, isDirectory: &isDirectory)
+        #expect(exists)
+        #expect(isDirectory.boolValue)
+        #expect(createdURL.lastPathComponent == "NewFolder")
+    }
+    
+    @Test func testCreateDirectory_WithConflict_AutoRename() throws {
+        let service = FileSystemService.shared
+        let fileManager = FileManager.default
+        let tempDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_\(UUID().uuidString)")
+        
+        // 创建测试目录
+        try fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        
+        defer {
+            try? fileManager.removeItem(at: tempDir)
+        }
+        
+        // 创建已存在的文件夹
+        let existingFolder = tempDir.appendingPathComponent("untitled folder")
+        try fileManager.createDirectory(at: existingFolder, withIntermediateDirectories: false)
+        
+        // 创建同名文件夹应该自动重命名
+        let createdURL = try service.createDirectory(at: tempDir, name: "untitled folder")
+        
+        // 验证文件夹被创建且名称被修改
+        var isDirectory: ObjCBool = false
+        let exists = fileManager.fileExists(atPath: createdURL.path, isDirectory: &isDirectory)
+        #expect(exists)
+        #expect(isDirectory.boolValue)
+        #expect(createdURL.lastPathComponent == "untitled folder Copy")
+    }
+    
+    @Test func testCreateDirectory_MultipleConflicts() throws {
+        let service = FileSystemService.shared
+        let fileManager = FileManager.default
+        let tempDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_\(UUID().uuidString)")
+        
+        // 创建测试目录
+        try fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        
+        defer {
+            try? fileManager.removeItem(at: tempDir)
+        }
+        
+        // 创建多个冲突的文件夹
+        try fileManager.createDirectory(at: tempDir.appendingPathComponent("untitled folder"), withIntermediateDirectories: false)
+        try fileManager.createDirectory(at: tempDir.appendingPathComponent("untitled folder Copy"), withIntermediateDirectories: false)
+        try fileManager.createDirectory(at: tempDir.appendingPathComponent("untitled folder Copy1"), withIntermediateDirectories: false)
+        
+        // 创建同名文件夹应该自动重命名为 Copy2
+        let createdURL = try service.createDirectory(at: tempDir, name: "untitled folder")
+        
+        // 验证文件夹被创建且名称被正确修改
+        var isDirectory: ObjCBool = false
+        let exists = fileManager.fileExists(atPath: createdURL.path, isDirectory: &isDirectory)
+        #expect(exists)
+        #expect(isDirectory.boolValue)
+        #expect(createdURL.lastPathComponent == "untitled folder Copy2")
+    }
+    
+    @Test func testCreateDirectory_ConflictWithFile() throws {
+        let service = FileSystemService.shared
+        let fileManager = FileManager.default
+        let tempDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_\(UUID().uuidString)")
+        
+        // 创建测试目录
+        try fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        
+        defer {
+            try? fileManager.removeItem(at: tempDir)
+        }
+        
+        // 创建一个同名的文件（不是文件夹）
+        let existingFile = tempDir.appendingPathComponent("MyFolder")
+        fileManager.createFile(atPath: existingFile.path, contents: nil)
+        
+        // 创建同名文件夹应该自动重命名
+        let createdURL = try service.createDirectory(at: tempDir, name: "MyFolder")
+        
+        // 验证文件夹被创建且名称被修改
+        var isDirectory: ObjCBool = false
+        let exists = fileManager.fileExists(atPath: createdURL.path, isDirectory: &isDirectory)
+        #expect(exists)
+        #expect(isDirectory.boolValue)
+        #expect(createdURL.lastPathComponent == "MyFolder Copy")
+    }
 }
 
 // MARK: - 9. DriveInfo 测试

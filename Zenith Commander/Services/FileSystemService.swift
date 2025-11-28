@@ -300,10 +300,21 @@ class FileSystemService {
         }
     }
     
-    /// 创建目录
+    /// 创建目录（支持自动重命名）
     func createDirectory(at path: URL, name: String) throws -> URL {
-        let newPath = path.appendingPathComponent(name)
+        let uniqueName = generateUniqueFileName(for: name, in: path)
+        let newPath = path.appendingPathComponent(uniqueName)
         try fileManager.createDirectory(at: newPath, withIntermediateDirectories: false)
+        return newPath
+    }
+    
+    /// 创建空文件（支持自动重命名）
+    func createFile(at path: URL, name: String) throws -> URL {
+        let uniqueName = generateUniqueFileName(for: name, in: path)
+        let newPath = path.appendingPathComponent(uniqueName)
+        guard fileManager.createFile(atPath: newPath.path, contents: nil, attributes: nil) else {
+            throw NSError(domain: "FileSystemService", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to create file"])
+        }
         return newPath
     }
     

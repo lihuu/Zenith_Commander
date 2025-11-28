@@ -157,6 +157,15 @@ struct PaneView: View {
                     if pane.activeTab.files.isEmpty {
                         emptyDirectoryView
                     }
+                    
+                    // 空白区域用于右键菜单
+                    Spacer()
+                        .frame(minHeight: 100)
+                        .frame(maxWidth: .infinity)
+                        .contentShape(Rectangle())
+                        .contextMenu {
+                            directoryContextMenu
+                        }
                 }
             }
             .onChange(of: pane.cursorIndex) { _, newValue in
@@ -199,6 +208,15 @@ struct PaneView: View {
                 if pane.activeTab.files.isEmpty {
                     emptyDirectoryView
                 }
+                
+                // 空白区域用于右键菜单
+                Spacer()
+                    .frame(minHeight: 100)
+                    .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
+                    .contextMenu {
+                        directoryContextMenu
+                    }
             }
             .onChange(of: pane.cursorIndex) { _, newValue in
                 withAnimation(.easeInOut(duration: 0.1)) {
@@ -258,6 +276,32 @@ struct PaneView: View {
             deleteSelectedFiles()
         }
         .keyboardShortcut(.delete, modifiers: .command)
+    }
+    
+    /// 目录级右键菜单（空白处右键）
+    @ViewBuilder
+    private var directoryContextMenu: some View {
+        Button("New File") {
+            createNewFile()
+        }
+        
+        Button("New Folder") {
+            createNewFolder()
+        }
+        
+        Divider()
+        
+        Button("Paste (p)") {
+            pasteFiles()
+        }
+        .disabled(appState.clipboard.isEmpty)
+        
+        Divider()
+        
+        Button("Open in Terminal") {
+            FileSystemService.shared.openInTerminal(path: pane.activeTab.currentPath)
+        }
+        
     }
     
     // MARK: - 事件处理
@@ -401,6 +445,40 @@ struct PaneView: View {
             loadCurrentDirectoryWithPermissionCheck()
         } catch {
             appState.showToast("Error: \(error.localizedDescription)")
+        }
+    }
+    
+    // MARK: - 创建文件/文件夹
+    
+    private func createNewFile() {
+        let baseName = "Untitled"
+        let uniqueName = FileSystemService.shared.generateUniqueFileName(
+            for: baseName,
+            in: pane.activeTab.currentPath
+        )
+        
+        do {
+            _ = try FileSystemService.shared.createFile(at: pane.activeTab.currentPath, name: uniqueName)
+            appState.showToast("Created file: \(uniqueName)")
+            loadCurrentDirectoryWithPermissionCheck()
+        } catch {
+            appState.showToast("Error creating file: \(error.localizedDescription)")
+        }
+    }
+    
+    private func createNewFolder() {
+        let baseName = "New Folder"
+        let uniqueName = FileSystemService.shared.generateUniqueFileName(
+            for: baseName,
+            in: pane.activeTab.currentPath
+        )
+        
+        do {
+            _ = try FileSystemService.shared.createDirectory(at: pane.activeTab.currentPath, name: uniqueName)
+            appState.showToast("Created folder: \(uniqueName)")
+            loadCurrentDirectoryWithPermissionCheck()
+        } catch {
+            appState.showToast("Error creating folder: \(error.localizedDescription)")
         }
     }
 }
