@@ -1,6 +1,7 @@
 # Zenith Commander 🚀
 
 **Zenith Commander** 是一款专为 macOS 打造的原生双栏文件管理器。它将 Total Commander 的高效双栏设计与 Vim 的模态操作哲学完美融合，旨在为开发者和键盘极客提供极致的文件管理体验。
+![alt text](image.png)
 
 > **"极客的效率，原生的优雅。"**
 
