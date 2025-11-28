@@ -264,7 +264,7 @@ struct MainView: View {
             // 跳到顶部
             Task { @MainActor in
                 let pane = appState.currentPane
-                pane.activeTab.cursorIndex = 0
+                pane.cursorIndex = 0
                 pane.updateVisualSelection()
                 pane.objectWillChange.send()
             }
@@ -275,7 +275,7 @@ struct MainView: View {
             if modifiers.contains(.shift) {
                 Task { @MainActor in
                     let pane = appState.currentPane
-                    pane.activeTab.cursorIndex = max(0, pane.activeTab.files.count - 1)
+                    pane.cursorIndex = max(0, pane.activeTab.files.count - 1)
                     pane.updateVisualSelection()
                     pane.objectWillChange.send()
                 }
@@ -450,14 +450,16 @@ struct MainView: View {
         
         // 使用 Task 延迟执行，避免在视图更新期间修改状态
         Task { @MainActor in
+            
+            var currentIndex = pane.cursorIndex
             switch direction {
             case .up:
-                pane.activeTab.cursorIndex = max(0, pane.activeTab.cursorIndex - 1)
+                currentIndex = max(0, currentIndex - 1)
             case .down:
-                pane.activeTab.cursorIndex = min(fileCount - 1, pane.activeTab.cursorIndex + 1)
+                currentIndex = min(fileCount - 1, currentIndex + 1)
             }
-            // 手动触发 objectWillChange
-            pane.objectWillChange.send()
+            
+            pane.activeTab.cursorFileId = pane.activeTab.files[currentIndex].id
         }
     }
     
@@ -467,12 +469,14 @@ struct MainView: View {
         guard fileCount > 0 else { return }
         
         Task { @MainActor in
+            var currentIndex = pane.cursorIndex
             switch direction {
             case .up:
-                pane.activeTab.cursorIndex = max(0, pane.activeTab.cursorIndex - 1)
+                currentIndex = max(0, currentIndex - 1)
             case .down:
-                pane.activeTab.cursorIndex = min(fileCount - 1, pane.activeTab.cursorIndex + 1)
+                currentIndex = min(fileCount - 1, currentIndex + 1)
             }
+            pane.activeTab.cursorFileId = pane.activeTab.files[currentIndex].id
             pane.updateVisualSelection()
             pane.objectWillChange.send()
         }

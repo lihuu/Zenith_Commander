@@ -15,19 +15,25 @@ class TabState: Identifiable, ObservableObject {
     var drive: DriveInfo
     @Published var currentPath: URL
     @Published var files: [FileItem]
-    @Published var cursorIndex: Int
+    @Published var cursorFileId: String
     @Published var scrollOffset: CGFloat
     
     /// 未过滤的原始文件列表（用于 Filter 模式恢复）
     var unfilteredFiles: [FileItem] = []
+    
+    /// 当前光标在本 Tab 中对应的索引（基于 cursorFileId 计算）
+    /// 如果找不到对应文件，则返回 nil
+    var cursorIndexInTab: Int? {
+        files.firstIndex(where: { $0.id == cursorFileId })
+    }
     
     init(drive: DriveInfo, path: URL) {
         self.id = UUID()
         self.drive = drive
         self.currentPath = path
         self.files = []
-        self.cursorIndex = 0
         self.scrollOffset = 0
+        self.cursorFileId = ".."
     }
     
     /// 当前目录名称
@@ -38,7 +44,7 @@ class TabState: Identifiable, ObservableObject {
     /// 路径组件数组
     var pathComponents: [String] {
         var components = currentPath.pathComponents
-        // 移除第一个 "/" 
+        // 移除第一个 "/"
         if components.first == "/" {
             components.removeFirst()
         }
@@ -90,11 +96,31 @@ class PaneState: ObservableObject {
         activeTab.files
     }
     
-    /// 当前光标位置
-    var cursorIndex: Int {
-        get { activeTab.cursorIndex }
-        set { activeTab.cursorIndex = newValue }
+    /// 当前光标指向的文件 ID（单一真实来源）
+    var cursorFileId: String {
+        get { activeTab.cursorFileId }
+        set { activeTab.cursorFileId = newValue }
     }
+    
+    /// 当前光标位置（基于 cursorFileId 计算）
+    /// 如果找不到对应文件，则返回 0；设置时会更新 cursorFileId
+    var cursorIndex: Int {
+        get {
+            if let idx = activeTab.files.firstIndex(where: { $0.id == activeTab.cursorFileId }) {
+                return idx
+            } else {
+                return 0
+            }
+        }
+        set {
+            guard !activeTab.files.isEmpty else { return }
+            let clamped = max(0, min(newValue, activeTab.files.count - 1))
+            if activeTab.files.indices.contains(clamped) {
+                activeTab.cursorFileId = activeTab.files[clamped].id
+            }
+        }
+    }
+    
     
     /// 添加新标签页
     func addTab(path: URL? = nil, drive: DriveInfo? = nil) {
@@ -302,8 +328,9 @@ class AppState: ObservableObject {
             let prefix = filterUseRegex ? "/regex: " : "/"
             return "\(prefix)\(filterInput)"
         default:
-            let tab = currentPane.activeTab
-            let currentFile = tab.files.isEmpty ? "" : tab.files[safe: tab.cursorIndex]?.name ?? ""
+            let pane = currentPane
+            let tab = pane.activeTab
+            let currentFile = tab.files.isEmpty ? "" : tab.files[safe: pane.cursorIndex]?.name ?? ""
             return "\(tab.drive.name) | \(currentFile)"
         }
     }
