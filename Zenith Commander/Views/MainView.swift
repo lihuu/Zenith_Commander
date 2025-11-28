@@ -645,13 +645,24 @@ struct MainView: View {
     
     private func leaveDirectory() {
         let pane = appState.currentPane
-        let parent = FileSystemService.shared.parentDirectory(of: pane.activeTab.currentPath)
+        let currentPath = pane.activeTab.currentPath
+        let parent = FileSystemService.shared.parentDirectory(of: currentPath)
         
-        if parent.path != pane.activeTab.currentPath.path {
+        // 检查是否已经在根目录
+        if parent.path != currentPath.path {
+            // 记住当前目录名，用于返回后定位
+            let currentDirName = currentPath.lastPathComponent
+            
             pane.activeTab.currentPath = parent
-            pane.cursorIndex = 0
             pane.clearSelections()
             refreshCurrentPane()
+            
+            // 在上级目录中找到之前所在的目录并选中
+            if let index = pane.activeTab.files.firstIndex(where: { $0.name == currentDirName }) {
+                pane.activeTab.cursorFileId = pane.activeTab.files[index].id
+            } else {
+                pane.cursorIndex = 0
+            }
         }
     }
     
