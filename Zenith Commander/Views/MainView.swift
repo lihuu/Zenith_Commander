@@ -10,6 +10,7 @@ import Combine
 
 struct MainView: View {
     @StateObject private var appState = AppState()
+    @ObservedObject private var themeManager = ThemeManager.shared
     
     var body: some View {
         VStack(spacing: 0) {
@@ -219,16 +220,7 @@ struct MainView: View {
             }
             return .ignored
             
-        // 标签页操作
-        case KeyEquivalent("t"):
-            Task { @MainActor in
-                let pane = appState.currentPane
-                pane.addTab()
-                refreshCurrentPane()
-                appState.showToast("New tab created")
-            }
-            return .handled
-            
+        // 关闭标签页
         case KeyEquivalent("w"):
             Task { @MainActor in
                 let pane = appState.currentPane
@@ -282,6 +274,24 @@ struct MainView: View {
                 return .handled
             }
             return .ignored
+        
+        // 主题切换 (Ctrl+T)
+        case KeyEquivalent("t"):
+            if modifiers.contains(.control) {
+                Task { @MainActor in
+                    themeManager.cycleTheme()
+                    appState.showToast("Theme: \(themeManager.mode.displayName)")
+                }
+                return .handled
+            }
+            // 没有 Ctrl 修饰符时，创建新标签页
+            Task { @MainActor in
+                let pane = appState.currentPane
+                pane.addTab()
+                refreshCurrentPane()
+                appState.showToast("New tab created")
+            }
+            return .handled
             
         default:
             return .ignored

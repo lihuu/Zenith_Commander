@@ -2412,6 +2412,61 @@ struct ThemeTests {
         
         #expect(true) // 如果能到达这里，说明颜色都存在
     }
+    
+    @Test func testThemeModeValues() {
+        // 验证主题模式枚举值
+        #expect(ThemeMode.light.rawValue == "Light")
+        #expect(ThemeMode.dark.rawValue == "Dark")
+        #expect(ThemeMode.auto.rawValue == "Auto")
+    }
+    
+    @Test func testThemeModeDisplayNames() {
+        // 验证主题模式显示名称
+        #expect(ThemeMode.light.displayName == "浅色")
+        #expect(ThemeMode.dark.displayName == "深色")
+        #expect(ThemeMode.auto.displayName == "跟随系统")
+    }
+    
+    @Test func testThemeModeIcons() {
+        // 验证主题模式图标
+        #expect(ThemeMode.light.icon == "sun.max.fill")
+        #expect(ThemeMode.dark.icon == "moon.fill")
+        #expect(ThemeMode.auto.icon == "circle.lefthalf.filled")
+    }
+    
+    @Test func testDarkThemeColors() {
+        // 验证深色主题颜色
+        let darkTheme = DarkTheme()
+        #expect(darkTheme.background != darkTheme.textPrimary)
+        #expect(darkTheme.accent != darkTheme.error)
+    }
+    
+    @Test func testLightThemeColors() {
+        // 验证浅色主题颜色
+        let lightTheme = LightTheme()
+        #expect(lightTheme.background != lightTheme.textPrimary)
+        #expect(lightTheme.accent != lightTheme.error)
+    }
+    
+    @Test func testThemeManagerSingleton() {
+        // 验证 ThemeManager 单例
+        let manager1 = ThemeManager.shared
+        let manager2 = ThemeManager.shared
+        #expect(manager1 === manager2)
+    }
+    
+    @Test func testThemeManagerCycleTheme() {
+        // 验证主题循环切换
+        let manager = ThemeManager.shared
+        let originalMode = manager.mode
+        
+        // 循环三次应该回到原来的模式
+        manager.cycleTheme()
+        manager.cycleTheme()
+        manager.cycleTheme()
+        
+        #expect(manager.mode == originalMode)
+    }
 }
 
 // MARK: - 11. 安全数组访问扩展测试
