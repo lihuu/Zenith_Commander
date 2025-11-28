@@ -8,24 +8,22 @@
 import SwiftUI
 
 struct StatusBarView: View {
+    @ObservedObject private var themeManager = ThemeManager.shared
+    
     let mode: AppMode
     let statusText: String
+    let driveName: String
     let itemCount: Int
     let selectedCount: Int
+    var onDriveClick: (() -> Void)? = nil
     
     var body: some View {
         HStack(spacing: 8) {
             // 模式指示器
             ModeIndicator(mode: mode)
             
-            // 状态文本
-            Text(statusText)
-                .accessibilityLabel(statusText)
-                .accessibilityValue(statusText)
-                .accessibilityIdentifier("status_text")
-                .font(.system(size: 11, weight: .medium, design: .monospaced))
-                .foregroundColor(Theme.textSecondary)
-                .lineLimit(1)
+            // 状态文本 - 驱动器名称可点击
+            statusContent
             
             Spacer()
             
@@ -71,9 +69,61 @@ struct StatusBarView: View {
             return "ESC to close"
         }
     }
+    
+    /// 状态内容 - 根据模式显示不同内容
+    @ViewBuilder
+    private var statusContent: some View {
+        switch mode {
+        case .command, .filter:
+            // 命令模式和过滤模式显示输入内容
+            Text(statusText)
+                .accessibilityLabel(statusText)
+                .accessibilityValue(statusText)
+                .accessibilityIdentifier("status_text")
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .foregroundColor(Theme.textSecondary)
+                .lineLimit(1)
+        default:
+            // 普通模式显示可点击的驱动器名称
+            HStack(spacing: 0) {
+                // 可点击的驱动器名称
+                Text(driveName)
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundColor(Theme.accent)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 1)
+                    .background(Theme.accent.opacity(0.1))
+                    .cornerRadius(3)
+                    .onTapGesture {
+                        onDriveClick?()
+                    }
+                    .help("Click to switch drive (Shift+D)")
+                    .accessibilityIdentifier("drive_name_button")
+                
+                // 分隔符和当前文件名
+                Text(" | \(currentFileName)")
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundColor(Theme.textSecondary)
+                    .lineLimit(1)
+            }
+            .accessibilityLabel(statusText)
+            .accessibilityIdentifier("status_text")
+        }
+    }
+    
+    /// 从 statusText 中提取当前文件名
+    private var currentFileName: String {
+        if let separatorIndex = statusText.firstIndex(of: "|") {
+            let afterSeparator = statusText[statusText.index(after: separatorIndex)...]
+            return afterSeparator.trimmingCharacters(in: .whitespaces)
+        }
+        return ""
+    }
 }
 
 struct ModeIndicator: View {
+    @ObservedObject private var themeManager = ThemeManager.shared
+    
     let mode: AppMode
     
     var body: some View {
@@ -95,13 +145,15 @@ struct ModeIndicator: View {
         StatusBarView(
             mode: .normal,
             statusText: "Macintosh HD | Documents",
+            driveName: "Macintosh HD",
             itemCount: 42,
             selectedCount: 0
         )
         
         StatusBarView(
             mode: .visual,
-            statusText: "3 files selected",
+            statusText: "Macintosh HD | file.txt",
+            driveName: "Macintosh HD",
             itemCount: 42,
             selectedCount: 3
         )
@@ -109,6 +161,7 @@ struct ModeIndicator: View {
         StatusBarView(
             mode: .command,
             statusText: ":ai summarize this folder",
+            driveName: "Macintosh HD",
             itemCount: 42,
             selectedCount: 0
         )

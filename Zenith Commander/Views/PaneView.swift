@@ -11,6 +11,7 @@ import Combine
 struct PaneView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject var pane: PaneState
+    @ObservedObject private var themeManager = ThemeManager.shared
     let side: PaneSide
     
     @State private var permissionDeniedPath: URL? = nil
@@ -113,7 +114,10 @@ struct PaneView: View {
             appState.setActivePane(side)
         }
         .onAppear {
-            loadCurrentDirectoryWithPermissionCheck()
+            // 使用异步加载避免在视图更新期间修改 @Published 属性
+            DispatchQueue.main.async {
+                loadCurrentDirectoryWithPermissionCheck()
+            }
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(side == .left ? "left_pane" : "right_pane")
@@ -449,13 +453,24 @@ struct PaneView: View {
     
     func deleteSelectedFiles() {
         let selections = pane.selections
-        let filesToDelete: [FileItem]
+        var filesToDelete: [FileItem]
         
         if selections.isEmpty {
             guard let file = pane.activeTab.files[safe: pane.cursorIndex] else { return }
+            // 父目录项 (..) 不能被删除
+            guard !file.isParentDirectory else {
+                appState.showToast("Cannot delete parent directory item")
+                return
+            }
             filesToDelete = [file]
         } else {
-            filesToDelete = pane.activeTab.files.filter { selections.contains($0.id) }
+            // 排除父目录项
+            filesToDelete = pane.activeTab.files.filter { selections.contains($0.id) && !$0.isParentDirectory }
+        }
+        
+        guard !filesToDelete.isEmpty else {
+            appState.showToast("No files to delete")
+            return
         }
         
         do {
@@ -505,6 +520,7 @@ struct PaneView: View {
 
 // MARK: - 视图模式切换按钮
 struct ViewModeToggle: View {
+    @ObservedObject private var themeManager = ThemeManager.shared
     @Binding var viewMode: ViewMode
     
     var body: some View {

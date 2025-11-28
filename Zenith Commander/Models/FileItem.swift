@@ -56,6 +56,11 @@ struct FileItem: Identifiable, Hashable {
     
     /// SF Symbol 图标名称
     var iconName: String {
+        // 父目录项使用特殊图标
+        if isParentDirectory {
+            return "arrow.turn.up.left"
+        }
+        
         switch type {
         case .folder:
             return "folder.fill"
@@ -141,6 +146,29 @@ struct FileItem: Identifiable, Hashable {
             permissions: permissionsString,
             fileExtension: url.pathExtension
         )
+    }
+    
+    /// 创建父目录项（..）
+    /// - Parameter parentPath: 父目录的 URL
+    /// - Returns: 代表父目录的 FileItem
+    static func parentDirectoryItem(for parentPath: URL) -> FileItem {
+        return FileItem(
+            id: "..",
+            name: "..",
+            path: parentPath,
+            type: .folder,
+            size: 0,
+            modifiedDate: Date(),
+            createdDate: Date(),
+            isHidden: false,
+            permissions: "",
+            fileExtension: ""
+        )
+    }
+    
+    /// 是否是父目录项
+    var isParentDirectory: Bool {
+        return id == ".." && name == ".."
     }
 }
 

@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct BreadcrumbView: View {
+    @ObservedObject private var themeManager = ThemeManager.shared
+    
     let tab: TabState
     let isActivePane: Bool
     let onNavigate: (URL) -> Void

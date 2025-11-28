@@ -10,6 +10,8 @@ import Combine
 
 struct MainView: View {
     @StateObject private var appState = AppState()
+    @ObservedObject private var themeManager = ThemeManager.shared
+    @State private var showSettings = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -42,8 +44,12 @@ struct MainView: View {
             StatusBarView(
                 mode: appState.mode,
                 statusText: appState.statusText,
+                driveName: appState.currentPane.activeTab.drive.name,
                 itemCount: appState.currentPane.activeTab.files.count,
-                selectedCount: appState.currentPane.selections.count
+                selectedCount: appState.currentPane.selections.count,
+                onDriveClick: {
+                    appState.enterMode(.driveSelect)
+                }
             )
         }
         .background(Theme.background)
@@ -69,13 +75,21 @@ struct MainView: View {
                 )
             }
         }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
+        }
         .focusable()
         .onKeyPress { keyPress in
             handleKeyPress(keyPress)
         }
         .onAppear {
-            // 加载可用驱动器
-            appState.availableDrives = FileSystemService.shared.getMountedVolumes()
+            // 加载可用驱动器 - 使用异步更新避免在视图更新期间修改 @Published 属性
+            DispatchQueue.main.async {
+                appState.availableDrives = FileSystemService.shared.getMountedVolumes()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
+            showSettings = true
         }
     }
     
@@ -93,6 +107,14 @@ struct MainView: View {
                     appState.currentPane.clearSelections()
                 }
                 appState.exitMode()
+            }
+            return .handled
+        }
+        
+        // Cmd+, - 打开设置
+        if key == KeyEquivalent(",") && modifiers.contains(.command) {
+            Task { @MainActor in
+                showSettings = true
             }
             return .handled
         }
@@ -215,16 +237,7 @@ struct MainView: View {
             }
             return .ignored
             
-        // 标签页操作
-        case KeyEquivalent("t"):
-            Task { @MainActor in
-                let pane = appState.currentPane
-                pane.addTab()
-                refreshCurrentPane()
-                appState.showToast("New tab created")
-            }
-            return .handled
-            
+        // 关闭标签页
         case KeyEquivalent("w"):
             Task { @MainActor in
                 let pane = appState.currentPane
@@ -278,6 +291,24 @@ struct MainView: View {
                 return .handled
             }
             return .ignored
+        
+        // 主题切换 (Ctrl+T)
+        case KeyEquivalent("t"):
+            if modifiers.contains(.control) {
+                Task { @MainActor in
+                    themeManager.cycleTheme()
+                    appState.showToast("Theme: \(themeManager.mode.displayName)")
+                }
+                return .handled
+            }
+            // 没有 Ctrl 修饰符时，创建新标签页
+            Task { @MainActor in
+                let pane = appState.currentPane
+                pane.addTab()
+                refreshCurrentPane()
+                appState.showToast("New tab created")
+            }
+            return .handled
             
         default:
             return .ignored
@@ -736,13 +767,24 @@ struct MainView: View {
     private func deleteSelectedFiles() {
         let pane = appState.currentPane
         let selections = pane.selections
-        let filesToDelete: [FileItem]
+        var filesToDelete: [FileItem]
         
         if selections.isEmpty {
             guard let file = pane.activeTab.files[safe: pane.cursorIndex] else { return }
+            // 父目录项 (..) 不能被删除
+            guard !file.isParentDirectory else {
+                appState.showToast("Cannot delete parent directory item")
+                return
+            }
             filesToDelete = [file]
         } else {
-            filesToDelete = pane.activeTab.files.filter { selections.contains($0.id) }
+            // 排除父目录项
+            filesToDelete = pane.activeTab.files.filter { selections.contains($0.id) && !$0.isParentDirectory }
+        }
+        
+        guard !filesToDelete.isEmpty else {
+            appState.showToast("No files to delete")
+            return
         }
         
         do {

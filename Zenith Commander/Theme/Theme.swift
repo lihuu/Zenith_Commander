@@ -2,67 +2,72 @@
 //  Theme.swift
 //  Zenith Commander
 //
-//  主题配色定义 - 暗色主题，参考 VS Code / Neovim
+//  主题配色定义 - 动态主题支持
 //
 
 import SwiftUI
 
-/// 应用主题
+/// 应用主题 - 便捷访问当前主题颜色
 enum Theme {
+    /// 获取当前主题
+    private static var current: ThemeColors {
+        ThemeManager.shared.current
+    }
+    
     // MARK: - 背景色
-    static let background = Color(hex: "#1e1e1e")
-    static let backgroundSecondary = Color(hex: "#252526")
-    static let backgroundTertiary = Color(hex: "#2d2d2d")
-    static let backgroundElevated = Color(hex: "#333333")
+    static var background: Color { current.background }
+    static var backgroundSecondary: Color { current.backgroundSecondary }
+    static var backgroundTertiary: Color { current.backgroundTertiary }
+    static var backgroundElevated: Color { current.backgroundElevated }
     
     // MARK: - 边框色
-    static let border = Color(hex: "#1e1e1e")
-    static let borderLight = Color(hex: "#333333")
-    static let borderSubtle = Color(hex: "#404040")
+    static var border: Color { current.border }
+    static var borderLight: Color { current.borderLight }
+    static var borderSubtle: Color { current.borderSubtle }
     
     // MARK: - 文本色
-    static let textPrimary = Color(hex: "#e0e0e0")
-    static let textSecondary = Color(hex: "#a0a0a0")
-    static let textTertiary = Color(hex: "#6e6e6e")
-    static let textMuted = Color(hex: "#505050")
+    static var textPrimary: Color { current.textPrimary }
+    static var textSecondary: Color { current.textSecondary }
+    static var textTertiary: Color { current.textTertiary }
+    static var textMuted: Color { current.textMuted }
     
     // MARK: - 强调色
-    static let accent = Color(hex: "#4fc3f7")       // 蓝色强调
-    static let accentSecondary = Color(hex: "#81c784") // 绿色
-    static let selection = Color(hex: "#264f78")    // 选中背景
-    static let selectionInactive = Color(hex: "#3a3a3a")
+    static var accent: Color { current.accent }
+    static var accentSecondary: Color { current.accentSecondary }
+    static var selection: Color { current.selection }
+    static var selectionInactive: Color { current.selectionInactive }
     
     // MARK: - 语义色
-    static let folder = Color(hex: "#90caf9")       // 文件夹蓝色
-    static let file = Color(hex: "#9e9e9e")         // 文件灰色
-    static let code = Color(hex: "#4fc3f7")         // 代码文件
-    static let image = Color(hex: "#ce93d8")        // 图片紫色
-    static let video = Color(hex: "#f48fb1")        // 视频粉色
-    static let audio = Color(hex: "#ffb74d")        // 音频橙色
-    static let archive = Color(hex: "#a5d6a7")      // 压缩包绿色
+    static var folder: Color { current.folder }
+    static var file: Color { current.file }
+    static var code: Color { current.code }
+    static var image: Color { current.image }
+    static var video: Color { current.video }
+    static var audio: Color { current.audio }
+    static var archive: Color { current.archive }
     
     // MARK: - 状态色
-    static let success = Color(hex: "#4caf50")
-    static let warning = Color(hex: "#ff9800")
-    static let error = Color(hex: "#f44336")
-    static let info = Color(hex: "#2196f3")
+    static var success: Color { current.success }
+    static var warning: Color { current.warning }
+    static var error: Color { current.error }
+    static var info: Color { current.info }
     
     // MARK: - 模式指示色
-    static let modeNormal = Color(hex: "#6e6e6e")
-    static let modeVisual = Color(hex: "#ff9800")
-    static let modeCommand = Color(hex: "#2196f3")
-    static let modeFilter = Color(hex: "#4caf50")
-    static let modeDrive = Color(hex: "#9c27b0")
-    static let modeAI = Color(hex: "#e91e63")
+    static var modeNormal: Color { current.modeNormal }
+    static var modeVisual: Color { current.modeVisual }
+    static var modeCommand: Color { current.modeCommand }
+    static var modeFilter: Color { current.modeFilter }
+    static var modeDrive: Color { current.modeDrive }
+    static var modeAI: Color { current.modeAI }
     
     // MARK: - 窗口控制按钮
-    static let windowClose = Color(hex: "#FF5F57")
-    static let windowMinimize = Color(hex: "#FFBD2E")
-    static let windowMaximize = Color(hex: "#28C840")
+    static var windowClose: Color { current.windowClose }
+    static var windowMinimize: Color { current.windowMinimize }
+    static var windowMaximize: Color { current.windowMaximize }
     
     // MARK: - AI 渐变色
-    static let aiGradientStart = Color(hex: "#880e4f")
-    static let aiGradientEnd = Color(hex: "#4a148c")
+    static var aiGradientStart: Color { current.aiGradientStart }
+    static var aiGradientEnd: Color { current.aiGradientEnd }
 }
 
 // MARK: - Color Hex 扩展

@@ -175,6 +175,9 @@ class PaneState: ObservableObject {
     
     /// 切换选择状态
     func toggleSelection(for fileId: String) {
+        // 父目录项 (..) 不能被选中
+        if fileId == ".." { return }
+        
         if selections.contains(fileId) {
             selections.remove(fileId)
         } else {
@@ -186,6 +189,8 @@ class PaneState: ObservableObject {
     func selectCurrentFile() {
         guard cursorIndex < activeTab.files.count else { return }
         let file = activeTab.files[cursorIndex]
+        // 父目录项 (..) 不能被选中
+        guard !file.isParentDirectory else { return }
         selections.insert(file.id)
     }
     
@@ -216,7 +221,11 @@ class PaneState: ObservableObject {
         selections.removeAll()
         for i in start...end {
             if i < files.count {
-                selections.insert(files[i].id)
+                let file = files[i]
+                // 父目录项 (..) 不能被选中
+                if !file.isParentDirectory {
+                    selections.insert(file.id)
+                }
             }
         }
     }
@@ -405,7 +414,10 @@ class AppState: ObservableObject {
     
     /// 显示 Toast 消息
     func showToast(_ message: String) {
-        toastMessage = message
+        // 使用异步更新避免在视图更新期间修改 @Published 属性
+        DispatchQueue.main.async { [weak self] in
+            self?.toastMessage = message
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
             if self?.toastMessage == message {
                 self?.toastMessage = nil
@@ -421,10 +433,20 @@ class AppState: ObservableObject {
         if selections.isEmpty {
             // 如果没有选择，复制当前光标文件
             if let file = currentPane.currentFiles[safe: currentPane.cursorIndex] {
+                // 父目录项 (..) 不能被复制
+                guard !file.isParentDirectory else {
+                    showToast("Cannot copy parent directory item")
+                    return
+                }
                 clipboard = [file]
             }
         } else {
-            clipboard = currentPane.currentFiles.filter { selections.contains($0.id) }
+            // 排除父目录项
+            clipboard = currentPane.currentFiles.filter { selections.contains($0.id) && !$0.isParentDirectory }
+        }
+        if clipboard.isEmpty {
+            showToast("No files to yank")
+            return
         }
         clipboardOperation = .copy
         showToast("\(clipboard.count) file(s) yanked")

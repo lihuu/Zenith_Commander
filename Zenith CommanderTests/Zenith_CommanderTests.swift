@@ -522,6 +522,164 @@ struct GridViewNavigationTests {
     }
 }
 
+// MARK: - 父目录项 (..) 测试
+
+@Suite("Parent Directory Item Tests")
+struct ParentDirectoryItemTests {
+    
+    @Test func testParentDirectoryItemCreation() {
+        let parentPath = URL(fileURLWithPath: "/Users/test")
+        let item = FileItem.parentDirectoryItem(for: parentPath)
+        
+        #expect(item.id == "..")
+        #expect(item.name == "..")
+        #expect(item.path == parentPath)
+        #expect(item.type == .folder)
+        #expect(item.isParentDirectory == true)
+    }
+    
+    @Test func testParentDirectoryItemIcon() {
+        let parentPath = URL(fileURLWithPath: "/Users/test")
+        let item = FileItem.parentDirectoryItem(for: parentPath)
+        
+        // 父目录项应该使用特殊的返回箭头图标
+        #expect(item.iconName == "arrow.turn.up.left")
+    }
+    
+    @Test func testRegularFolderIsNotParentDirectory() {
+        let now = Date()
+        let regularFolder = FileItem(
+            id: "folder_1",
+            name: "Documents",
+            path: URL(fileURLWithPath: "/Users/test/Documents"),
+            type: .folder,
+            size: 0,
+            modifiedDate: now,
+            createdDate: now,
+            isHidden: false,
+            permissions: "755",
+            fileExtension: ""
+        )
+        
+        #expect(regularFolder.isParentDirectory == false)
+        #expect(regularFolder.iconName == "folder.fill")
+    }
+    
+    @Test func testLoadDirectoryIncludesParentItem() {
+        let service = FileSystemService.shared
+        
+        // 测试非根目录应该包含 ".." 项
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let result = service.loadDirectoryWithPermissionCheck(at: documentsPath)
+        
+        if case .success(let files) = result {
+            // 非根目录的第一个项目应该是 ".."
+            if let firstItem = files.first {
+                #expect(firstItem.isParentDirectory == true)
+                #expect(firstItem.name == "..")
+            }
+        }
+    }
+    
+    @Test func testRootDirectoryNoParentItem() {
+        let service = FileSystemService.shared
+        
+        // 测试根目录不应该包含 ".." 项
+        let rootPath = URL(fileURLWithPath: "/")
+        let result = service.loadDirectoryWithPermissionCheck(at: rootPath)
+        
+        if case .success(let files) = result {
+            // 根目录的第一个项目不应该是 ".."
+            if let firstItem = files.first {
+                #expect(firstItem.isParentDirectory == false)
+            }
+        }
+    }
+    
+    // MARK: - 父目录项只读限制测试
+    
+    @Test func testParentDirectoryCannotBeSelected() {
+        let drive = DriveInfo(
+            id: "test-drive",
+            name: "Macintosh HD",
+            path: URL(fileURLWithPath: "/"),
+            type: .system,
+            totalCapacity: 500_000_000_000,
+            availableCapacity: 100_000_000_000
+        )
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/Users"), drive: drive)
+        
+        // 尝试选中父目录项
+        pane.toggleSelection(for: "..")
+        
+        // 父目录项不应该被选中
+        #expect(pane.selections.contains("..") == false)
+    }
+    
+    @Test func testParentDirectoryExcludedFromVisualSelection() {
+        let drive = DriveInfo(
+            id: "test-drive",
+            name: "Macintosh HD",
+            path: URL(fileURLWithPath: "/"),
+            type: .system,
+            totalCapacity: 500_000_000_000,
+            availableCapacity: 100_000_000_000
+        )
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/Users"), drive: drive)
+        
+        // 添加父目录项和普通文件
+        let parentItem = FileItem.parentDirectoryItem(for: URL(fileURLWithPath: "/"))
+        let now = Date()
+        let regularFile = FileItem(
+            id: "file_1",
+            name: "test.txt",
+            path: URL(fileURLWithPath: "/Users/test.txt"),
+            type: .file,
+            size: 1024,
+            modifiedDate: now,
+            createdDate: now,
+            isHidden: false,
+            permissions: "rw-r--r--",
+            fileExtension: "txt"
+        )
+        
+        pane.activeTab.files = [parentItem, regularFile]
+        
+        // 设置 Visual 模式选择范围（包含父目录项）
+        pane.visualAnchor = 0
+        pane.cursorIndex = 1
+        pane.updateVisualSelection()
+        
+        // 父目录项不应该在选择集中
+        #expect(pane.selections.contains("..") == false)
+        // 普通文件应该被选中
+        #expect(pane.selections.contains("file_1") == true)
+    }
+    
+    @Test func testSelectCurrentFileSkipsParentDirectory() {
+        let drive = DriveInfo(
+            id: "test-drive",
+            name: "Macintosh HD",
+            path: URL(fileURLWithPath: "/"),
+            type: .system,
+            totalCapacity: 500_000_000_000,
+            availableCapacity: 100_000_000_000
+        )
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/Users"), drive: drive)
+        
+        // 添加父目录项
+        let parentItem = FileItem.parentDirectoryItem(for: URL(fileURLWithPath: "/"))
+        pane.activeTab.files = [parentItem]
+        pane.cursorIndex = 0
+        
+        // 尝试选择当前文件（父目录项）
+        pane.selectCurrentFile()
+        
+        // 父目录项不应该被选中
+        #expect(pane.selections.isEmpty == true)
+    }
+}
+
 // MARK: - 7. AppState 测试 (模态操作引擎)
 
 struct AppStateTests {
@@ -602,10 +760,13 @@ struct AppStateTests {
         #expect(state.showDriveSelector == false)
     }
     
-    @Test func testToast() {
+    @Test func testToast() async throws {
         let state = AppState()
         
         state.showToast("Test message")
+        
+        // 等待异步更新完成
+        try await Task.sleep(nanoseconds: 100_000_000) // 0.1 秒
         
         #expect(state.toastMessage == "Test message")
     }
@@ -2254,6 +2415,71 @@ struct ThemeTests {
         
         #expect(true) // 如果能到达这里，说明颜色都存在
     }
+    
+    @Test func testThemeModeValues() {
+        // 验证主题模式枚举值
+        #expect(ThemeMode.light.rawValue == "Light")
+        #expect(ThemeMode.dark.rawValue == "Dark")
+        #expect(ThemeMode.auto.rawValue == "Auto")
+    }
+    
+    @Test func testThemeModeDisplayNames() {
+        // 验证主题模式显示名称
+        #expect(ThemeMode.light.displayName == "浅色")
+        #expect(ThemeMode.dark.displayName == "深色")
+        #expect(ThemeMode.auto.displayName == "跟随系统")
+    }
+    
+    @Test func testThemeModeIcons() {
+        // 验证主题模式图标
+        #expect(ThemeMode.light.icon == "sun.max.fill")
+        #expect(ThemeMode.dark.icon == "moon.fill")
+        #expect(ThemeMode.auto.icon == "circle.lefthalf.filled")
+    }
+    
+    @Test func testDarkThemeColors() {
+        // 验证深色主题颜色
+        let darkTheme = DarkTheme()
+        #expect(darkTheme.background != darkTheme.textPrimary)
+        #expect(darkTheme.accent != darkTheme.error)
+    }
+    
+    @Test func testLightThemeColors() {
+        // 验证浅色主题颜色
+        let lightTheme = LightTheme()
+        #expect(lightTheme.background != lightTheme.textPrimary)
+        #expect(lightTheme.accent != lightTheme.error)
+    }
+    
+    @Test func testThemeManagerSingleton() {
+        // 验证 ThemeManager 单例
+        let manager1 = ThemeManager.shared
+        let manager2 = ThemeManager.shared
+        #expect(manager1 === manager2)
+    }
+    
+    @Test func testThemeManagerCycleTheme() {
+        // 验证主题循环切换逻辑正确
+        let allModes = ThemeMode.allCases
+        
+        // 验证循环顺序：light -> dark -> auto -> light
+        #expect(allModes.count == 3)
+        #expect(allModes[0] == .light)
+        #expect(allModes[1] == .dark)
+        #expect(allModes[2] == .auto)
+        
+        // 验证每个模式切换到下一个模式的逻辑
+        for (index, currentMode) in allModes.enumerated() {
+            let nextIndex = (index + 1) % allModes.count
+            let expectedNextMode = allModes[nextIndex]
+            
+            // 模拟 cycleTheme 的逻辑
+            if let currentIndex = allModes.firstIndex(of: currentMode) {
+                let calculatedNextIndex = (currentIndex + 1) % allModes.count
+                #expect(allModes[calculatedNextIndex] == expectedNextMode)
+            }
+        }
+    }
 }
 
 // MARK: - 11. 安全数组访问扩展测试
@@ -2283,3 +2509,80 @@ struct ArrayExtensionTests {
     }
 }
 
+// MARK: - 12. 设置测试
+
+struct SettingsTests {
+    
+    @Test func testAppSettingsDefault() {
+        let settings = AppSettings.default
+        
+        #expect(settings.appearance.themeMode == "auto")
+        #expect(settings.appearance.fontSize == 12.0)
+        #expect(settings.appearance.lineHeight == 1.4)
+        #expect(settings.terminal.defaultTerminal == "terminal")
+    }
+    
+    @Test func testAppearanceSettingsThemeModeEnum() {
+        var settings = AppearanceSettings.default
+        
+        settings.themeMode = "light"
+        #expect(settings.themeModeEnum == .light)
+        
+        settings.themeMode = "dark"
+        #expect(settings.themeModeEnum == .dark)
+        
+        settings.themeMode = "auto"
+        #expect(settings.themeModeEnum == .auto)
+        
+        settings.themeMode = "invalid"
+        #expect(settings.themeModeEnum == .auto) // 默认回退到 auto
+    }
+    
+    @Test func testTerminalSettingsAvailableTerminals() {
+        let terminals = TerminalSettings.availableTerminals
+        
+        #expect(terminals.count >= 1)
+        #expect(terminals.first?.id == "terminal")
+        #expect(terminals.first?.name == "Terminal")
+        #expect(terminals.first?.bundleId == "com.apple.Terminal")
+    }
+    
+    @Test func testTerminalOptionInstalled() {
+        // 系统终端应该总是已安装
+        let systemTerminal = TerminalOption(id: "terminal", name: "Terminal", bundleId: "com.apple.Terminal")
+        #expect(systemTerminal.isInstalled == true)
+    }
+    
+    @Test func testSettingsManagerSingleton() {
+        let manager1 = SettingsManager.shared
+        let manager2 = SettingsManager.shared
+        #expect(manager1 === manager2)
+    }
+    
+    @Test func testAppSettingsCodable() throws {
+        let settings = AppSettings.default
+        
+        // 编码
+        let encoder = JSONEncoder()
+        let data = try encoder.encode(settings)
+        
+        // 解码
+        let decoder = JSONDecoder()
+        let decoded = try decoder.decode(AppSettings.self, from: data)
+        
+        #expect(decoded == settings)
+    }
+    
+    @Test func testTerminalSettingsCurrentTerminal() {
+        var settings = TerminalSettings.default
+        
+        #expect(settings.currentTerminal.id == "terminal")
+        
+        settings.defaultTerminal = "iterm"
+        #expect(settings.currentTerminal.id == "iterm")
+        
+        // 无效的终端 ID 应该回退到第一个
+        settings.defaultTerminal = "nonexistent"
+        #expect(settings.currentTerminal.id == "terminal")
+    }
+}
