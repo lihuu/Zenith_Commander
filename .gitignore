@@ -1,3 +1,66 @@
 ProtoType.jsx
 REQUIREMENTS.md
 DEVELOPMENT_PLAN.md
+
+### Xcode Build Paths ###
+# ---------------------
+# 派生数据目录，包含编译产物、索引和日志
+build/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.pbxlazycontent
+DerivedData/
+
+# 编译和归档产物
+*.app
+*.ipa
+*.dSYM.zip
+*.xcarchive
+*.modulemap
+*.xcodeproj/project.xcworkspace/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+
+# 模拟器数据
+# ---------------------
+# 模拟器和测试相关的文件
+*.[oa]
+*~
+*.lock
+
+### Xcode Specific Files ###
+# ---------------------
+# Xcode 调试器文件
+.DS_Store
+
+# 用户特定的工作区/项目设置（窗口布局、断点等）
+# 如果你是团队协作，通常需要忽略这些
+xcuserdata/
+
+# Swift Package Manager
+# ---------------------
+.swiftpm/
+Package.pins
+
+### CocoaPods ###
+# ---------------------
+# 忽略 Pods 目录本身，仅提交 Podfile 和 Podfile.lock
+# 这样其他开发者可以通过 `pod install` 来重建依赖
+Pods/
+# 忽略 Pods 项目文件
+*.xcworkspace/
+!default.xcworkspace/
+!default.xcworkspace/*.xccheckout
+!default.xcworkspace/contents.xcworkspacedata
+
+### Carthage ###
+# ---------------------
+Carthage/Build
+
+### Swiftlint ###
+# ---------------------
+.swiftlint.yml

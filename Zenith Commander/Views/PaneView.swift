@@ -142,7 +142,7 @@ struct PaneView: View {
                             isSelected: pane.selections.contains(file.id),
                             isPaneActive: isActivePane
                         )
-                        .id(index)
+//                        .id(index)
                         .onTapGesture {
                             handleFileClick(index: index)
                         }
