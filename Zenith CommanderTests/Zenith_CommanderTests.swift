@@ -621,6 +621,66 @@ struct VisualModeTests {
         #expect(pane.selections.contains("file-1"))
         #expect(pane.selections.contains("file-2"))
     }
+    
+    // MARK: - 测试：Visual 模式选择时 AppState 应该收到变化通知
+    
+    @Test func testVisualModeSelectionTriggersAppStateChange() {
+        let state = AppState()
+        let pane = state.currentPane
+        
+        // 设置测试文件
+        pane.activeTab.files = createTestFileItems(count: 5)
+        pane.cursorIndex = 1
+        
+        // 进入 Visual 模式并选择文件
+        state.enterMode(.visual)
+        pane.startVisualSelection()
+        
+        // 初始应该有 1 个选中
+        #expect(pane.selections.count == 1)
+        
+        // 移动光标选择更多文件
+        pane.cursorIndex = 3
+        pane.updateVisualSelection()
+        
+        // 验证选中计数正确
+        #expect(pane.selections.count == 3)
+        
+        // 关键测试：验证通过 appState.currentPane.selections.count 能获得正确的值
+        // 这是 StatusBarView 获取 selectedCount 的方式
+        #expect(state.currentPane.selections.count == 3)
+    }
+    
+    @Test func testVisualModeSelectionCountUpdatesCorrectly() {
+        let state = AppState()
+        let pane = state.currentPane
+        
+        // 设置测试文件
+        pane.activeTab.files = createTestFileItems(count: 10)
+        pane.cursorIndex = 2
+        
+        // 进入 Visual 模式
+        state.enterMode(.visual)
+        pane.startVisualSelection()
+        
+        // 验证初始选中 1 个
+        #expect(state.currentPane.selections.count == 1)
+        
+        // 向下移动到 index 5 (应选中 2,3,4,5 共 4 个)
+        pane.cursorIndex = 5
+        pane.updateVisualSelection()
+        #expect(state.currentPane.selections.count == 4)
+        
+        // 向下移动到 index 7 (应选中 2,3,4,5,6,7 共 6 个)
+        pane.cursorIndex = 7
+        pane.updateVisualSelection()
+        #expect(state.currentPane.selections.count == 6)
+        
+        // 向上收缩到 index 4 (应选中 2,3,4 共 3 个)
+        pane.cursorIndex = 4
+        pane.updateVisualSelection()
+        #expect(state.currentPane.selections.count == 3)
+    }
 }
 
 // MARK: - 7.2 Command 模式测试

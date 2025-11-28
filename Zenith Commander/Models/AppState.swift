@@ -200,6 +200,9 @@ class AppState: ObservableObject {
     @Published var rightPane: PaneState
     @Published var activePane: PaneSide = .left
     
+    // MARK: - 订阅管理
+    private var paneCancellables: Set<AnyCancellable> = []
+    
     // MARK: - 模态状态
     @Published var mode: AppMode = .normal
     var previousMode: AppMode = .normal
@@ -251,10 +254,31 @@ class AppState: ObservableObject {
             rightPane = PaneState(side: .right, initialPath: testDir, drive: defaultDrive)
         } else {
             // 初始化面板，默认路径为用户主目录
+            // TODO 这里可以从配置文件中读取，如果没有配置则使用默认路径，两边默认都应该使用home目录
+            /// 应该记录上次使用的路径吧，其他的软件都是这样做的
+            ///
             let homePath = FileManager.default.homeDirectoryForCurrentUser
             leftPane = PaneState(side: .left, initialPath: homePath, drive: defaultDrive)
             rightPane = PaneState(side: .right, initialPath: homePath.appendingPathComponent("Downloads"), drive: defaultDrive)
         }
+        
+        // 订阅两个面板的变化，转发到 AppState
+        subscribeToPaneChanges()
+    }
+    
+    /// 订阅面板状态变化
+    private func subscribeToPaneChanges() {
+        leftPane.objectWillChange
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &paneCancellables)
+        
+        rightPane.objectWillChange
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &paneCancellables)
     }
     
     // MARK: - 计算属性
