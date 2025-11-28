@@ -42,8 +42,12 @@ struct MainView: View {
             StatusBarView(
                 mode: appState.mode,
                 statusText: appState.statusText,
+                driveName: appState.currentPane.activeTab.drive.name,
                 itemCount: appState.currentPane.activeTab.files.count,
-                selectedCount: appState.currentPane.selections.count
+                selectedCount: appState.currentPane.selections.count,
+                onDriveClick: {
+                    appState.enterMode(.driveSelect)
+                }
             )
         }
         .background(Theme.background)
