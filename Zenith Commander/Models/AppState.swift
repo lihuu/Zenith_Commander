@@ -55,6 +55,8 @@ class PaneState: ObservableObject {
     @Published var selections: Set<String> // 存储选中的文件 ID
     var visualAnchor: Int? // Visual 模式的锚点位置
     
+    private var tabCancellables: [UUID: AnyCancellable] = [:]
+    
     init(side: PaneSide, initialPath: URL, drive: DriveInfo) {
         self.side = side
         self.tabs = [TabState(drive: drive, path: initialPath)]
@@ -62,6 +64,20 @@ class PaneState: ObservableObject {
         self.viewMode = .list
         self.selections = []
         self.visualAnchor = nil
+        
+        // 订阅初始标签页的变化
+        subscribeToTabChanges()
+    }
+    
+    /// 订阅所有标签页的变化，转发到 PaneState
+    private func subscribeToTabChanges() {
+        tabCancellables.removeAll()
+        for tab in tabs {
+            let cancellable = tab.objectWillChange.sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            tabCancellables[tab.id] = cancellable
+        }
     }
     
     /// 当前活动标签页
@@ -87,11 +103,19 @@ class PaneState: ObservableObject {
         let newTab = TabState(drive: newDrive, path: newPath)
         tabs.append(newTab)
         activeTabIndex = tabs.count - 1
+        
+        // 订阅新标签页的变化
+        let cancellable = newTab.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }
+        tabCancellables[newTab.id] = cancellable
     }
     
     /// 关闭标签页
     func closeTab(at index: Int) {
         guard tabs.count > 1 else { return }
+        let removedTab = tabs[index]
+        tabCancellables.removeValue(forKey: removedTab.id)
         tabs.remove(at: index)
         if activeTabIndex >= tabs.count {
             activeTabIndex = tabs.count - 1
