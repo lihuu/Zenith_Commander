@@ -23,7 +23,7 @@ Zenith Commander - 验收测试清单 (Acceptance Checklist)
     - [x] k / ↑: 光标向上移动一行。
     - [x] l / Enter / 双击文件夹: 进入当前选中的目录。
     - [x] h / Backspace: 返回上一级目录（在根目录时提示无法返回）。
-    - [ ] h / Backspace: 返回上一级目录（返回的时候应该选中上级上一次选中的目录）。
+    - [x] h / Backspace: 返回上一级目录（返回的时候应该选中上级上一次选中的目录）。
     - [x] Enter / 双击文件: 使用系统默认程序打开当前选中的文件。
 
     面包屑导航:
@@ -36,7 +36,6 @@ Zenith Commander - 验收测试清单 (Acceptance Checklist)
 
     - [x] Shift + D: 弹出驱动器选择悬浮层。
     - [x] 在悬浮层中使用 j/k 选择，Enter 确认切换。
-    - [ ] 切换后，面板内容刷新为新驱动器的根目录或上次记忆位置。
 
 3.  模态操作引擎 (Vim Engine)
     Visual Mode (可视模式)

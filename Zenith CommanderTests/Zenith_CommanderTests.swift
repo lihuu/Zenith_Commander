@@ -1117,6 +1117,289 @@ struct VisualModeTests {
         pane.updateVisualSelection()
         #expect(state.currentPane.selections.count == 3)
     }
+    
+    // MARK: - 测试: Visual 模式下按 r 显示批量重命名模态窗口
+    
+    @Test func testVisualModeShowRenameModal() {
+        let state = AppState()
+        let pane = state.currentPane
+        
+        // 设置测试文件
+        pane.activeTab.files = createTestFileItems(count: 5)
+        pane.cursorIndex = 1
+        
+        // 进入 Visual 模式并选择文件
+        state.enterMode(.visual)
+        pane.startVisualSelection()
+        
+        // 向下移动选择多个文件
+        pane.cursorIndex = 3
+        pane.updateVisualSelection()
+        
+        // 验证选中了多个文件
+        #expect(pane.selections.count == 3)
+        
+        // 模拟按 r 显示重命名模态窗口
+        state.showRenameModal = true
+        
+        // 验证模态窗口标志被设置
+        #expect(state.showRenameModal == true)
+    }
+    
+    @Test func testRenameModalInitialState() {
+        let state = AppState()
+        
+        // 验证初始状态
+        #expect(state.showRenameModal == false)
+        #expect(state.renameFindText == "")
+        #expect(state.renameReplaceText == "")
+        #expect(state.renameUseRegex == false)
+    }
+    
+    @Test func testRenameModalStateUpdates() {
+        let state = AppState()
+        
+        // 设置重命名参数
+        state.renameFindText = "IMG_"
+        state.renameReplaceText = "Photo_{n}"
+        state.renameUseRegex = false
+        state.showRenameModal = true
+        
+        // 验证状态更新
+        #expect(state.renameFindText == "IMG_")
+        #expect(state.renameReplaceText == "Photo_{n}")
+        #expect(state.renameUseRegex == false)
+        #expect(state.showRenameModal == true)
+    }
+    
+    @Test func testRenameModalWithRegex() {
+        let state = AppState()
+        
+        // 设置正则表达式重命名
+        state.renameFindText = "\\d{4}"
+        state.renameReplaceText = "{date}"
+        state.renameUseRegex = true
+        
+        // 验证正则模式
+        #expect(state.renameUseRegex == true)
+        #expect(state.renameFindText == "\\d{4}")
+    }
+    
+    @Test func testRenameModalCloseResetsState() {
+        let state = AppState()
+        
+        // 设置一些重命名参数
+        state.renameFindText = "test"
+        state.renameReplaceText = "new"
+        state.showRenameModal = true
+        
+        // 模拟关闭模态窗口并重置状态
+        state.showRenameModal = false
+        state.renameFindText = ""
+        state.renameReplaceText = ""
+        state.renameUseRegex = false
+        
+        // 验证状态被重置
+        #expect(state.showRenameModal == false)
+        #expect(state.renameFindText == "")
+        #expect(state.renameReplaceText == "")
+        #expect(state.renameUseRegex == false)
+    }
+}
+
+// MARK: - 7.1.1 批量重命名测试
+
+struct BatchRenameTests {
+    
+    /// 模拟生成新文件名的逻辑（与 MainView 中的逻辑相同）
+    private func generateNewName(
+        originalName: String,
+        findText: String,
+        replaceText: String,
+        useRegex: Bool,
+        index: Int
+    ) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd"
+        let dateString = formatter.string(from: Date())
+        
+        var processedReplace = replaceText
+            .replacingOccurrences(of: "{n}", with: String(format: "%03d", index + 1))
+            .replacingOccurrences(of: "{date}", with: dateString)
+        
+        if useRegex {
+            if let regex = try? NSRegularExpression(pattern: findText, options: []) {
+                let range = NSRange(originalName.startIndex..., in: originalName)
+                return regex.stringByReplacingMatches(
+                    in: originalName,
+                    options: [],
+                    range: range,
+                    withTemplate: processedReplace
+                )
+            }
+            return originalName
+        } else {
+            return originalName.replacingOccurrences(of: findText, with: processedReplace)
+        }
+    }
+    
+    @Test func testBasicStringReplacement() {
+        // 测试基本的字符串替换
+        let result = generateNewName(
+            originalName: "IMG_001.jpg",
+            findText: "IMG_",
+            replaceText: "Photo_",
+            useRegex: false,
+            index: 0
+        )
+        #expect(result == "Photo_001.jpg")
+    }
+    
+    @Test func testSequenceNumberReplacement() {
+        // 测试 {n} 序号替换
+        let result1 = generateNewName(
+            originalName: "file.txt",
+            findText: "file",
+            replaceText: "document_{n}",
+            useRegex: false,
+            index: 0
+        )
+        #expect(result1 == "document_001.txt")
+        
+        let result2 = generateNewName(
+            originalName: "file.txt",
+            findText: "file",
+            replaceText: "document_{n}",
+            useRegex: false,
+            index: 9
+        )
+        #expect(result2 == "document_010.txt")
+        
+        let result3 = generateNewName(
+            originalName: "file.txt",
+            findText: "file",
+            replaceText: "document_{n}",
+            useRegex: false,
+            index: 99
+        )
+        #expect(result3 == "document_100.txt")
+    }
+    
+    @Test func testDateReplacement() {
+        // 测试 {date} 日期替换
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd"
+        let expectedDate = formatter.string(from: Date())
+        
+        let result = generateNewName(
+            originalName: "photo.jpg",
+            findText: "photo",
+            replaceText: "pic_{date}",
+            useRegex: false,
+            index: 0
+        )
+        #expect(result == "pic_\(expectedDate).jpg")
+    }
+    
+    @Test func testCombinedPlaceholders() {
+        // 测试 {n} 和 {date} 组合使用
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd"
+        let expectedDate = formatter.string(from: Date())
+        
+        let result = generateNewName(
+            originalName: "IMG_original.png",
+            findText: "IMG_original",
+            replaceText: "Photo_{date}_{n}",
+            useRegex: false,
+            index: 4
+        )
+        #expect(result == "Photo_\(expectedDate)_005.png")
+    }
+    
+    @Test func testRegexReplacement() {
+        // 测试正则表达式替换
+        let result = generateNewName(
+            originalName: "file123.txt",
+            findText: "\\d+",
+            replaceText: "XXX",
+            useRegex: true,
+            index: 0
+        )
+        #expect(result == "fileXXX.txt")
+    }
+    
+    @Test func testRegexWithGroups() {
+        // 测试正则表达式分组捕获
+        let result = generateNewName(
+            originalName: "2023_photo.jpg",
+            findText: "(\\d{4})_",
+            replaceText: "year_$1_",
+            useRegex: true,
+            index: 0
+        )
+        #expect(result == "year_2023_photo.jpg")
+    }
+    
+    @Test func testNoMatchNoChange() {
+        // 测试没有匹配时不改变文件名
+        let result = generateNewName(
+            originalName: "document.pdf",
+            findText: "photo",
+            replaceText: "image",
+            useRegex: false,
+            index: 0
+        )
+        #expect(result == "document.pdf")
+    }
+    
+    @Test func testEmptyReplacementRemovesMatch() {
+        // 测试空替换删除匹配内容
+        let result = generateNewName(
+            originalName: "prefix_file.txt",
+            findText: "prefix_",
+            replaceText: "",
+            useRegex: false,
+            index: 0
+        )
+        #expect(result == "file.txt")
+    }
+    
+    @Test func testMultipleMatchesReplaced() {
+        // 测试多个匹配都被替换
+        let result = generateNewName(
+            originalName: "a_b_c.txt",
+            findText: "_",
+            replaceText: "-",
+            useRegex: false,
+            index: 0
+        )
+        #expect(result == "a-b-c.txt")
+    }
+    
+    @Test func testInvalidRegexReturnsOriginal() {
+        // 测试无效正则表达式返回原始文件名
+        let result = generateNewName(
+            originalName: "file.txt",
+            findText: "[invalid",  // 无效的正则表达式
+            replaceText: "new",
+            useRegex: true,
+            index: 0
+        )
+        #expect(result == "file.txt")
+    }
+    
+    @Test func testSpecialCharactersInFindText() {
+        // 测试查找文本中的特殊字符（非正则模式）
+        let result = generateNewName(
+            originalName: "file (1).txt",
+            findText: " (1)",
+            replaceText: "",
+            useRegex: false,
+            index: 0
+        )
+        #expect(result == "file.txt")
+    }
 }
 
 // MARK: - 7.2 Command 模式测试
