@@ -86,6 +86,9 @@ struct MainView: View {
             // 加载可用驱动器
             appState.availableDrives = FileSystemService.shared.getMountedVolumes()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
+            showSettings = true
+        }
     }
     
     // MARK: - 键盘处理

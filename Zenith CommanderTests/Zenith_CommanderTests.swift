@@ -2458,14 +2458,19 @@ struct ThemeTests {
     @Test func testThemeManagerCycleTheme() {
         // 验证主题循环切换
         let manager = ThemeManager.shared
-        let originalMode = manager.mode
         
-        // 循环三次应该回到原来的模式
-        manager.cycleTheme()
-        manager.cycleTheme()
-        manager.cycleTheme()
+        // 设置到已知状态开始测试
+        manager.mode = .light
         
-        #expect(manager.mode == originalMode)
+        // 循环：light -> dark -> auto -> light
+        manager.cycleTheme()
+        #expect(manager.mode == .dark)
+        
+        manager.cycleTheme()
+        #expect(manager.mode == .auto)
+        
+        manager.cycleTheme()
+        #expect(manager.mode == .light)
     }
 }
 

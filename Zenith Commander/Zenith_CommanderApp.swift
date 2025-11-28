@@ -36,6 +36,13 @@ struct Zenith_CommanderApp: App {
         .commands {
             CommandGroup(replacing: .newItem) { }
             
+            CommandGroup(after: .appInfo) {
+                Button("Settings...") {
+                    NotificationCenter.default.post(name: .openSettings, object: nil)
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
+            
             CommandMenu("Navigation") {
                 Button("Go to Parent Directory") {
                     NotificationCenter.default.post(name: .goToParent, object: nil)
@@ -94,4 +101,5 @@ extension Notification.Name {
     static let switchPane = Notification.Name("switchPane")
     static let newTab = Notification.Name("newTab")
     static let closeTab = Notification.Name("closeTab")
+    static let openSettings = Notification.Name("openSettings")
 }

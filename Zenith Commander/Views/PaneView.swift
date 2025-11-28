@@ -11,6 +11,7 @@ import Combine
 struct PaneView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject var pane: PaneState
+    @ObservedObject private var themeManager = ThemeManager.shared
     let side: PaneSide
     
     @State private var permissionDeniedPath: URL? = nil
