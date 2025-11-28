@@ -11,6 +11,7 @@ import Combine
 struct MainView: View {
     @StateObject private var appState = AppState()
     @ObservedObject private var themeManager = ThemeManager.shared
+    @State private var showSettings = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -74,6 +75,9 @@ struct MainView: View {
                 )
             }
         }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
+        }
         .focusable()
         .onKeyPress { keyPress in
             handleKeyPress(keyPress)
@@ -98,6 +102,14 @@ struct MainView: View {
                     appState.currentPane.clearSelections()
                 }
                 appState.exitMode()
+            }
+            return .handled
+        }
+        
+        // Cmd+, - 打开设置
+        if key == KeyEquivalent(",") && modifiers.contains(.command) {
+            Task { @MainActor in
+                showSettings = true
             }
             return .handled
         }

@@ -2496,3 +2496,80 @@ struct ArrayExtensionTests {
     }
 }
 
+// MARK: - 12. 设置测试
+
+struct SettingsTests {
+    
+    @Test func testAppSettingsDefault() {
+        let settings = AppSettings.default
+        
+        #expect(settings.appearance.themeMode == "auto")
+        #expect(settings.appearance.fontSize == 12.0)
+        #expect(settings.appearance.lineHeight == 1.4)
+        #expect(settings.terminal.defaultTerminal == "terminal")
+    }
+    
+    @Test func testAppearanceSettingsThemeModeEnum() {
+        var settings = AppearanceSettings.default
+        
+        settings.themeMode = "light"
+        #expect(settings.themeModeEnum == .light)
+        
+        settings.themeMode = "dark"
+        #expect(settings.themeModeEnum == .dark)
+        
+        settings.themeMode = "auto"
+        #expect(settings.themeModeEnum == .auto)
+        
+        settings.themeMode = "invalid"
+        #expect(settings.themeModeEnum == .auto) // 默认回退到 auto
+    }
+    
+    @Test func testTerminalSettingsAvailableTerminals() {
+        let terminals = TerminalSettings.availableTerminals
+        
+        #expect(terminals.count >= 1)
+        #expect(terminals.first?.id == "terminal")
+        #expect(terminals.first?.name == "Terminal")
+        #expect(terminals.first?.bundleId == "com.apple.Terminal")
+    }
+    
+    @Test func testTerminalOptionInstalled() {
+        // 系统终端应该总是已安装
+        let systemTerminal = TerminalOption(id: "terminal", name: "Terminal", bundleId: "com.apple.Terminal")
+        #expect(systemTerminal.isInstalled == true)
+    }
+    
+    @Test func testSettingsManagerSingleton() {
+        let manager1 = SettingsManager.shared
+        let manager2 = SettingsManager.shared
+        #expect(manager1 === manager2)
+    }
+    
+    @Test func testAppSettingsCodable() throws {
+        let settings = AppSettings.default
+        
+        // 编码
+        let encoder = JSONEncoder()
+        let data = try encoder.encode(settings)
+        
+        // 解码
+        let decoder = JSONDecoder()
+        let decoded = try decoder.decode(AppSettings.self, from: data)
+        
+        #expect(decoded == settings)
+    }
+    
+    @Test func testTerminalSettingsCurrentTerminal() {
+        var settings = TerminalSettings.default
+        
+        #expect(settings.currentTerminal.id == "terminal")
+        
+        settings.defaultTerminal = "iterm"
+        #expect(settings.currentTerminal.id == "iterm")
+        
+        // 无效的终端 ID 应该回退到第一个
+        settings.defaultTerminal = "nonexistent"
+        #expect(settings.currentTerminal.id == "terminal")
+    }
+}
