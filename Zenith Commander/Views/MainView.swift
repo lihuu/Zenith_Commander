@@ -117,8 +117,36 @@ struct MainView: View {
     // MARK: - Normal 模式
     
     private func handleNormalModeKey(_ key: KeyEquivalent, modifiers: EventModifiers) -> KeyPress.Result {
+        let pane = appState.currentPane
+        let isGridView = pane.viewMode == .grid
+        
         switch key {
-        // 导航
+        // 方向键导航
+        case .upArrow:
+            moveCursor(direction: .up)
+            return .handled
+            
+        case .downArrow:
+            moveCursor(direction: .down)
+            return .handled
+            
+        case .leftArrow:
+            if isGridView {
+                moveCursor(direction: .left)
+            } else {
+                Task { @MainActor in leaveDirectory() }
+            }
+            return .handled
+            
+        case .rightArrow:
+            if isGridView {
+                moveCursor(direction: .right)
+            } else {
+                Task { @MainActor in enterDirectory() }
+            }
+            return .handled
+        
+        // Vim 风格导航
         case KeyEquivalent("j"):
             moveCursor(direction: .down)
             return .handled
@@ -128,11 +156,19 @@ struct MainView: View {
             return .handled
             
         case KeyEquivalent("h"):
-            Task { @MainActor in leaveDirectory() }
+            if isGridView {
+                moveCursor(direction: .left)
+            } else {
+                Task { @MainActor in leaveDirectory() }
+            }
             return .handled
             
         case KeyEquivalent("l"):
-            Task { @MainActor in enterDirectory() }
+            if isGridView {
+                moveCursor(direction: .right)
+            } else {
+                Task { @MainActor in enterDirectory() }
+            }
             return .handled
             
         case .return:
@@ -251,13 +287,50 @@ struct MainView: View {
     // MARK: - Visual 模式
     
     private func handleVisualModeKey(_ key: KeyEquivalent, modifiers: EventModifiers) -> KeyPress.Result {
+        let pane = appState.currentPane
+        let isGridView = pane.viewMode == .grid
+        
         switch key {
+        // 方向键导航
+        case .upArrow:
+            moveVisualCursor(direction: .up)
+            return .handled
+            
+        case .downArrow:
+            moveVisualCursor(direction: .down)
+            return .handled
+            
+        case .leftArrow:
+            if isGridView {
+                moveVisualCursor(direction: .left)
+            }
+            return .handled
+            
+        case .rightArrow:
+            if isGridView {
+                moveVisualCursor(direction: .right)
+            }
+            return .handled
+        
+        // Vim 风格导航
         case KeyEquivalent("j"):
             moveVisualCursor(direction: .down)
             return .handled
             
         case KeyEquivalent("k"):
             moveVisualCursor(direction: .up)
+            return .handled
+            
+        case KeyEquivalent("h"):
+            if isGridView {
+                moveVisualCursor(direction: .left)
+            }
+            return .handled
+            
+        case KeyEquivalent("l"):
+            if isGridView {
+                moveVisualCursor(direction: .right)
+            }
             return .handled
             
         case KeyEquivalent("g"):
@@ -440,7 +513,7 @@ struct MainView: View {
     // MARK: - 辅助方法
     
     enum CursorDirection {
-        case up, down
+        case up, down, left, right
     }
     
     private func moveCursor(direction: CursorDirection) {
@@ -450,13 +523,36 @@ struct MainView: View {
         
         // 使用 Task 延迟执行，避免在视图更新期间修改状态
         Task { @MainActor in
-            
             var currentIndex = pane.cursorIndex
-            switch direction {
-            case .up:
-                currentIndex = max(0, currentIndex - 1)
-            case .down:
-                currentIndex = min(fileCount - 1, currentIndex + 1)
+            
+            if pane.viewMode == .grid {
+                // Grid View 模式：支持四向导航
+                let columnCount = pane.gridColumnCount
+                switch direction {
+                case .up:
+                    // 向上移动一行
+                    currentIndex = max(0, currentIndex - columnCount)
+                case .down:
+                    // 向下移动一行
+                    currentIndex = min(fileCount - 1, currentIndex + columnCount)
+                case .left:
+                    // 向左移动一格
+                    currentIndex = max(0, currentIndex - 1)
+                case .right:
+                    // 向右移动一格
+                    currentIndex = min(fileCount - 1, currentIndex + 1)
+                }
+            } else {
+                // List View 模式：只支持上下导航
+                switch direction {
+                case .up:
+                    currentIndex = max(0, currentIndex - 1)
+                case .down:
+                    currentIndex = min(fileCount - 1, currentIndex + 1)
+                case .left, .right:
+                    // List 模式不处理左右导航
+                    return
+                }
             }
             
             pane.activeTab.cursorFileId = pane.activeTab.files[currentIndex].id
@@ -470,12 +566,32 @@ struct MainView: View {
         
         Task { @MainActor in
             var currentIndex = pane.cursorIndex
-            switch direction {
-            case .up:
-                currentIndex = max(0, currentIndex - 1)
-            case .down:
-                currentIndex = min(fileCount - 1, currentIndex + 1)
+            
+            if pane.viewMode == .grid {
+                // Grid View 模式：支持四向导航
+                let columnCount = pane.gridColumnCount
+                switch direction {
+                case .up:
+                    currentIndex = max(0, currentIndex - columnCount)
+                case .down:
+                    currentIndex = min(fileCount - 1, currentIndex + columnCount)
+                case .left:
+                    currentIndex = max(0, currentIndex - 1)
+                case .right:
+                    currentIndex = min(fileCount - 1, currentIndex + 1)
+                }
+            } else {
+                // List View 模式：只支持上下导航
+                switch direction {
+                case .up:
+                    currentIndex = max(0, currentIndex - 1)
+                case .down:
+                    currentIndex = min(fileCount - 1, currentIndex + 1)
+                case .left, .right:
+                    return
+                }
             }
+            
             pane.activeTab.cursorFileId = pane.activeTab.files[currentIndex].id
             pane.updateVisualSelection()
             pane.objectWillChange.send()

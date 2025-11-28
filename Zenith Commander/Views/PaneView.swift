@@ -176,53 +176,75 @@ struct PaneView: View {
         }
     }
     
+    /// Grid View 每个项目的宽度（包含间距）
+    private let gridItemMinWidth: CGFloat = 90
+    private let gridItemMaxWidth: CGFloat = 100
+    private let gridSpacing: CGFloat = 8
+    private let gridPadding: CGFloat = 8
+    
     private var gridView: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 90, maximum: 100), spacing: 8)],
-                    spacing: 8
-                ) {
-                    ForEach(Array(pane.activeTab.files.enumerated()), id: \.element.id) { index, file in
-                        FileGridItemView(
-                            file: file,
-                            isActive: index == pane.cursorIndex,
-                            isSelected: pane.selections.contains(file.id),
-                            isPaneActive: isActivePane
-                        )
-                        .onTapGesture {
-                            handleFileClick(index: index)
+        GeometryReader { geometry in
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: gridItemMinWidth, maximum: gridItemMaxWidth), spacing: gridSpacing)],
+                        spacing: gridSpacing
+                    ) {
+                        ForEach(Array(pane.activeTab.files.enumerated()), id: \.element.id) { index, file in
+                            FileGridItemView(
+                                file: file,
+                                isActive: index == pane.cursorIndex,
+                                isSelected: pane.selections.contains(file.id),
+                                isPaneActive: isActivePane
+                            )
+                            .onTapGesture {
+                                handleFileClick(index: index)
+                            }
+                            .onTapGesture(count: 2) {
+                                handleFileDoubleClick(file: file)
+                            }
+                            .contextMenu {
+                                fileContextMenu(file: file)
+                            }
                         }
-                        .onTapGesture(count: 2) {
-                            handleFileDoubleClick(file: file)
-                        }
+                    }
+                    .padding(gridPadding)
+                    
+                    if pane.activeTab.files.isEmpty {
+                        emptyDirectoryView
+                    }
+                    
+                    // 空白区域用于右键菜单
+                    Spacer()
+                        .frame(minHeight: 100)
+                        .frame(maxWidth: .infinity)
+                        .contentShape(Rectangle())
                         .contextMenu {
-                            fileContextMenu(file: file)
+                            directoryContextMenu
                         }
+                }
+                .onChange(of: pane.cursorIndex) { _, newValue in
+                    withAnimation(.easeInOut(duration: 0.1)) {
+                        proxy.scrollTo(newValue, anchor: .center)
                     }
                 }
-                .padding(8)
-                
-                if pane.activeTab.files.isEmpty {
-                    emptyDirectoryView
-                }
-                
-                // 空白区域用于右键菜单
-                Spacer()
-                    .frame(minHeight: 100)
-                    .frame(maxWidth: .infinity)
-                    .contentShape(Rectangle())
-                    .contextMenu {
-                        directoryContextMenu
-                    }
+                .id(pane.activeTab.currentPath)
             }
-            .onChange(of: pane.cursorIndex) { _, newValue in
-                withAnimation(.easeInOut(duration: 0.1)) {
-                    proxy.scrollTo(newValue, anchor: .center)
-                }
+            .onAppear {
+                updateGridColumnCount(width: geometry.size.width)
             }
-            .id(pane.activeTab.currentPath)
+            .onChange(of: geometry.size.width) { _, newWidth in
+                updateGridColumnCount(width: newWidth)
+            }
         }
+    }
+    
+    /// 根据视图宽度计算 Grid 的列数
+    private func updateGridColumnCount(width: CGFloat) {
+        let availableWidth = width - gridPadding * 2
+        let itemWidth = gridItemMinWidth + gridSpacing
+        let columnCount = max(1, Int(floor(availableWidth / itemWidth)))
+        pane.gridColumnCount = columnCount
     }
     
     private var emptyDirectoryView: some View {

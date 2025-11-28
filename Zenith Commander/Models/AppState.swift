@@ -61,6 +61,9 @@ class PaneState: ObservableObject {
     @Published var selections: Set<String> // 存储选中的文件 ID
     var visualAnchor: Int? // Visual 模式的锚点位置
     
+    /// Grid View 每行的列数（用于键盘导航）
+    var gridColumnCount: Int = 4
+    
     private var tabCancellables: [UUID: AnyCancellable] = [:]
     
     init(side: PaneSide, initialPath: URL, drive: DriveInfo) {

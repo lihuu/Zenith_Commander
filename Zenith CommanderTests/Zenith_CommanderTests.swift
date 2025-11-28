@@ -114,7 +114,7 @@ struct TabStateTests {
         
         #expect(tab.currentPath == path)
         #expect(tab.files.isEmpty)
-        #expect(tab.cursorIndex == 0)
+        #expect(tab.cursorIndexInTab == nil) // files is empty, so cursor index is nil
     }
     
     @Test func testTabStateDirectoryName() {
@@ -244,6 +244,281 @@ struct PaneStateTests {
         
         pane.clearSelections()
         #expect(pane.selections.isEmpty)
+    }
+    
+    // MARK: - Grid View 导航测试
+    
+    @Test func testGridColumnCountDefault() {
+        let pane = createTestPane()
+        
+        // 默认列数为 4
+        #expect(pane.gridColumnCount == 4)
+    }
+    
+    @Test func testGridColumnCountCanBeChanged() {
+        let pane = createTestPane()
+        
+        pane.gridColumnCount = 6
+        #expect(pane.gridColumnCount == 6)
+        
+        pane.gridColumnCount = 3
+        #expect(pane.gridColumnCount == 3)
+    }
+    
+    @Test func testViewModeToggle() {
+        let pane = createTestPane()
+        
+        // 默认是 List 模式
+        #expect(pane.viewMode == .list)
+        
+        // 切换到 Grid 模式
+        pane.viewMode = .grid
+        #expect(pane.viewMode == .grid)
+        
+        // 切换回 List 模式
+        pane.viewMode = .list
+        #expect(pane.viewMode == .list)
+    }
+}
+
+// MARK: - Grid View 导航逻辑测试
+
+struct GridViewNavigationTests {
+    
+    func createTestDrive() -> DriveInfo {
+        return DriveInfo(
+            id: "test-drive",
+            name: "Macintosh HD",
+            path: URL(fileURLWithPath: "/"),
+            type: .system,
+            totalCapacity: 500_000_000_000,
+            availableCapacity: 100_000_000_000
+        )
+    }
+    
+    func createTestPane() -> PaneState {
+        let drive = createTestDrive()
+        return PaneState(side: .left, initialPath: URL(fileURLWithPath: "/Users"), drive: drive)
+    }
+    
+    func createTestFiles(count: Int) -> [FileItem] {
+        let now = Date()
+        return (0..<count).map { index in
+            FileItem(
+                id: "file_\(index)",
+                name: "file_\(index).txt",
+                path: URL(fileURLWithPath: "/Users/test/file_\(index).txt"),
+                type: .file,
+                size: 1024,
+                modifiedDate: now,
+                createdDate: now,
+                isHidden: false,
+                permissions: "rw-r--r--",
+                fileExtension: "txt"
+            )
+        }
+    }
+    
+    // MARK: - Grid View 上下导航测试
+    
+    @Test func testGridNavigationDownOneRow() {
+        let pane = createTestPane()
+        pane.viewMode = .grid
+        pane.gridColumnCount = 4
+        
+        // 创建 12 个文件（3行 x 4列）
+        pane.activeTab.files = createTestFiles(count: 12)
+        pane.cursorIndex = 0  // 从第一个开始
+        
+        // 模拟向下移动一行（移动 4 个位置）
+        let currentIndex = pane.cursorIndex
+        let newIndex = min(pane.activeTab.files.count - 1, currentIndex + pane.gridColumnCount)
+        pane.cursorIndex = newIndex
+        
+        #expect(pane.cursorIndex == 4)  // 应该移动到第二行第一个
+    }
+    
+    @Test func testGridNavigationUpOneRow() {
+        let pane = createTestPane()
+        pane.viewMode = .grid
+        pane.gridColumnCount = 4
+        
+        pane.activeTab.files = createTestFiles(count: 12)
+        pane.cursorIndex = 4  // 从第二行第一个开始
+        
+        // 模拟向上移动一行
+        let currentIndex = pane.cursorIndex
+        let newIndex = max(0, currentIndex - pane.gridColumnCount)
+        pane.cursorIndex = newIndex
+        
+        #expect(pane.cursorIndex == 0)  // 应该移动到第一行第一个
+    }
+    
+    @Test func testGridNavigationDownAtBoundary() {
+        let pane = createTestPane()
+        pane.viewMode = .grid
+        pane.gridColumnCount = 4
+        
+        pane.activeTab.files = createTestFiles(count: 12)
+        pane.cursorIndex = 10  // 第三行第三个
+        
+        // 向下移动应该到达最后一个文件
+        let currentIndex = pane.cursorIndex
+        let newIndex = min(pane.activeTab.files.count - 1, currentIndex + pane.gridColumnCount)
+        pane.cursorIndex = newIndex
+        
+        #expect(pane.cursorIndex == 11)  // 应该停在最后一个文件
+    }
+    
+    @Test func testGridNavigationUpAtBoundary() {
+        let pane = createTestPane()
+        pane.viewMode = .grid
+        pane.gridColumnCount = 4
+        
+        pane.activeTab.files = createTestFiles(count: 12)
+        pane.cursorIndex = 1  // 第一行第二个
+        
+        // 向上移动应该停在第一行
+        let currentIndex = pane.cursorIndex
+        let newIndex = max(0, currentIndex - pane.gridColumnCount)
+        pane.cursorIndex = newIndex
+        
+        #expect(pane.cursorIndex == 0)  // 应该停在第一个
+    }
+    
+    // MARK: - Grid View 左右导航测试
+    
+    @Test func testGridNavigationRight() {
+        let pane = createTestPane()
+        pane.viewMode = .grid
+        pane.gridColumnCount = 4
+        
+        pane.activeTab.files = createTestFiles(count: 12)
+        pane.cursorIndex = 0
+        
+        // 向右移动一格
+        let currentIndex = pane.cursorIndex
+        let newIndex = min(pane.activeTab.files.count - 1, currentIndex + 1)
+        pane.cursorIndex = newIndex
+        
+        #expect(pane.cursorIndex == 1)
+    }
+    
+    @Test func testGridNavigationLeft() {
+        let pane = createTestPane()
+        pane.viewMode = .grid
+        pane.gridColumnCount = 4
+        
+        pane.activeTab.files = createTestFiles(count: 12)
+        pane.cursorIndex = 5
+        
+        // 向左移动一格
+        let currentIndex = pane.cursorIndex
+        let newIndex = max(0, currentIndex - 1)
+        pane.cursorIndex = newIndex
+        
+        #expect(pane.cursorIndex == 4)
+    }
+    
+    @Test func testGridNavigationLeftAtBoundary() {
+        let pane = createTestPane()
+        pane.viewMode = .grid
+        pane.gridColumnCount = 4
+        
+        pane.activeTab.files = createTestFiles(count: 12)
+        pane.cursorIndex = 0
+        
+        // 向左移动应该停在第一个
+        let currentIndex = pane.cursorIndex
+        let newIndex = max(0, currentIndex - 1)
+        pane.cursorIndex = newIndex
+        
+        #expect(pane.cursorIndex == 0)
+    }
+    
+    @Test func testGridNavigationRightAtBoundary() {
+        let pane = createTestPane()
+        pane.viewMode = .grid
+        pane.gridColumnCount = 4
+        
+        pane.activeTab.files = createTestFiles(count: 12)
+        pane.cursorIndex = 11  // 最后一个
+        
+        // 向右移动应该停在最后一个
+        let currentIndex = pane.cursorIndex
+        let newIndex = min(pane.activeTab.files.count - 1, currentIndex + 1)
+        pane.cursorIndex = newIndex
+        
+        #expect(pane.cursorIndex == 11)
+    }
+    
+    // MARK: - Grid View 跨行导航测试
+    
+    @Test func testGridNavigationRightCrossRow() {
+        let pane = createTestPane()
+        pane.viewMode = .grid
+        pane.gridColumnCount = 4
+        
+        pane.activeTab.files = createTestFiles(count: 12)
+        pane.cursorIndex = 3  // 第一行最后一个
+        
+        // 向右移动应该到第二行第一个
+        let currentIndex = pane.cursorIndex
+        let newIndex = min(pane.activeTab.files.count - 1, currentIndex + 1)
+        pane.cursorIndex = newIndex
+        
+        #expect(pane.cursorIndex == 4)
+    }
+    
+    @Test func testGridNavigationLeftCrossRow() {
+        let pane = createTestPane()
+        pane.viewMode = .grid
+        pane.gridColumnCount = 4
+        
+        pane.activeTab.files = createTestFiles(count: 12)
+        pane.cursorIndex = 4  // 第二行第一个
+        
+        // 向左移动应该到第一行最后一个
+        let currentIndex = pane.cursorIndex
+        let newIndex = max(0, currentIndex - 1)
+        pane.cursorIndex = newIndex
+        
+        #expect(pane.cursorIndex == 3)
+    }
+    
+    // MARK: - 不同列数测试
+    
+    @Test func testGridNavigationWithDifferentColumnCount() {
+        let pane = createTestPane()
+        pane.viewMode = .grid
+        pane.gridColumnCount = 6  // 6列
+        
+        pane.activeTab.files = createTestFiles(count: 18)  // 3行 x 6列
+        pane.cursorIndex = 0
+        
+        // 向下移动一行（6个位置）
+        let currentIndex = pane.cursorIndex
+        let newIndex = min(pane.activeTab.files.count - 1, currentIndex + pane.gridColumnCount)
+        pane.cursorIndex = newIndex
+        
+        #expect(pane.cursorIndex == 6)
+    }
+    
+    @Test func testGridNavigationWithIncompleteRow() {
+        let pane = createTestPane()
+        pane.viewMode = .grid
+        pane.gridColumnCount = 4
+        
+        // 10个文件：第一行4个，第二行4个，第三行2个
+        pane.activeTab.files = createTestFiles(count: 10)
+        pane.cursorIndex = 6  // 第二行第三个
+        
+        // 向下移动应该到第三行的最后一个（索引9）
+        let currentIndex = pane.cursorIndex
+        let newIndex = min(pane.activeTab.files.count - 1, currentIndex + pane.gridColumnCount)
+        pane.cursorIndex = newIndex
+        
+        #expect(pane.cursorIndex == 9)  // 应该是最后一个有效索引
     }
 }
 

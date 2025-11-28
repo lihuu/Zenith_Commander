@@ -69,11 +69,11 @@ Zenith Commander - 验收测试清单 (Acceptance Checklist)
 5.  高级功能 (Advanced Features)
     视图切换
 
-    - [ ] 点击切换按钮或快捷键，可在 List View 和 Grid View 间切换。
+    - [x] 点击切换按钮或快捷键，可在 List View 和 Grid View 间切换。
 
           Grid View:
 
-    - [ ] 图片/文件显示为缩略图（或大图标）。
+    - [x] 图片/文件显示为缩略图（或大图标）。
     - [ ] 键盘方向键（上下左右）导航逻辑正确。
 
           批量重命名 (Batch Rename)
