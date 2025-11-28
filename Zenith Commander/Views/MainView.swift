@@ -83,8 +83,10 @@ struct MainView: View {
             handleKeyPress(keyPress)
         }
         .onAppear {
-            // 加载可用驱动器
-            appState.availableDrives = FileSystemService.shared.getMountedVolumes()
+            // 加载可用驱动器 - 使用异步更新避免在视图更新期间修改 @Published 属性
+            DispatchQueue.main.async {
+                appState.availableDrives = FileSystemService.shared.getMountedVolumes()
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
             showSettings = true

@@ -414,7 +414,10 @@ class AppState: ObservableObject {
     
     /// 显示 Toast 消息
     func showToast(_ message: String) {
-        toastMessage = message
+        // 使用异步更新避免在视图更新期间修改 @Published 属性
+        DispatchQueue.main.async { [weak self] in
+            self?.toastMessage = message
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
             if self?.toastMessage == message {
                 self?.toastMessage = nil

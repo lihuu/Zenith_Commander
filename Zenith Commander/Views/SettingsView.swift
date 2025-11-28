@@ -84,13 +84,15 @@ struct AppearanceSection: View {
                 // 主题选择
                 ThemeSelector(selectedTheme: Binding(
                     get: { settings.themeMode },
-                    set: { 
-                        settings.themeMode = $0
-                        // 同步更新 ThemeManager
-                        switch $0 {
-                        case "light": themeManager.mode = .light
-                        case "dark": themeManager.mode = .dark
-                        default: themeManager.mode = .auto
+                    set: { newValue in
+                        settings.themeMode = newValue
+                        // 同步更新 ThemeManager - 使用异步更新避免在视图更新期间修改 @Published 属性
+                        DispatchQueue.main.async {
+                            switch newValue {
+                            case "light": themeManager.mode = .light
+                            case "dark": themeManager.mode = .dark
+                            default: themeManager.mode = .auto
+                            }
                         }
                     }
                 ))

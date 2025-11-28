@@ -114,7 +114,10 @@ struct PaneView: View {
             appState.setActivePane(side)
         }
         .onAppear {
-            loadCurrentDirectoryWithPermissionCheck()
+            // 使用异步加载避免在视图更新期间修改 @Published 属性
+            DispatchQueue.main.async {
+                loadCurrentDirectoryWithPermissionCheck()
+            }
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(side == .left ? "left_pane" : "right_pane")

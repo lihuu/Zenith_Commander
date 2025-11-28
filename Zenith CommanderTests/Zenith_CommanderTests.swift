@@ -760,10 +760,13 @@ struct AppStateTests {
         #expect(state.showDriveSelector == false)
     }
     
-    @Test func testToast() {
+    @Test func testToast() async throws {
         let state = AppState()
         
         state.showToast("Test message")
+        
+        // 等待异步更新完成
+        try await Task.sleep(nanoseconds: 100_000_000) // 0.1 秒
         
         #expect(state.toastMessage == "Test message")
     }

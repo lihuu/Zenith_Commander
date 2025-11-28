@@ -156,8 +156,10 @@ class SettingsManager: ObservableObject {
     
     /// 应用设置
     private func applySettings() {
-        // 应用主题
-        ThemeManager.shared.mode = settings.appearance.themeModeEnum
+        // 应用主题 - 使用异步更新避免在视图更新期间修改 @Published 属性
+        DispatchQueue.main.async {
+            ThemeManager.shared.mode = self.settings.appearance.themeModeEnum
+        }
     }
     
     /// 重置为默认设置
