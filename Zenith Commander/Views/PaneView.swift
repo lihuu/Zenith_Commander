@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import AppKit
 
 struct PaneView: View {
     @EnvironmentObject var appState: AppState
@@ -304,6 +305,10 @@ struct PaneView: View {
             FileSystemService.shared.revealInFinder(file)
         }
         
+        Button("Copy Full Path") {
+            copyFullPath(file: file)
+        }
+        
         Divider()
         
         Button("Move to Trash") {
@@ -358,6 +363,16 @@ struct PaneView: View {
             // 打开文件
             FileSystemService.shared.openFile(file)
         }
+    }
+    
+    /// 复制文件完整路径到剪贴板
+    private func copyFullPath(file: FileItem) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(file.path.path, forType: .string)
+        
+        // 显示成功提示
+        appState.showToast("Path copied: \(file.name)")
     }
     
     // MARK: - 导航

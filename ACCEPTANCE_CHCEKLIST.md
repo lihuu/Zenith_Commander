@@ -89,6 +89,7 @@ Zenith Commander - 验收测试清单 (Acceptance Checklist)
 
     - [x] 在文件上右键，弹出包含 Open, Rename, Copy 的菜单。
     - [x] 在空白处右键，弹出目录级操作菜单。
+    - [ ] 右键菜单添加一个 copy full path 的功能，点击之后能够把当前文件的全路径复制到剪贴板中。
 
     终端集成:
 
