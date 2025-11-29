@@ -147,12 +147,15 @@ struct PaneView: View {
                             isPaneActive: isActivePane
                         )
                         .id(file.id)
-                        .onTapGesture {
-                            handleFileClick(index: index)
-                        }
-                        .onTapGesture(count: 2) {
-                            handleFileDoubleClick(file: file)
-                        }
+                        .contentShape(Rectangle())
+                        .simultaneousGesture(
+                            TapGesture(count: 2)
+                                .onEnded { handleFileDoubleClick(file: file) }
+                        )
+                        .simultaneousGesture(
+                            TapGesture(count: 1)
+                                .onEnded { handleFileClick(index: index) }
+                        )
                         .contextMenu {
                             fileContextMenu(file: file)
                         }
@@ -203,12 +206,15 @@ struct PaneView: View {
                                 isPaneActive: isActivePane
                             )
                             .id(file.id)
-                            .onTapGesture {
-                                handleFileClick(index: index)
-                            }
-                            .onTapGesture(count: 2) {
-                                handleFileDoubleClick(file: file)
-                            }
+                            .contentShape(Rectangle())
+                            .simultaneousGesture(
+                                TapGesture(count: 2)
+                                    .onEnded { handleFileDoubleClick(file: file) }
+                            )
+                            .simultaneousGesture(
+                                TapGesture(count: 1)
+                                    .onEnded { handleFileClick(index: index) }
+                            )
                             .contextMenu {
                                 fileContextMenu(file: file)
                             }

@@ -3026,3 +3026,198 @@ struct ScrollSyncTests {
         }
     }
 }
+
+// MARK: - Mouse Click Tests (鼠标点击功能测试)
+
+struct MouseClickTests {
+    
+    func createTestDrive() -> DriveInfo {
+        return DriveInfo(
+            id: "test-drive",
+            name: "Test",
+            path: URL(fileURLWithPath: "/"),
+            type: .system,
+            totalCapacity: 1000000,
+            availableCapacity: 500000
+        )
+    }
+    
+    func createTestFiles(_ count: Int) -> [FileItem] {
+        let now = Date()
+        return (0..<count).map { i in
+            FileItem(
+                id: "file-\(i)",
+                name: "file\(i).txt",
+                path: URL(fileURLWithPath: "/test/file\(i).txt"),
+                type: .file,
+                size: 100 + Int64(i),
+                modifiedDate: now,
+                createdDate: now,
+                isHidden: false,
+                permissions: "rw-r--r--",
+                fileExtension: "txt"
+            )
+        }
+    }
+    
+    func createTestFolders(_ count: Int) -> [FileItem] {
+        let now = Date()
+        return (0..<count).map { i in
+            FileItem(
+                id: "folder-\(i)",
+                name: "folder\(i)",
+                path: URL(fileURLWithPath: "/test/folder\(i)"),
+                type: .folder,
+                size: 0,
+                modifiedDate: now,
+                createdDate: now,
+                isHidden: false,
+                permissions: "rwxr-xr-x",
+                fileExtension: ""
+            )
+        }
+    }
+    
+    @Test func testSingleClickSelectsFile() {
+        // 模拟单击选中文件
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        pane.activeTab.files = createTestFiles(10)
+        
+        // 初始光标在位置 0
+        pane.cursorIndex = 0
+        #expect(pane.cursorIndex == 0)
+        
+        // 模拟点击位置 5（单击应该更新 cursorIndex）
+        pane.cursorIndex = 5
+        
+        #expect(pane.cursorIndex == 5)
+        #expect(pane.cursorFileId == "file-5")
+    }
+    
+    @Test func testClickOnDifferentFilesUpdatesCursor() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        pane.activeTab.files = createTestFiles(20)
+        
+        // 模拟连续点击不同文件
+        let clickSequence = [0, 5, 10, 15, 19, 3, 7]
+        
+        for index in clickSequence {
+            pane.cursorIndex = index
+            #expect(pane.cursorIndex == index)
+            #expect(pane.cursorFileId == "file-\(index)")
+        }
+    }
+    
+    @Test func testClickOnFolderSelectsFolder() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        pane.activeTab.files = createTestFolders(5)
+        
+        // 单击选中文件夹
+        pane.cursorIndex = 2
+        
+        #expect(pane.cursorIndex == 2)
+        #expect(pane.cursorFileId == "folder-2")
+    }
+    
+    @Test func testClickUpdatesActivePaneState() {
+        let appState = AppState()
+        
+        // 初始状态应该是左面板激活
+        #expect(appState.activePane == .left)
+        
+        // 切换到右面板
+        appState.setActivePane(.right)
+        #expect(appState.activePane == .right)
+        
+        // 切换回左面板
+        appState.setActivePane(.left)
+        #expect(appState.activePane == .left)
+    }
+    
+    @Test func testCursorIndexSyncWithFileId() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        pane.activeTab.files = createTestFiles(15)
+        
+        // 通过 cursorIndex 设置
+        pane.cursorIndex = 7
+        #expect(pane.cursorFileId == "file-7")
+        
+        // 通过 cursorFileId 设置
+        pane.cursorFileId = "file-12"
+        #expect(pane.cursorIndex == 12)
+    }
+    
+    @Test func testClickInListViewMode() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        pane.viewMode = .list
+        pane.activeTab.files = createTestFiles(10)
+        
+        // 在列表模式下点击
+        pane.cursorIndex = 3
+        
+        #expect(pane.viewMode == .list)
+        #expect(pane.cursorIndex == 3)
+    }
+    
+    @Test func testClickInGridViewMode() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        pane.viewMode = .grid
+        pane.gridColumnCount = 4
+        pane.activeTab.files = createTestFiles(16)
+        
+        // 在网格模式下点击（第二行第三个）
+        pane.cursorIndex = 6
+        
+        #expect(pane.viewMode == .grid)
+        #expect(pane.cursorIndex == 6)
+    }
+    
+    @Test func testClickOnFirstFile() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        pane.activeTab.files = createTestFiles(10)
+        pane.cursorIndex = 5  // 从中间开始
+        
+        // 点击第一个文件
+        pane.cursorIndex = 0
+        
+        #expect(pane.cursorIndex == 0)
+        #expect(pane.cursorFileId == "file-0")
+    }
+    
+    @Test func testClickOnLastFile() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        pane.activeTab.files = createTestFiles(10)
+        pane.cursorIndex = 0  // 从开头开始
+        
+        // 点击最后一个文件
+        pane.cursorIndex = 9
+        
+        #expect(pane.cursorIndex == 9)
+        #expect(pane.cursorFileId == "file-9")
+    }
+    
+    @Test func testRapidClicksOnDifferentFiles() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        pane.activeTab.files = createTestFiles(100)
+        
+        // 模拟快速连续点击
+        for i in 0..<100 {
+            pane.cursorIndex = i
+            #expect(pane.cursorIndex == i)
+        }
+        
+        // 最终应该在最后一个文件
+        #expect(pane.cursorIndex == 99)
+    }
+    
+    @Test func testClickWithEmptyFileList() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        pane.activeTab.files = []
+        
+        // 尝试设置光标（空列表应该保持在 0 或安全值）
+        pane.cursorIndex = 0
+        
+        // cursorIndex 在空列表中的行为
+        #expect(pane.activeTab.files.isEmpty)
+    }
+}
