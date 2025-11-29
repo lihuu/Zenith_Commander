@@ -2869,3 +2869,160 @@ struct SettingsTests {
         #expect(settings.currentTerminal.id == "terminal")
     }
 }
+
+// MARK: - Scroll Sync Tests (cursorFileId 与 cursorIndex 同步测试)
+
+struct ScrollSyncTests {
+    
+    func createTestDrive() -> DriveInfo {
+        return DriveInfo(
+            id: "test-drive",
+            name: "Test",
+            path: URL(fileURLWithPath: "/"),
+            type: .system,
+            totalCapacity: 1000000,
+            availableCapacity: 500000
+        )
+    }
+    
+    func createManyTestFiles(_ count: Int) -> [FileItem] {
+        let now = Date()
+        return (0..<count).map { i in
+            FileItem(
+                id: "file-\(i)",
+                name: "file\(i).txt",
+                path: URL(fileURLWithPath: "/test/file\(i).txt"),
+                type: .file,
+                size: 100 + Int64(i),
+                modifiedDate: now,
+                createdDate: now,
+                isHidden: false,
+                permissions: "rw-r--r--",
+                fileExtension: "txt"
+            )
+        }
+    }
+    
+    @Test func testCursorFileIdUpdatesWithCursorIndex() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(50)
+        pane.activeTab.files = files
+        
+        // 初始位置
+        pane.cursorIndex = 0
+        #expect(pane.cursorFileId == "file-0")
+        
+        // 移动到中间
+        pane.cursorIndex = 25
+        #expect(pane.cursorFileId == "file-25")
+        
+        // 移动到末尾
+        pane.cursorIndex = 49
+        #expect(pane.cursorFileId == "file-49")
+    }
+    
+    @Test func testCursorIndexUpdatesWithCursorFileId() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(50)
+        pane.activeTab.files = files
+        
+        // 通过 cursorFileId 设置光标位置
+        pane.cursorFileId = "file-10"
+        #expect(pane.cursorIndex == 10)
+        
+        pane.cursorFileId = "file-40"
+        #expect(pane.cursorIndex == 40)
+    }
+    
+    @Test func testCursorNavigationDownToBottom() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(100)  // 模拟很多文件（需要滚动）
+        pane.activeTab.files = files
+        
+        // 模拟使用 j 键向下导航到底部
+        pane.cursorIndex = 0
+        
+        // 逐步向下移动
+        for i in 1..<100 {
+            pane.cursorIndex = i
+            #expect(pane.cursorFileId == "file-\(i)")
+        }
+        
+        // 确认到达底部
+        #expect(pane.cursorIndex == 99)
+        #expect(pane.cursorFileId == "file-99")
+    }
+    
+    @Test func testCursorNavigationUpToTop() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(100)
+        pane.activeTab.files = files
+        
+        // 从底部开始
+        pane.cursorIndex = 99
+        
+        // 模拟使用 k 键向上导航到顶部
+        for i in (0..<99).reversed() {
+            pane.cursorIndex = i
+            #expect(pane.cursorFileId == "file-\(i)")
+        }
+        
+        // 确认到达顶部
+        #expect(pane.cursorIndex == 0)
+        #expect(pane.cursorFileId == "file-0")
+    }
+    
+    @Test func testCursorBoundaryAtBottom() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(50)
+        pane.activeTab.files = files
+        
+        // 尝试超出边界
+        pane.cursorIndex = 50  // 超出范围
+        
+        // cursorIndex 应该被限制在有效范围内
+        #expect(pane.cursorIndex <= 49)
+    }
+    
+    @Test func testCursorBoundaryAtTop() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(50)
+        pane.activeTab.files = files
+        
+        // 尝试超出边界
+        pane.cursorIndex = -1  // 负数
+        
+        // cursorIndex 应该被限制在有效范围内
+        #expect(pane.cursorIndex >= 0)
+    }
+    
+    @Test func testFileIdConsistencyDuringNavigation() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(30)
+        pane.activeTab.files = files
+        
+        // 快速来回导航，确保 cursorFileId 始终与 cursorIndex 同步
+        let positions = [0, 15, 29, 10, 20, 5, 25, 0, 29]
+        
+        for pos in positions {
+            pane.cursorIndex = pos
+            let expectedFileId = "file-\(pos)"
+            #expect(pane.cursorFileId == expectedFileId, "At position \(pos), expected \(expectedFileId) but got \(pane.cursorFileId)")
+        }
+    }
+    
+    @Test func testCursorFileIdForScrollViewReader() {
+        // 这个测试验证 cursorFileId 的值格式与 FileItem 的 id 格式一致
+        // 这对于 ScrollViewReader 的 scrollTo 功能至关重要
+        
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(10)
+        pane.activeTab.files = files
+        
+        for (index, file) in files.enumerated() {
+            pane.cursorIndex = index
+            // cursorFileId 应该与文件的 id 完全相同
+            #expect(pane.cursorFileId == file.id, "cursorFileId should match file.id for scrollTo to work")
+        }
+    }
+}

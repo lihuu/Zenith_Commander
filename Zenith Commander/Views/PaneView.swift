@@ -146,6 +146,7 @@ struct PaneView: View {
                             isSelected: pane.selections.contains(file.id),
                             isPaneActive: isActivePane
                         )
+                        .id(file.id)
                         .onTapGesture {
                             handleFileClick(index: index)
                         }
@@ -171,7 +172,7 @@ struct PaneView: View {
                         }
                 }
             }
-            .onChange(of: pane.cursorIndex) { _, newValue in
+            .onChange(of: pane.activeTab.cursorFileId) { _, newValue in
                 withAnimation(.easeInOut(duration: 0.1)) {
                     proxy.scrollTo(newValue, anchor: .center)
                 }
@@ -201,6 +202,7 @@ struct PaneView: View {
                                 isSelected: pane.selections.contains(file.id),
                                 isPaneActive: isActivePane
                             )
+                            .id(file.id)
                             .onTapGesture {
                                 handleFileClick(index: index)
                             }
@@ -227,7 +229,9 @@ struct PaneView: View {
                             directoryContextMenu
                         }
                 }
-                .onChange(of: pane.cursorIndex) { _, newValue in
+                .onChange(
+                    of: pane.activeTab.cursorFileId
+                ) { _, newValue in
                     withAnimation(.easeInOut(duration: 0.1)) {
                         proxy.scrollTo(newValue, anchor: .center)
                     }
