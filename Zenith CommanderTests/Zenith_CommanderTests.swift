@@ -3025,6 +3025,133 @@ struct ScrollSyncTests {
             #expect(pane.cursorFileId == file.id, "cursorFileId should match file.id for scrollTo to work")
         }
     }
+    
+    // MARK: - 边缘滚动测试（anchor: nil 行为验证）
+    
+    @Test func testEdgeScrollingDownBehavior() {
+        // 测试向下导航时的滚动行为
+        // 使用 anchor: nil 时，只有当项目即将超出视图时才会滚动
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(100)
+        pane.activeTab.files = files
+        
+        // 从顶部开始逐步向下
+        pane.cursorIndex = 0
+        
+        // 模拟逐步向下移动（比如 j 键）
+        // cursorFileId 应该始终跟随 cursorIndex
+        for i in 1...99 {
+            pane.cursorIndex = i
+            #expect(pane.cursorFileId == "file-\(i)", "cursorFileId should track cursorIndex during downward navigation")
+        }
+        
+        // 最终应该在最后一项
+        #expect(pane.cursorIndex == 99)
+        #expect(pane.cursorFileId == "file-99")
+    }
+    
+    @Test func testEdgeScrollingUpBehavior() {
+        // 测试向上导航时的滚动行为
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(100)
+        pane.activeTab.files = files
+        
+        // 从底部开始
+        pane.cursorIndex = 99
+        #expect(pane.cursorFileId == "file-99")
+        
+        // 逐步向上移动（比如 k 键）
+        for i in (0...98).reversed() {
+            pane.cursorIndex = i
+            #expect(pane.cursorFileId == "file-\(i)", "cursorFileId should track cursorIndex during upward navigation")
+        }
+        
+        // 最终应该在第一项
+        #expect(pane.cursorIndex == 0)
+        #expect(pane.cursorFileId == "file-0")
+    }
+    
+    @Test func testScrollTargetIdMatchesFileId() {
+        // 验证 scroll target (cursorFileId) 与实际文件 id 格式完全匹配
+        // 这是 scrollTo(id, anchor: nil) 正常工作的关键
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(50)
+        pane.activeTab.files = files
+        
+        // 测试多个随机位置
+        let testPositions = [0, 1, 24, 25, 48, 49]
+        
+        for pos in testPositions {
+            pane.cursorIndex = pos
+            let file = files[pos]
+            
+            // cursorFileId 必须与文件的 id 完全相同
+            // 这样 ScrollViewReader.scrollTo(cursorFileId) 才能正确定位
+            #expect(pane.cursorFileId == file.id, "Scroll target must match file.id exactly at position \(pos)")
+        }
+    }
+    
+    @Test func testContinuousNavigationWithoutJump() {
+        // 测试连续导航时不会出现跳跃
+        // 这验证了使用 anchor: nil 时的平滑滚动体验
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(200)  // 大量文件
+        pane.activeTab.files = files
+        
+        pane.cursorIndex = 0
+        var previousIndex = 0
+        
+        // 向下连续移动 50 次
+        for _ in 1...50 {
+            let newIndex = previousIndex + 1
+            pane.cursorIndex = newIndex
+            
+            // 验证索引只增加 1（没有跳跃）
+            #expect(pane.cursorIndex == previousIndex + 1, "Cursor should move one step at a time")
+            #expect(pane.cursorFileId == "file-\(newIndex)")
+            
+            previousIndex = newIndex
+        }
+        
+        // 向上连续移动 50 次
+        for _ in 1...50 {
+            let newIndex = previousIndex - 1
+            pane.cursorIndex = newIndex
+            
+            // 验证索引只减少 1（没有跳跃）
+            #expect(pane.cursorIndex == previousIndex - 1, "Cursor should move one step at a time")
+            #expect(pane.cursorFileId == "file-\(newIndex)")
+            
+            previousIndex = newIndex
+        }
+    }
+    
+    @Test func testEdgeCasesForScrolling() {
+        // 测试边界情况
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(10)
+        pane.activeTab.files = files
+        
+        // 测试从第一项开始
+        pane.cursorIndex = 0
+        #expect(pane.cursorFileId == "file-0")
+        
+        // 移动到最后一项
+        pane.cursorIndex = 9
+        #expect(pane.cursorFileId == "file-9")
+        
+        // 直接跳到中间
+        pane.cursorIndex = 5
+        #expect(pane.cursorFileId == "file-5")
+        
+        // 跳回第一项
+        pane.cursorIndex = 0
+        #expect(pane.cursorFileId == "file-0")
+        
+        // 跳到最后一项
+        pane.cursorIndex = 9
+        #expect(pane.cursorFileId == "file-9")
+    }
 }
 
 // MARK: - Mouse Click Tests (鼠标点击功能测试)

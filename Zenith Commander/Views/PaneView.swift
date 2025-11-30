@@ -187,7 +187,9 @@ struct PaneView: View {
             }
             .onChange(of: pane.activeTab.cursorFileId) { _, newValue in
                 withAnimation(.easeInOut(duration: 0.1)) {
-                    proxy.scrollTo(newValue, anchor: .center)
+                    // 使用 nil anchor 让 SwiftUI 自动选择最小滚动量
+                    // 只在目标项即将超出可视区域时才滚动
+                    proxy.scrollTo(newValue, anchor: nil)
                 }
             }
             .id(pane.activeTab.currentPath)
@@ -249,7 +251,9 @@ struct PaneView: View {
                     of: pane.activeTab.cursorFileId
                 ) { _, newValue in
                     withAnimation(.easeInOut(duration: 0.1)) {
-                        proxy.scrollTo(newValue, anchor: .center)
+                        // 使用 nil anchor 让 SwiftUI 自动选择最小滚动量
+                        // 只在目标项即将超出可视区域时才滚动
+                        proxy.scrollTo(newValue, anchor: nil)
                     }
                 }
                 .id(pane.activeTab.currentPath)
