@@ -73,7 +73,7 @@ struct GitHistoryPanelView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Theme.surface)
+        .background(Theme.backgroundSecondary)
     }
     
     // MARK: - Loading
@@ -186,7 +186,7 @@ struct GitCommitRowView: View {
         if isSelected {
             return Theme.selection
         } else if isHovered {
-            return Theme.surface.opacity(0.5)
+            return Theme.backgroundSecondary.opacity(0.5)
         }
         return .clear
     }

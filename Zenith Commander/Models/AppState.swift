@@ -477,8 +477,7 @@ class AppState: ObservableObject {
         
         // 异步加载历史
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let fileURL = URL(fileURLWithPath: file.path)
-            let commits = GitService.shared.getFileHistory(for: fileURL)
+            let commits = GitService.shared.getFileHistory(for: file.path)
             
             DispatchQueue.main.async {
                 self?.gitHistoryCommits = commits

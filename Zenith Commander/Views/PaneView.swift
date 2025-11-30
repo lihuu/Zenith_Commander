@@ -345,7 +345,7 @@ struct PaneView: View {
         if pane.gitInfo?.isGitRepository == true && file.type != .folder {
             Divider()
             
-            Button(LocalizationManager.shared.string(for: "gitHistoryShowHistory")) {
+            Button(LocalizationManager.shared.localized(.gitShowHistory)) {
                 appState.showGitHistoryForFile(file)
             }
         }
