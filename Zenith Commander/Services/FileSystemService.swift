@@ -342,7 +342,7 @@ class FileSystemService {
             var newName: String
             
             // 处理动态变量
-            var processedReplace = replacePattern
+            let processedReplace = replacePattern
                 .replacingOccurrences(of: "{n}", with: String(format: "%03d", index + 1))
                 .replacingOccurrences(of: "{date}", with: formattedDate())
             
