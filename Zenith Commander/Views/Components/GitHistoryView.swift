@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import os.log
 
 /// Git 历史面板视图
 struct GitHistoryPanelView: View {
@@ -21,6 +22,7 @@ struct GitHistoryPanelView: View {
     @State private var hoveredCommitId: String?
     
     var body: some View {
+        
         VStack(spacing: 0) {
             // 标题栏
             headerView
@@ -37,6 +39,12 @@ struct GitHistoryPanelView: View {
             }
         }
         .background(Theme.background)
+        .onAppear {
+            Logger.git.info("GitHistoryPanelView appeared - fileName: \(fileName, privacy: .public), commits: \(commits.count)")
+        }
+        .onDisappear {
+            Logger.git.info("GitHistoryPanelView disappeared")
+        }
     }
     
     // MARK: - Header
@@ -227,7 +235,9 @@ struct ResizableBottomPanel<Content: View>: View {
                     .fill(Theme.textTertiary)
                     .frame(width: 40, height: 3)
             )
-            .contentShape(Rectangle().size(width: .infinity, height: 12))
+            .frame(maxWidth: .infinity)
+            .frame(height: 12)
+            .contentShape(Rectangle())
             .gesture(
                 DragGesture()
                     .onChanged { value in

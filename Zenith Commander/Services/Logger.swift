@@ -43,6 +43,9 @@ extension Logger {
     
     /// 导航日志
     static let navigation = Logger(subsystem: subsystem, category: "navigation")
+    
+    /// Git 操作日志
+    static let git = Logger(subsystem: subsystem, category: "git")
 }
 
 // MARK: - 便捷日志函数（可选）

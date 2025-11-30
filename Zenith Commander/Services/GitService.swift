@@ -57,12 +57,21 @@ class GitService {
     }
     
     /// 获取 Git 仓库根目录
-    /// - Parameter path: 当前目录
+    /// - Parameter path: 当前目录或文件路径
     /// - Returns: 仓库根目录，如果不在仓库中则返回 nil
     func getRepositoryRoot(for path: URL) -> URL? {
         guard isGitAvailable else { return nil }
         
-        guard let result = runGitCommand(["rev-parse", "--show-toplevel"], at: path) else {
+        // 如果是文件，使用其父目录
+        var directory = path
+        var isDirectory: ObjCBool = false
+        if FileManager.default.fileExists(atPath: path.path, isDirectory: &isDirectory) {
+            if !isDirectory.boolValue {
+                directory = path.deletingLastPathComponent()
+            }
+        }
+        
+        guard let result = runGitCommand(["rev-parse", "--show-toplevel"], at: directory) else {
             return nil
         }
         
@@ -144,15 +153,24 @@ class GitService {
     ///   - limit: 最大返回数量，默认 50
     /// - Returns: Git 提交列表
     func getFileHistory(for file: URL, limit: Int = 50) -> [GitCommit] {
-        guard isGitAvailable else { return [] }
+        Logger.git.info("getFileHistory called for: \(file.path, privacy: .public)")
         
-        // 获取仓库根目录
-        guard let rootPath = getRepositoryRoot(for: file) else {
+        guard isGitAvailable else {
+            Logger.git.warning("Git is not available")
             return []
         }
         
+        // 获取仓库根目录
+        guard let rootPath = getRepositoryRoot(for: file) else {
+            Logger.git.warning("Could not find repository root for: \(file.path, privacy: .public)")
+            return []
+        }
+        
+        Logger.git.debug("Repository root: \(rootPath.path, privacy: .public)")
+        
         // 计算相对路径
         let relativePath = file.path.replacingOccurrences(of: rootPath.path + "/", with: "")
+        Logger.git.debug("Relative path: \(relativePath, privacy: .public)")
         
         // 运行 git log 命令
         // 格式: hash|short_hash|author|email|timestamp|subject|body|parent_hashes
@@ -166,11 +184,19 @@ class GitService {
             relativePath
         ]
         
+        Logger.git.debug("Running git command with args: \(args.joined(separator: " "), privacy: .public)")
+        
         guard let output = runGitCommand(args, at: rootPath) else {
+            Logger.git.error("git log command failed or returned nil")
             return []
         }
         
-        return parseGitLogOutput(output)
+        Logger.git.debug("git log output length: \(output.count) characters")
+        
+        let commits = parseGitLogOutput(output)
+        Logger.git.info("Parsed \(commits.count) commits from git log output")
+        
+        return commits
     }
     
     /// 获取整个仓库的 Git 历史记录
@@ -229,14 +255,20 @@ class GitService {
     
     /// 解析 git log 输出
     private func parseGitLogOutput(_ output: String) -> [GitCommit] {
+        Logger.git.debug("parseGitLogOutput called")
         var commits: [GitCommit] = []
         
         // 按空行分割（每个 commit 之间有空行）
         let entries = output.components(separatedBy: "\n").filter { !$0.isEmpty }
+        Logger.git.debug("Found \(entries.count) entries to parse")
         
-        for entry in entries {
+        for (index, entry) in entries.enumerated() {
             let parts = entry.components(separatedBy: "|")
-            guard parts.count >= 6 else { continue }
+            
+            if parts.count < 6 {
+                Logger.git.warning("Entry \(index) has insufficient parts (\(parts.count) < 6), skipping: \(entry.prefix(100), privacy: .public)")
+                continue
+            }
             
             let hash = parts[0]
             let shortHash = parts[1]
@@ -247,6 +279,8 @@ class GitService {
             let body = parts.count > 6 ? parts[6] : ""
             let parentHashesStr = parts.count > 7 ? parts[7] : ""
             let parentHashes = parentHashesStr.split(separator: " ").map(String.init)
+            
+            Logger.git.debug("Parsing commit \(index): \(shortHash, privacy: .public) - \(subject.prefix(50), privacy: .public)")
             
             let commit = GitCommit(
                 id: hash,
@@ -262,6 +296,7 @@ class GitService {
             commits.append(commit)
         }
         
+        Logger.git.debug("parseGitLogOutput completed with \(commits.count) commits")
         return commits
     }
     

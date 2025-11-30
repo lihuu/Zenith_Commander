@@ -8,6 +8,7 @@
 import SwiftUI
 import Combine
 import AppKit
+import os.log
 
 struct PaneView: View {
     @EnvironmentObject var appState: AppState
@@ -346,6 +347,8 @@ struct PaneView: View {
             Divider()
             
             Button(LocalizationManager.shared.localized(.gitShowHistory)) {
+                Logger.git.info("Show Git History menu item clicked for file: \(file.name, privacy: .public)")
+                Logger.git.debug("File path: \(file.path.path, privacy: .public)")
                 appState.showGitHistoryForFile(file)
             }
         }

@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import os.log
 
 /// 标签页状态
 class TabState: Identifiable, ObservableObject {
@@ -471,32 +472,61 @@ class AppState: ObservableObject {
     
     /// 显示文件的 Git 历史
     func showGitHistoryForFile(_ file: FileItem) {
+        Logger.git.info("showGitHistoryForFile called for: \(file.name, privacy: .public)")
+        Logger.git.debug("File path: \(file.path.path, privacy: .public)")
+        Logger.git.debug("File type: \(String(describing: file.type), privacy: .public)")
+        
+        // 先在主线程复制需要的值，避免在后台线程访问可能触发 UI 更新的属性
+        let filePath = file.path
+        let fileName = file.name
+        
         gitHistoryFile = file
         gitHistoryLoading = true
         showGitHistory = true
         
+        Logger.git.debug("State updated: showGitHistory=true, gitHistoryLoading=true")
+        
         // 异步加载历史
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let commits = GitService.shared.getFileHistory(for: file.path)
+            Logger.git.debug("Background thread started for getFileHistory - file: \(fileName, privacy: .public)")
+            
+            let commits = GitService.shared.getFileHistory(for: filePath)
+            
+            Logger.git.info("getFileHistory returned \(commits.count) commits for \(fileName, privacy: .public)")
             
             DispatchQueue.main.async {
-                self?.gitHistoryCommits = commits
-                self?.gitHistoryLoading = false
+                guard let self = self else {
+                    Logger.git.warning("Self was deallocated before UI update")
+                    return
+                }
+                Logger.git.debug("Main thread: updating UI with \(commits.count) commits")
+                self.gitHistoryCommits = commits
+                self.gitHistoryLoading = false
+                Logger.git.debug("State updated: gitHistoryLoading=false")
             }
         }
     }
     
     /// 显示当前选中文件的 Git 历史
     func showGitHistoryForCurrentFile() {
+        Logger.git.debug("showGitHistoryForCurrentFile called")
+        
         let files = currentPane.currentFiles
         let cursorIndex = currentPane.cursorIndex
         
-        guard cursorIndex >= 0 && cursorIndex < files.count else { return }
+        Logger.git.debug("cursorIndex: \(cursorIndex), files.count: \(files.count)")
+        
+        guard cursorIndex >= 0 && cursorIndex < files.count else {
+            Logger.git.warning("Invalid cursor index: \(cursorIndex) for files count: \(files.count)")
+            return
+        }
         
         let file = files[cursorIndex]
+        Logger.git.debug("Selected file: \(file.name, privacy: .public), type: \(String(describing: file.type), privacy: .public)")
         
         // 不显示文件夹和父目录的历史
         if file.type == .folder || file.isParentDirectory {
+            Logger.git.info("Cannot show history for folder or parent directory")
             showToast("Select a file to view Git history")
             return
         }
@@ -506,9 +536,11 @@ class AppState: ObservableObject {
     
     /// 关闭 Git 历史面板
     func closeGitHistory() {
+        Logger.git.debug("closeGitHistory called")
         showGitHistory = false
         gitHistoryFile = nil
         gitHistoryCommits = []
+        Logger.git.debug("Git history panel closed and state cleared")
     }
 }
 

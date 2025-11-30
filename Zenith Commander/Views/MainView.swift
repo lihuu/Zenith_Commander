@@ -7,6 +7,7 @@
 
 import Combine
 import SwiftUI
+import os.log
 
 struct MainView: View {
     @StateObject private var appState = AppState()
@@ -56,6 +57,7 @@ struct MainView: View {
                     
                     // Git History 底部面板
                     if appState.showGitHistory {
+                        
                         ResizableBottomPanel(
                             height: $appState.gitHistoryPanelHeight,
                             isVisible: $appState.showGitHistory,
@@ -67,11 +69,13 @@ struct MainView: View {
                                 commits: appState.gitHistoryCommits,
                                 isLoading: appState.gitHistoryLoading,
                                 onClose: {
+                                    Logger.git.debug("Close button clicked")
                                     withAnimation(.easeInOut(duration: 0.2)) {
                                         appState.closeGitHistory()
                                     }
                                 },
                                 onCommitSelected: { commit in
+                                    Logger.git.debug("Commit selected: \(commit.shortHash, privacy: .public)")
                                     // TODO: 显示 commit 详情或 diff
                                 }
                             )
