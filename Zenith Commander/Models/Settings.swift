@@ -19,11 +19,15 @@ struct AppSettings: Codable, Equatable {
     /// 终端设置
     var terminal: TerminalSettings
     
+    /// 语言设置
+    var language: String
+    
     /// 默认设置
     static var `default`: AppSettings {
         AppSettings(
             appearance: .default,
-            terminal: .default
+            terminal: .default,
+            language: AppLanguage.english.rawValue
         )
     }
 }
@@ -160,6 +164,11 @@ class SettingsManager: ObservableObject {
         // 应用主题 - 使用异步更新避免在视图更新期间修改 @Published 属性
         DispatchQueue.main.async {
             ThemeManager.shared.mode = self.settings.appearance.themeModeEnum
+            
+            // 应用语言设置
+            if let language = AppLanguage(rawValue: self.settings.language) {
+                LocalizationManager.shared.setLanguage(language)
+            }
         }
     }
     

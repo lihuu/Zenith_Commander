@@ -10,6 +10,7 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject private var settingsManager = SettingsManager.shared
     @ObservedObject private var themeManager = ThemeManager.shared
+    @ObservedObject private var localizationManager = LocalizationManager.shared
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -20,6 +21,12 @@ struct SettingsView: View {
             // 设置内容
             ScrollView {
                 VStack(spacing: 24) {
+                    // 语言设置
+                    LanguageSection(settings: $settingsManager.settings)
+                    
+                    Divider()
+                        .background(themeManager.current.borderLight)
+                    
                     // 外观设置
                     AppearanceSection(settings: $settingsManager.settings.appearance)
                     
@@ -39,7 +46,7 @@ struct SettingsView: View {
                 .padding(24)
             }
         }
-        .frame(width: 500, height: 520)
+        .frame(width: 500, height: 580)
         .background(themeManager.current.background)
     }
 }
@@ -48,11 +55,12 @@ struct SettingsView: View {
 
 struct SettingsTitleBar: View {
     @ObservedObject private var themeManager = ThemeManager.shared
+    @ObservedObject private var localizationManager = LocalizationManager.shared
     let onClose: () -> Void
     
     var body: some View {
         HStack {
-            Text("Settings")
+            Text(L(.settings))
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(themeManager.current.textPrimary)
             
@@ -64,11 +72,102 @@ struct SettingsTitleBar: View {
                     .foregroundColor(themeManager.current.textTertiary)
             }
             .buttonStyle(.plain)
-            .help("Close")
+            .help(L(.close))
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 16)
         .background(themeManager.current.backgroundSecondary)
+    }
+    
+    private func L(_ key: LocalizedStringKey) -> String {
+        localizationManager.localized(key)
+    }
+}
+
+// MARK: - 语言设置区域
+
+struct LanguageSection: View {
+    @Binding var settings: AppSettings
+    @ObservedObject private var themeManager = ThemeManager.shared
+    @ObservedObject private var localizationManager = LocalizationManager.shared
+    
+    var body: some View {
+        SettingsSection(title: L(.settingsLanguage), icon: "globe") {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(L(.settingsLanguageDescription))
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundColor(themeManager.current.textSecondary)
+                
+                LazyVGrid(columns: [
+                    GridItem(.flexible()),
+                    GridItem(.flexible())
+                ], spacing: 10) {
+                    ForEach(AppLanguage.allCases) { language in
+                        LanguageOptionButton(
+                            language: language,
+                            isSelected: settings.language == language.rawValue
+                        ) {
+                            settings.language = language.rawValue
+                            localizationManager.setLanguage(language)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private func L(_ key: LocalizedStringKey) -> String {
+        localizationManager.localized(key)
+    }
+}
+
+struct LanguageOptionButton: View {
+    let language: AppLanguage
+    let isSelected: Bool
+    let action: () -> Void
+    
+    @ObservedObject private var themeManager = ThemeManager.shared
+    @State private var isHovered = false
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                // 语言图标（国旗 emoji）
+                Text(language.icon)
+                    .font(.system(size: 20))
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(language.nativeName)
+                        .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
+                        .foregroundColor(isSelected ? themeManager.current.textPrimary : themeManager.current.textSecondary)
+                    
+                    if language.nativeName != language.englishName {
+                        Text(language.englishName)
+                            .font(.system(size: 9))
+                            .foregroundColor(themeManager.current.textMuted)
+                    }
+                }
+                
+                Spacer()
+                
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(themeManager.current.accent)
+                }
+            }
+            .padding(10)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isHovered ? themeManager.current.backgroundTertiary : themeManager.current.backgroundSecondary)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isSelected ? themeManager.current.accent : Color.clear, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
     }
 }
 
@@ -77,9 +176,10 @@ struct SettingsTitleBar: View {
 struct AppearanceSection: View {
     @Binding var settings: AppearanceSettings
     @ObservedObject private var themeManager = ThemeManager.shared
+    @ObservedObject private var localizationManager = LocalizationManager.shared
     
     var body: some View {
-        SettingsSection(title: "Appearance", icon: "paintbrush.fill") {
+        SettingsSection(title: L(.settingsAppearance), icon: "paintbrush.fill") {
             VStack(spacing: 16) {
                 // 主题选择
                 ThemeSelector(selectedTheme: Binding(
@@ -102,7 +202,7 @@ struct AppearanceSection: View {
                 
                 // 字体大小
                 SettingsSlider(
-                    label: "Font Size",
+                    label: L(.settingsFontSize),
                     value: $settings.fontSize,
                     range: 10...24,
                     step: 1,
@@ -112,7 +212,7 @@ struct AppearanceSection: View {
                 
                 // 行高
                 SettingsSlider(
-                    label: "Line Height",
+                    label: L(.settingsLineHeight),
                     value: $settings.lineHeight,
                     range: 1.0...2.0,
                     step: 0.1,
@@ -122,6 +222,10 @@ struct AppearanceSection: View {
             }
         }
     }
+    
+    private func L(_ key: LocalizedStringKey) -> String {
+        localizationManager.localized(key)
+    }
 }
 
 // MARK: - 主题选择器
@@ -129,16 +233,19 @@ struct AppearanceSection: View {
 struct ThemeSelector: View {
     @Binding var selectedTheme: String
     @ObservedObject private var themeManager = ThemeManager.shared
+    @ObservedObject private var localizationManager = LocalizationManager.shared
     
-    private let themes: [(id: String, name: String, icon: String)] = [
-        ("light", "Light", "sun.max.fill"),
-        ("dark", "Dark", "moon.fill"),
-        ("auto", "Auto", "circle.lefthalf.filled")
-    ]
+    private var themes: [(id: String, nameKey: LocalizedStringKey, icon: String)] {
+        [
+            ("light", .settingsThemeLight, "sun.max.fill"),
+            ("dark", .settingsThemeDark, "moon.fill"),
+            ("auto", .settingsThemeAuto, "circle.lefthalf.filled")
+        ]
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Theme")
+            Text(L(.settingsTheme))
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(themeManager.current.textSecondary)
             
@@ -146,7 +253,7 @@ struct ThemeSelector: View {
                 ForEach(themes, id: \.id) { theme in
                     ThemeButton(
                         id: theme.id,
-                        name: theme.name,
+                        name: L(theme.nameKey),
                         icon: theme.icon,
                         isSelected: selectedTheme == theme.id
                     ) {
@@ -157,6 +264,10 @@ struct ThemeSelector: View {
                 }
             }
         }
+    }
+    
+    private func L(_ key: LocalizedStringKey) -> String {
+        localizationManager.localized(key)
     }
 }
 
@@ -284,11 +395,12 @@ struct SettingsSlider: View {
 struct TerminalSection: View {
     @Binding var settings: TerminalSettings
     @ObservedObject private var themeManager = ThemeManager.shared
+    @ObservedObject private var localizationManager = LocalizationManager.shared
     
     var body: some View {
-        SettingsSection(title: "Terminal", icon: "terminal.fill") {
+        SettingsSection(title: L(.settingsTerminal), icon: "terminal.fill") {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Default Terminal")
+                Text(L(.settingsDefaultTerminal))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(themeManager.current.textSecondary)
                 
@@ -308,6 +420,10 @@ struct TerminalSection: View {
             }
         }
     }
+    
+    private func L(_ key: LocalizedStringKey) -> String {
+        localizationManager.localized(key)
+    }
 }
 
 struct TerminalOptionButton: View {
@@ -316,6 +432,7 @@ struct TerminalOptionButton: View {
     let action: () -> Void
     
     @ObservedObject private var themeManager = ThemeManager.shared
+    @ObservedObject private var localizationManager = LocalizationManager.shared
     @State private var isHovered = false
     
     var body: some View {
@@ -337,7 +454,7 @@ struct TerminalOptionButton: View {
                         .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
                         .foregroundColor(isSelected ? themeManager.current.textPrimary : themeManager.current.textSecondary)
                     
-                    Text(terminal.isInstalled ? "Installed" : "Not Installed")
+                    Text(terminal.isInstalled ? L(.settingsInstalled) : L(.settingsNotInstalled))
                         .font(.system(size: 9))
                         .foregroundColor(terminal.isInstalled ? themeManager.current.success : themeManager.current.textMuted)
                 }
@@ -363,6 +480,10 @@ struct TerminalOptionButton: View {
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
         .opacity(terminal.isInstalled ? 1.0 : 0.6)
+    }
+    
+    private func L(_ key: LocalizedStringKey) -> String {
+        localizationManager.localized(key)
     }
     
     private var terminalIcon: String {
@@ -419,6 +540,7 @@ struct ResetButton: View {
     let action: () -> Void
     
     @ObservedObject private var themeManager = ThemeManager.shared
+    @ObservedObject private var localizationManager = LocalizationManager.shared
     @State private var isHovered = false
     @State private var showConfirmation = false
     
@@ -428,7 +550,7 @@ struct ResetButton: View {
                 Image(systemName: "arrow.counterclockwise")
                     .font(.system(size: 12))
                 
-                Text("Reset to Defaults")
+                Text(L(.settingsResetToDefaults))
                     .font(.system(size: 12, weight: .medium))
             }
             .foregroundColor(themeManager.current.textSecondary)
@@ -445,14 +567,18 @@ struct ResetButton: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
-        .alert("Reset Settings", isPresented: $showConfirmation) {
-            Button("Cancel", role: .cancel) { }
-            Button("Reset", role: .destructive) {
+        .alert(L(.settingsResetConfirmTitle), isPresented: $showConfirmation) {
+            Button(L(.cancel), role: .cancel) { }
+            Button(L(.reset), role: .destructive) {
                 action()
             }
         } message: {
-            Text("Are you sure you want to reset all settings to their default values?")
+            Text(L(.settingsResetConfirmMessage))
         }
+    }
+    
+    private func L(_ key: LocalizedStringKey) -> String {
+        localizationManager.localized(key)
     }
 }
 
