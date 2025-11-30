@@ -65,7 +65,7 @@ struct HelpView: View {
                     
                     HelpSection(title: "Visual Mode", icon: "checkmark.square") {
                         HelpRow(keys: ["↑/↓/j/k"], description: "Extend selection")
-                        HelpRow(keys: ["Space"], description: "Toggle selection on current item")
+//                        HelpRow(keys: ["Space"], description: "Toggle selection on current item")
                         HelpRow(keys: ["a"], description: "Select all")
                         HelpRow(keys: ["r"], description: "Batch rename selected files")
                         HelpRow(keys: ["Esc"], description: "Exit Visual mode")

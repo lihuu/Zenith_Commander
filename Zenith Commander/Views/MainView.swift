@@ -871,14 +871,31 @@ struct MainView: View {
     }
     
     private func executeCommand() {
-        let command = appState.commandInput.trimmingCharacters(in: .whitespaces)
+        let commandInput = appState.commandInput.trimmingCharacters(in: .whitespaces)
+        guard !commandInput.isEmpty else {
+            appState.exitMode()
+            return
+        }
         
-        if command.hasPrefix("ai ") {
-            // AI 命令
-            let query = String(command.dropFirst(3))
-            appState.showToast("AI: \(query)")
-        } else if command == "mkdir" {
-            appState.showToast("Create directory...")
+        let commandParts = commandInput.split(separator: " ")
+        let command = commandParts[0]
+        
+        if command == "mkdir" {
+            // Create directory under current directory
+            do {
+                let newDir = try FileSystemService.shared.createDirectory(at: appState.currentPane.activeTab.currentPath, name: "New Folder")
+                appState.showToast("Created directory: \(newDir.lastPathComponent)")
+            } catch {
+                appState.showToast("Failed to create directory: \(error.localizedDescription)")
+            }
+        } else if command == "touch"{
+            // TODO: create file under current directory
+            do {
+                let newFile = try FileSystemService.shared.createFile(at: appState.currentPane.activeTab.currentPath, name: "New File.txt")
+                appState.showToast("Created file: \(newFile.lastPathComponent)")
+            } catch{
+                appState.showToast("Failed to create file: \(error.localizedDescription)")
+            }
         } else if command == "q" || command == "quit" {
             NSApp.terminate(nil)
         } else {
