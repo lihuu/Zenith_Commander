@@ -101,19 +101,22 @@ struct AppearanceSection: View {
                     .background(themeManager.current.borderLight)
                 
                 // 字体大小
-                FontSizeSlider(
-                    value: $settings.fontSize,
+                SettingsSlider(
                     label: "Font Size",
-                    range: 10...18,
-                    step: 1
+                    value: $settings.fontSize,
+                    range: 10...24,
+                    step: 1,
+                    defaultValue: AppearanceSettings.default.fontSize,
+                    format: "%.0f pt"
                 )
                 
                 // 行高
-                FontSizeSlider(
-                    value: $settings.lineHeight,
+                SettingsSlider(
                     label: "Line Height",
+                    value: $settings.lineHeight,
                     range: 1.0...2.0,
                     step: 0.1,
+                    defaultValue: AppearanceSettings.default.lineHeight,
                     format: "%.1f"
                 )
             }
@@ -212,16 +215,21 @@ struct ThemeButton: View {
     }
 }
 
-// MARK: - 字体大小滑块
+// MARK: - 设置滑块（带默认值按钮）
 
-struct FontSizeSlider: View {
-    @Binding var value: Double
+struct SettingsSlider: View {
     let label: String
+    @Binding var value: Double
     let range: ClosedRange<Double>
     let step: Double
+    let defaultValue: Double
     var format: String = "%.0f"
     
     @ObservedObject private var themeManager = ThemeManager.shared
+    
+    private var isDefault: Bool {
+        abs(value - defaultValue) < 0.01
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -232,16 +240,32 @@ struct FontSizeSlider: View {
                 
                 Spacer()
                 
+                // 当前值显示
                 Text(String(format: format, value))
                     .font(.system(size: 12, weight: .medium, design: .monospaced))
                     .foregroundColor(themeManager.current.accent)
-                    .frame(width: 40, alignment: .trailing)
+                    .frame(minWidth: 50, alignment: .trailing)
+                
+                // 恢复默认按钮
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        value = defaultValue
+                    }
+                }) {
+                    Image(systemName: "arrow.counterclockwise")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(isDefault ? themeManager.current.textMuted : themeManager.current.accent)
+                }
+                .buttonStyle(.plain)
+                .disabled(isDefault)
+                .help(isDefault ? "Already at default" : "Reset to default (\(String(format: format, defaultValue)))")
             }
             
             HStack(spacing: 12) {
                 Text(String(format: format, range.lowerBound))
                     .font(.system(size: 10))
                     .foregroundColor(themeManager.current.textMuted)
+                    .frame(width: 36, alignment: .leading)
                 
                 Slider(value: $value, in: range, step: step)
                     .tint(themeManager.current.accent)
@@ -249,6 +273,7 @@ struct FontSizeSlider: View {
                 Text(String(format: format, range.upperBound))
                     .font(.system(size: 10))
                     .foregroundColor(themeManager.current.textMuted)
+                    .frame(width: 36, alignment: .trailing)
             }
         }
     }
