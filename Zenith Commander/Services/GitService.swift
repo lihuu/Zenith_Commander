@@ -136,6 +136,178 @@ class GitService {
         )
     }
     
+    // MARK: - Git History
+    
+    /// 获取文件的 Git 历史记录
+    /// - Parameters:
+    ///   - file: 文件 URL
+    ///   - limit: 最大返回数量，默认 50
+    /// - Returns: Git 提交列表
+    func getFileHistory(for file: URL, limit: Int = 50) -> [GitCommit] {
+        guard isGitAvailable else { return [] }
+        
+        // 获取仓库根目录
+        guard let rootPath = getRepositoryRoot(for: file) else {
+            return []
+        }
+        
+        // 计算相对路径
+        let relativePath = file.path.replacingOccurrences(of: rootPath.path + "/", with: "")
+        
+        // 运行 git log 命令
+        // 格式: hash|short_hash|author|email|timestamp|subject|body|parent_hashes
+        let format = "%H|%h|%an|%ae|%at|%s|%b|%P"
+        let args = [
+            "log",
+            "--format=\(format)",
+            "-n", "\(limit)",
+            "--follow",  // 跟踪文件重命名
+            "--",
+            relativePath
+        ]
+        
+        guard let output = runGitCommand(args, at: rootPath) else {
+            return []
+        }
+        
+        return parseGitLogOutput(output)
+    }
+    
+    /// 获取整个仓库的 Git 历史记录
+    /// - Parameters:
+    ///   - directory: 仓库目录
+    ///   - limit: 最大返回数量，默认 50
+    /// - Returns: Git 提交列表
+    func getRepositoryHistory(at directory: URL, limit: Int = 50) -> [GitCommit] {
+        guard isGitAvailable else { return [] }
+        
+        guard let rootPath = getRepositoryRoot(for: directory) else {
+            return []
+        }
+        
+        let format = "%H|%h|%an|%ae|%at|%s|%b|%P"
+        let args = [
+            "log",
+            "--format=\(format)",
+            "-n", "\(limit)"
+        ]
+        
+        guard let output = runGitCommand(args, at: rootPath) else {
+            return []
+        }
+        
+        return parseGitLogOutput(output)
+    }
+    
+    /// 获取指定 commit 的变更文件列表
+    /// - Parameters:
+    ///   - commitHash: commit hash
+    ///   - directory: 仓库目录
+    /// - Returns: 变更文件列表
+    func getCommitChanges(for commitHash: String, at directory: URL) -> [GitFileChange] {
+        guard isGitAvailable else { return [] }
+        
+        guard let rootPath = getRepositoryRoot(for: directory) else {
+            return []
+        }
+        
+        // 使用 --numstat 获取变更统计
+        let args = [
+            "diff-tree",
+            "--no-commit-id",
+            "--name-status",
+            "-r",
+            commitHash
+        ]
+        
+        guard let output = runGitCommand(args, at: rootPath) else {
+            return []
+        }
+        
+        return parseCommitChanges(output)
+    }
+    
+    /// 解析 git log 输出
+    private func parseGitLogOutput(_ output: String) -> [GitCommit] {
+        var commits: [GitCommit] = []
+        
+        // 按空行分割（每个 commit 之间有空行）
+        let entries = output.components(separatedBy: "\n").filter { !$0.isEmpty }
+        
+        for entry in entries {
+            let parts = entry.components(separatedBy: "|")
+            guard parts.count >= 6 else { continue }
+            
+            let hash = parts[0]
+            let shortHash = parts[1]
+            let author = parts[2]
+            let email = parts[3]
+            let timestamp = TimeInterval(parts[4]) ?? 0
+            let subject = parts[5]
+            let body = parts.count > 6 ? parts[6] : ""
+            let parentHashesStr = parts.count > 7 ? parts[7] : ""
+            let parentHashes = parentHashesStr.split(separator: " ").map(String.init)
+            
+            let commit = GitCommit(
+                id: hash,
+                shortHash: shortHash,
+                message: subject,
+                fullMessage: body.isEmpty ? subject : "\(subject)\n\n\(body)",
+                author: author,
+                authorEmail: email,
+                date: Date(timeIntervalSince1970: timestamp),
+                parentHashes: parentHashes
+            )
+            
+            commits.append(commit)
+        }
+        
+        return commits
+    }
+    
+    /// 解析 commit 变更文件
+    private func parseCommitChanges(_ output: String) -> [GitFileChange] {
+        var changes: [GitFileChange] = []
+        
+        let lines = output.split(separator: "\n", omittingEmptySubsequences: true)
+        
+        for line in lines {
+            let parts = line.split(separator: "\t", maxSplits: 1)
+            guard parts.count >= 2 else { continue }
+            
+            let statusChar = String(parts[0])
+            var filePath = String(parts[1])
+            
+            // 处理引号包裹的路径
+            if filePath.hasPrefix("\"") && filePath.hasSuffix("\"") {
+                filePath = String(filePath.dropFirst().dropLast())
+                filePath = unescapeGitPath(filePath)
+            }
+            
+            let status: GitFileStatus
+            switch statusChar {
+            case "M": status = .modified
+            case "A": status = .added
+            case "D": status = .deleted
+            case "R": status = .renamed
+            case "C": status = .copied
+            default: status = .modified
+            }
+            
+            let change = GitFileChange(
+                id: filePath,
+                path: filePath,
+                status: status,
+                additions: 0,  // 简化版本不获取行数
+                deletions: 0
+            )
+            
+            changes.append(change)
+        }
+        
+        return changes
+    }
+    
     /// 获取目录下所有文件的 Git 状态
     /// - Parameters:
     ///   - directory: 目录路径

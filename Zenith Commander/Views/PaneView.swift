@@ -341,6 +341,15 @@ struct PaneView: View {
             copyFullPath(file: file)
         }
         
+        // Git History 选项 - 仅在 Git 仓库中且非文件夹时显示
+        if pane.gitInfo?.isGitRepository == true && file.type != .folder {
+            Divider()
+            
+            Button(LocalizationManager.shared.string(for: "gitHistoryShowHistory")) {
+                appState.showGitHistoryForFile(file)
+            }
+        }
+        
         Divider()
         
         Button("Move to Trash") {

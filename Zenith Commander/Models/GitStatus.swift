@@ -148,3 +148,47 @@ struct GitStatusCacheEntry {
         Date().timeIntervalSince(timestamp) > ttl
     }
 }
+
+// MARK: - Git Commit 信息
+
+/// Git 提交信息
+struct GitCommit: Identifiable, Equatable {
+    let id: String  // commit hash (完整)
+    let shortHash: String  // 短 hash (7位)
+    let message: String  // 提交消息（第一行）
+    let fullMessage: String  // 完整提交消息
+    let author: String  // 作者名
+    let authorEmail: String  // 作者邮箱
+    let date: Date  // 提交日期
+    let parentHashes: [String]  // 父提交 hash
+    
+    /// 格式化的相对日期
+    var relativeDate: String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+    
+    /// 格式化的绝对日期
+    var formattedDate: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+    
+    /// 是否是合并提交
+    var isMergeCommit: Bool {
+        parentHashes.count > 1
+    }
+}
+
+/// Git 文件变更
+struct GitFileChange: Identifiable, Equatable {
+    let id: String  // 文件路径作为 ID
+    let path: String  // 文件路径
+    let status: GitFileStatus  // 变更状态
+    let additions: Int  // 添加行数
+    let deletions: Int  // 删除行数
+}
+

@@ -30,27 +30,53 @@ struct MainView: View {
 
             // 双面板区域
             GeometryReader { geometry in
-                HStack(spacing: 0) {
-                    // 左面板
-                    PaneView(
-                        pane: appState.leftPane,
-                        bookmarkManager: bookmarkManager,
-                        side: .left
-                    )
-                    .frame(width: geometry.size.width / 2)
+                VStack(spacing: 0) {
+                    HStack(spacing: 0) {
+                        // 左面板
+                        PaneView(
+                            pane: appState.leftPane,
+                            bookmarkManager: bookmarkManager,
+                            side: .left
+                        )
+                        .frame(width: geometry.size.width / 2)
 
-                    // 分隔线
-                    Rectangle()
-                        .fill(Color.black)
-                        .frame(width: 1)
+                        // 分隔线
+                        Rectangle()
+                            .fill(Color.black)
+                            .frame(width: 1)
 
-                    // 右面板
-                    PaneView(
-                        pane: appState.rightPane,
-                        bookmarkManager: bookmarkManager,
-                        side: .right
-                    )
-                    .frame(width: geometry.size.width / 2 - 1)
+                        // 右面板
+                        PaneView(
+                            pane: appState.rightPane,
+                            bookmarkManager: bookmarkManager,
+                            side: .right
+                        )
+                        .frame(width: geometry.size.width / 2 - 1)
+                    }
+                    
+                    // Git History 底部面板
+                    if appState.showGitHistory {
+                        ResizableBottomPanel(
+                            height: $appState.gitHistoryPanelHeight,
+                            isVisible: $appState.showGitHistory,
+                            minHeight: 100,
+                            maxHeight: geometry.size.height * 0.6
+                        ) {
+                            GitHistoryPanelView(
+                                fileName: appState.gitHistoryFile?.name ?? "",
+                                commits: appState.gitHistoryCommits,
+                                isLoading: appState.gitHistoryLoading,
+                                onClose: {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        appState.closeGitHistory()
+                                    }
+                                },
+                                onCommitSelected: { commit in
+                                    // TODO: 显示 commit 详情或 diff
+                                }
+                            )
+                        }
+                    }
                 }
             }
             .environmentObject(appState)

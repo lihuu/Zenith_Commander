@@ -272,6 +272,13 @@ class AppState: ObservableObject {
     @Published var renameReplaceText: String = ""
     @Published var renameUseRegex: Bool = false
     
+    // MARK: - Git History 状态
+    @Published var showGitHistory: Bool = false
+    @Published var gitHistoryFile: FileItem?
+    @Published var gitHistoryCommits: [GitCommit] = []
+    @Published var gitHistoryLoading: Bool = false
+    @Published var gitHistoryPanelHeight: CGFloat = 200
+    
     // MARK: - 右键菜单状态
     @Published var contextMenuPosition: CGPoint?
     @Published var contextMenuFile: FileItem?
@@ -458,6 +465,51 @@ class AppState: ObservableObject {
         yankSelectedFiles()
         clipboardOperation = .cut
         showToast("\(clipboard.count) file(s) cut")
+    }
+    
+    // MARK: - Git History 方法
+    
+    /// 显示文件的 Git 历史
+    func showGitHistoryForFile(_ file: FileItem) {
+        gitHistoryFile = file
+        gitHistoryLoading = true
+        showGitHistory = true
+        
+        // 异步加载历史
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let fileURL = URL(fileURLWithPath: file.path)
+            let commits = GitService.shared.getFileHistory(for: fileURL)
+            
+            DispatchQueue.main.async {
+                self?.gitHistoryCommits = commits
+                self?.gitHistoryLoading = false
+            }
+        }
+    }
+    
+    /// 显示当前选中文件的 Git 历史
+    func showGitHistoryForCurrentFile() {
+        let files = currentPane.currentFiles
+        let cursorIndex = currentPane.cursorIndex
+        
+        guard cursorIndex >= 0 && cursorIndex < files.count else { return }
+        
+        let file = files[cursorIndex]
+        
+        // 不显示文件夹和父目录的历史
+        if file.type == .folder || file.isParentDirectory {
+            showToast("Select a file to view Git history")
+            return
+        }
+        
+        showGitHistoryForFile(file)
+    }
+    
+    /// 关闭 Git 历史面板
+    func closeGitHistory() {
+        showGitHistory = false
+        gitHistoryFile = nil
+        gitHistoryCommits = []
     }
 }
 

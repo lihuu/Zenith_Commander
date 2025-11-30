@@ -280,6 +280,16 @@ enum LocalizedStringKey: String, CaseIterable {
     case toastBookmarkAdded
     case toastBookmarkRemoved
     
+    // MARK: - Git History
+    case gitHistory
+    case gitCommits
+    case gitLoadingHistory
+    case gitNoHistory
+    case gitShowHistory
+    case gitCommitDetails
+    case gitChangedFiles
+    case gitViewDiff
+    
     // MARK: - 错误消息
     case errorFileNotFound
     case errorPermissionDenied
@@ -378,6 +388,16 @@ class LocalizedStrings {
             .gitBranch: "Branch",
             .gitAhead: "ahead",
             .gitBehind: "behind",
+            
+            // Git History
+            .gitHistory: "Git History",
+            .gitCommits: "commits",
+            .gitLoadingHistory: "Loading history...",
+            .gitNoHistory: "No git history for this file",
+            .gitShowHistory: "Show Git History",
+            .gitCommitDetails: "Commit Details",
+            .gitChangedFiles: "Changed Files",
+            .gitViewDiff: "View Diff",
             
             // 帮助页面
             .help: "Help",
@@ -566,6 +586,16 @@ class LocalizedStrings {
             .gitBranch: "分支",
             .gitAhead: "领先",
             .gitBehind: "落后",
+            
+            // Git History
+            .gitHistory: "Git 历史",
+            .gitCommits: "次提交",
+            .gitLoadingHistory: "加载历史记录...",
+            .gitNoHistory: "此文件没有 Git 历史记录",
+            .gitShowHistory: "显示 Git 历史",
+            .gitCommitDetails: "提交详情",
+            .gitChangedFiles: "变更文件",
+            .gitViewDiff: "查看差异",
             
             // 帮助页面
             .help: "帮助",
