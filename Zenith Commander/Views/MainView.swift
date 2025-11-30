@@ -13,6 +13,7 @@ struct MainView: View {
     @StateObject private var bookmarkManager = BookmarkManager()
     @ObservedObject private var themeManager = ThemeManager.shared
     @State private var showSettings = false
+    @State private var showHelp = false        // 帮助视图显示状态
     @State private var showBookmarkBar = true  // 书签栏显示状态
     
     var body: some View {
@@ -118,6 +119,12 @@ struct MainView: View {
             appState.exitMode()
         }) {
             SettingsView()
+        }
+        .sheet(isPresented: $showHelp, onDismiss: {
+            // 关闭帮助时退出 HELP 模式
+            appState.exitMode()
+        }) {
+            HelpView()
         }
         .focusable()
         .onKeyPress { keyPress in
@@ -270,11 +277,11 @@ struct MainView: View {
             }
             return .handled
         
-        // 正则表达式过滤 (Shift + /)
+        // 帮助 (?)
         case KeyEquivalent("?"):
             Task { @MainActor in
-                appState.enterMode(.filter)
-                appState.filterUseRegex = true
+                appState.enterMode(.help)
+                showHelp = true
             }
             return .handled
             

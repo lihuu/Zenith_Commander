@@ -17,6 +17,7 @@ enum AppMode: String, CaseIterable {
     case aiAnalysis = "AI"
     case rename = "RENAME"      // 重命名模式 - 阻止键盘事件传播
     case settings = "SETTINGS"  // 设置模式 - 阻止键盘事件传播
+    case help = "HELP"          // 帮助模式 - 阻止键盘事件传播
     
     /// 模式显示颜色
     var color: Color {
@@ -37,6 +38,8 @@ enum AppMode: String, CaseIterable {
             return .cyan
         case .settings:
             return .teal
+        case .help:
+            return .indigo
         }
     }
     
@@ -49,7 +52,7 @@ enum AppMode: String, CaseIterable {
     /// 这些模式下，键盘事件应该由模态窗口/视图处理，而不是全局快捷键
     var isModalMode: Bool {
         switch self {
-        case .rename, .settings, .aiAnalysis:
+        case .rename, .settings, .aiAnalysis, .help:
             return true
         default:
             return false
@@ -75,6 +78,8 @@ enum AppMode: String, CaseIterable {
             return "Rename mode - batch rename files"
         case .settings:
             return "Settings mode - configure application"
+        case .help:
+            return "Help mode - view keyboard shortcuts"
         }
     }
 }
