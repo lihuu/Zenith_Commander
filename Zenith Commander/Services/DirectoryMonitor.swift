@@ -8,6 +8,7 @@
 
 import Foundation
 import CoreServices
+import os.log
 
 // MARK: - FSEvents 监控器（推荐方案）
 
@@ -91,7 +92,7 @@ class FSEventsDirectoryMonitor {
             0.1,                                    // latency (秒) - FSEvents 内置延迟
             flags                                   // flags
         ) else {
-            print("FSEventsDirectoryMonitor: Failed to create event stream")
+            Logger.monitor.error("FSEventsDirectoryMonitor: Failed to create event stream")
             return
         }
         
@@ -103,9 +104,9 @@ class FSEventsDirectoryMonitor {
         // 启动流
         if FSEventStreamStart(stream) {
             isMonitoring = true
-            print("FSEventsDirectoryMonitor: Started monitoring: \(paths)")
+            Logger.monitor.debug("FSEventsDirectoryMonitor: Started monitoring: \(self.paths)")
         } else {
-            print("FSEventsDirectoryMonitor: Failed to start event stream")
+            Logger.monitor.error("FSEventsDirectoryMonitor: Failed to start event stream")
             FSEventStreamInvalidate(stream)
             FSEventStreamRelease(stream)
             eventStream = nil
@@ -126,7 +127,7 @@ class FSEventsDirectoryMonitor {
         
         isMonitoring = false
         onChange = nil
-        print("FSEventsDirectoryMonitor: Stopped monitoring")
+        Logger.monitor.debug("FSEventsDirectoryMonitor: Stopped monitoring")
     }
     
     // MARK: - Private Methods
@@ -223,7 +224,7 @@ class DirectoryMonitor {
         fileDescriptor = open(url.path, O_EVTONLY)
         
         guard fileDescriptor >= 0 else {
-            print("DirectoryMonitor: Failed to open directory: \(url.path)")
+            Logger.monitor.error("DirectoryMonitor: Failed to open directory: \(self.url.path)")
             return
         }
         
@@ -252,7 +253,7 @@ class DirectoryMonitor {
         source?.resume()
         isMonitoring = true
         
-        print("DirectoryMonitor: Started monitoring: \(url.path)")
+        Logger.monitor.debug("DirectoryMonitor: Started monitoring: \(self.url.path)")
     }
     
     /// 停止监控
@@ -268,7 +269,7 @@ class DirectoryMonitor {
         isMonitoring = false
         onChange = nil
         
-        print("DirectoryMonitor: Stopped monitoring")
+        Logger.monitor.debug("DirectoryMonitor: Stopped monitoring")
     }
     
     // MARK: - Private Methods

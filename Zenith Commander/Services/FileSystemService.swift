@@ -7,6 +7,7 @@
 
 import Foundation
 import AppKit
+import os.log
 
 /// 目录加载结果
 enum DirectoryLoadResult {
@@ -122,7 +123,7 @@ class FileSystemService {
                (error.code == NSFileReadNoPermissionError || error.code == 257) {
                 return .permissionDenied(path)
             }
-            print("Error loading directory: \(error)")
+            Logger.fileSystem.error("Error loading directory: \(error.localizedDescription)")
             return .error(error)
         }
     }
@@ -205,7 +206,7 @@ class FileSystemService {
                 )
                 drives.append(drive)
             } catch {
-                print("Error getting volume info: \(error)")
+                Logger.fileSystem.warning("Error getting volume info: \(error.localizedDescription)")
             }
         }
         
@@ -405,7 +406,7 @@ class FileSystemService {
             var error: NSDictionary?
             appleScript.executeAndReturnError(&error)
             if let error = error {
-                print("AppleScript error: \(error)")
+                Logger.fileSystem.error("AppleScript error: \(error)")
             }
         }
     }
