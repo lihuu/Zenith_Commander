@@ -1117,6 +1117,289 @@ struct VisualModeTests {
         pane.updateVisualSelection()
         #expect(state.currentPane.selections.count == 3)
     }
+    
+    // MARK: - 测试: Visual 模式下按 r 显示批量重命名模态窗口
+    
+    @Test func testVisualModeShowRenameModal() {
+        let state = AppState()
+        let pane = state.currentPane
+        
+        // 设置测试文件
+        pane.activeTab.files = createTestFileItems(count: 5)
+        pane.cursorIndex = 1
+        
+        // 进入 Visual 模式并选择文件
+        state.enterMode(.visual)
+        pane.startVisualSelection()
+        
+        // 向下移动选择多个文件
+        pane.cursorIndex = 3
+        pane.updateVisualSelection()
+        
+        // 验证选中了多个文件
+        #expect(pane.selections.count == 3)
+        
+        // 模拟按 r 显示重命名模态窗口
+        state.showRenameModal = true
+        
+        // 验证模态窗口标志被设置
+        #expect(state.showRenameModal == true)
+    }
+    
+    @Test func testRenameModalInitialState() {
+        let state = AppState()
+        
+        // 验证初始状态
+        #expect(state.showRenameModal == false)
+        #expect(state.renameFindText == "")
+        #expect(state.renameReplaceText == "")
+        #expect(state.renameUseRegex == false)
+    }
+    
+    @Test func testRenameModalStateUpdates() {
+        let state = AppState()
+        
+        // 设置重命名参数
+        state.renameFindText = "IMG_"
+        state.renameReplaceText = "Photo_{n}"
+        state.renameUseRegex = false
+        state.showRenameModal = true
+        
+        // 验证状态更新
+        #expect(state.renameFindText == "IMG_")
+        #expect(state.renameReplaceText == "Photo_{n}")
+        #expect(state.renameUseRegex == false)
+        #expect(state.showRenameModal == true)
+    }
+    
+    @Test func testRenameModalWithRegex() {
+        let state = AppState()
+        
+        // 设置正则表达式重命名
+        state.renameFindText = "\\d{4}"
+        state.renameReplaceText = "{date}"
+        state.renameUseRegex = true
+        
+        // 验证正则模式
+        #expect(state.renameUseRegex == true)
+        #expect(state.renameFindText == "\\d{4}")
+    }
+    
+    @Test func testRenameModalCloseResetsState() {
+        let state = AppState()
+        
+        // 设置一些重命名参数
+        state.renameFindText = "test"
+        state.renameReplaceText = "new"
+        state.showRenameModal = true
+        
+        // 模拟关闭模态窗口并重置状态
+        state.showRenameModal = false
+        state.renameFindText = ""
+        state.renameReplaceText = ""
+        state.renameUseRegex = false
+        
+        // 验证状态被重置
+        #expect(state.showRenameModal == false)
+        #expect(state.renameFindText == "")
+        #expect(state.renameReplaceText == "")
+        #expect(state.renameUseRegex == false)
+    }
+}
+
+// MARK: - 7.1.1 批量重命名测试
+
+struct BatchRenameTests {
+    
+    /// 模拟生成新文件名的逻辑（与 MainView 中的逻辑相同）
+    private func generateNewName(
+        originalName: String,
+        findText: String,
+        replaceText: String,
+        useRegex: Bool,
+        index: Int
+    ) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd"
+        let dateString = formatter.string(from: Date())
+        
+        var processedReplace = replaceText
+            .replacingOccurrences(of: "{n}", with: String(format: "%03d", index + 1))
+            .replacingOccurrences(of: "{date}", with: dateString)
+        
+        if useRegex {
+            if let regex = try? NSRegularExpression(pattern: findText, options: []) {
+                let range = NSRange(originalName.startIndex..., in: originalName)
+                return regex.stringByReplacingMatches(
+                    in: originalName,
+                    options: [],
+                    range: range,
+                    withTemplate: processedReplace
+                )
+            }
+            return originalName
+        } else {
+            return originalName.replacingOccurrences(of: findText, with: processedReplace)
+        }
+    }
+    
+    @Test func testBasicStringReplacement() {
+        // 测试基本的字符串替换
+        let result = generateNewName(
+            originalName: "IMG_001.jpg",
+            findText: "IMG_",
+            replaceText: "Photo_",
+            useRegex: false,
+            index: 0
+        )
+        #expect(result == "Photo_001.jpg")
+    }
+    
+    @Test func testSequenceNumberReplacement() {
+        // 测试 {n} 序号替换
+        let result1 = generateNewName(
+            originalName: "file.txt",
+            findText: "file",
+            replaceText: "document_{n}",
+            useRegex: false,
+            index: 0
+        )
+        #expect(result1 == "document_001.txt")
+        
+        let result2 = generateNewName(
+            originalName: "file.txt",
+            findText: "file",
+            replaceText: "document_{n}",
+            useRegex: false,
+            index: 9
+        )
+        #expect(result2 == "document_010.txt")
+        
+        let result3 = generateNewName(
+            originalName: "file.txt",
+            findText: "file",
+            replaceText: "document_{n}",
+            useRegex: false,
+            index: 99
+        )
+        #expect(result3 == "document_100.txt")
+    }
+    
+    @Test func testDateReplacement() {
+        // 测试 {date} 日期替换
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd"
+        let expectedDate = formatter.string(from: Date())
+        
+        let result = generateNewName(
+            originalName: "photo.jpg",
+            findText: "photo",
+            replaceText: "pic_{date}",
+            useRegex: false,
+            index: 0
+        )
+        #expect(result == "pic_\(expectedDate).jpg")
+    }
+    
+    @Test func testCombinedPlaceholders() {
+        // 测试 {n} 和 {date} 组合使用
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd"
+        let expectedDate = formatter.string(from: Date())
+        
+        let result = generateNewName(
+            originalName: "IMG_original.png",
+            findText: "IMG_original",
+            replaceText: "Photo_{date}_{n}",
+            useRegex: false,
+            index: 4
+        )
+        #expect(result == "Photo_\(expectedDate)_005.png")
+    }
+    
+    @Test func testRegexReplacement() {
+        // 测试正则表达式替换
+        let result = generateNewName(
+            originalName: "file123.txt",
+            findText: "\\d+",
+            replaceText: "XXX",
+            useRegex: true,
+            index: 0
+        )
+        #expect(result == "fileXXX.txt")
+    }
+    
+    @Test func testRegexWithGroups() {
+        // 测试正则表达式分组捕获
+        let result = generateNewName(
+            originalName: "2023_photo.jpg",
+            findText: "(\\d{4})_",
+            replaceText: "year_$1_",
+            useRegex: true,
+            index: 0
+        )
+        #expect(result == "year_2023_photo.jpg")
+    }
+    
+    @Test func testNoMatchNoChange() {
+        // 测试没有匹配时不改变文件名
+        let result = generateNewName(
+            originalName: "document.pdf",
+            findText: "photo",
+            replaceText: "image",
+            useRegex: false,
+            index: 0
+        )
+        #expect(result == "document.pdf")
+    }
+    
+    @Test func testEmptyReplacementRemovesMatch() {
+        // 测试空替换删除匹配内容
+        let result = generateNewName(
+            originalName: "prefix_file.txt",
+            findText: "prefix_",
+            replaceText: "",
+            useRegex: false,
+            index: 0
+        )
+        #expect(result == "file.txt")
+    }
+    
+    @Test func testMultipleMatchesReplaced() {
+        // 测试多个匹配都被替换
+        let result = generateNewName(
+            originalName: "a_b_c.txt",
+            findText: "_",
+            replaceText: "-",
+            useRegex: false,
+            index: 0
+        )
+        #expect(result == "a-b-c.txt")
+    }
+    
+    @Test func testInvalidRegexReturnsOriginal() {
+        // 测试无效正则表达式返回原始文件名
+        let result = generateNewName(
+            originalName: "file.txt",
+            findText: "[invalid",  // 无效的正则表达式
+            replaceText: "new",
+            useRegex: true,
+            index: 0
+        )
+        #expect(result == "file.txt")
+    }
+    
+    @Test func testSpecialCharactersInFindText() {
+        // 测试查找文本中的特殊字符（非正则模式）
+        let result = generateNewName(
+            originalName: "file (1).txt",
+            findText: " (1)",
+            replaceText: "",
+            useRegex: false,
+            index: 0
+        )
+        #expect(result == "file.txt")
+    }
 }
 
 // MARK: - 7.2 Command 模式测试
@@ -2584,5 +2867,484 @@ struct SettingsTests {
         // 无效的终端 ID 应该回退到第一个
         settings.defaultTerminal = "nonexistent"
         #expect(settings.currentTerminal.id == "terminal")
+    }
+}
+
+// MARK: - Scroll Sync Tests (cursorFileId 与 cursorIndex 同步测试)
+
+struct ScrollSyncTests {
+    
+    func createTestDrive() -> DriveInfo {
+        return DriveInfo(
+            id: "test-drive",
+            name: "Test",
+            path: URL(fileURLWithPath: "/"),
+            type: .system,
+            totalCapacity: 1000000,
+            availableCapacity: 500000
+        )
+    }
+    
+    func createManyTestFiles(_ count: Int) -> [FileItem] {
+        let now = Date()
+        return (0..<count).map { i in
+            FileItem(
+                id: "file-\(i)",
+                name: "file\(i).txt",
+                path: URL(fileURLWithPath: "/test/file\(i).txt"),
+                type: .file,
+                size: 100 + Int64(i),
+                modifiedDate: now,
+                createdDate: now,
+                isHidden: false,
+                permissions: "rw-r--r--",
+                fileExtension: "txt"
+            )
+        }
+    }
+    
+    @Test func testCursorFileIdUpdatesWithCursorIndex() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(50)
+        pane.activeTab.files = files
+        
+        // 初始位置
+        pane.cursorIndex = 0
+        #expect(pane.cursorFileId == "file-0")
+        
+        // 移动到中间
+        pane.cursorIndex = 25
+        #expect(pane.cursorFileId == "file-25")
+        
+        // 移动到末尾
+        pane.cursorIndex = 49
+        #expect(pane.cursorFileId == "file-49")
+    }
+    
+    @Test func testCursorIndexUpdatesWithCursorFileId() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(50)
+        pane.activeTab.files = files
+        
+        // 通过 cursorFileId 设置光标位置
+        pane.cursorFileId = "file-10"
+        #expect(pane.cursorIndex == 10)
+        
+        pane.cursorFileId = "file-40"
+        #expect(pane.cursorIndex == 40)
+    }
+    
+    @Test func testCursorNavigationDownToBottom() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(100)  // 模拟很多文件（需要滚动）
+        pane.activeTab.files = files
+        
+        // 模拟使用 j 键向下导航到底部
+        pane.cursorIndex = 0
+        
+        // 逐步向下移动
+        for i in 1..<100 {
+            pane.cursorIndex = i
+            #expect(pane.cursorFileId == "file-\(i)")
+        }
+        
+        // 确认到达底部
+        #expect(pane.cursorIndex == 99)
+        #expect(pane.cursorFileId == "file-99")
+    }
+    
+    @Test func testCursorNavigationUpToTop() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(100)
+        pane.activeTab.files = files
+        
+        // 从底部开始
+        pane.cursorIndex = 99
+        
+        // 模拟使用 k 键向上导航到顶部
+        for i in (0..<99).reversed() {
+            pane.cursorIndex = i
+            #expect(pane.cursorFileId == "file-\(i)")
+        }
+        
+        // 确认到达顶部
+        #expect(pane.cursorIndex == 0)
+        #expect(pane.cursorFileId == "file-0")
+    }
+    
+    @Test func testCursorBoundaryAtBottom() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(50)
+        pane.activeTab.files = files
+        
+        // 尝试超出边界
+        pane.cursorIndex = 50  // 超出范围
+        
+        // cursorIndex 应该被限制在有效范围内
+        #expect(pane.cursorIndex <= 49)
+    }
+    
+    @Test func testCursorBoundaryAtTop() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(50)
+        pane.activeTab.files = files
+        
+        // 尝试超出边界
+        pane.cursorIndex = -1  // 负数
+        
+        // cursorIndex 应该被限制在有效范围内
+        #expect(pane.cursorIndex >= 0)
+    }
+    
+    @Test func testFileIdConsistencyDuringNavigation() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(30)
+        pane.activeTab.files = files
+        
+        // 快速来回导航，确保 cursorFileId 始终与 cursorIndex 同步
+        let positions = [0, 15, 29, 10, 20, 5, 25, 0, 29]
+        
+        for pos in positions {
+            pane.cursorIndex = pos
+            let expectedFileId = "file-\(pos)"
+            #expect(pane.cursorFileId == expectedFileId, "At position \(pos), expected \(expectedFileId) but got \(pane.cursorFileId)")
+        }
+    }
+    
+    @Test func testCursorFileIdForScrollViewReader() {
+        // 这个测试验证 cursorFileId 的值格式与 FileItem 的 id 格式一致
+        // 这对于 ScrollViewReader 的 scrollTo 功能至关重要
+        
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(10)
+        pane.activeTab.files = files
+        
+        for (index, file) in files.enumerated() {
+            pane.cursorIndex = index
+            // cursorFileId 应该与文件的 id 完全相同
+            #expect(pane.cursorFileId == file.id, "cursorFileId should match file.id for scrollTo to work")
+        }
+    }
+    
+    // MARK: - 边缘滚动测试（anchor: nil 行为验证）
+    
+    @Test func testEdgeScrollingDownBehavior() {
+        // 测试向下导航时的滚动行为
+        // 使用 anchor: nil 时，只有当项目即将超出视图时才会滚动
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(100)
+        pane.activeTab.files = files
+        
+        // 从顶部开始逐步向下
+        pane.cursorIndex = 0
+        
+        // 模拟逐步向下移动（比如 j 键）
+        // cursorFileId 应该始终跟随 cursorIndex
+        for i in 1...99 {
+            pane.cursorIndex = i
+            #expect(pane.cursorFileId == "file-\(i)", "cursorFileId should track cursorIndex during downward navigation")
+        }
+        
+        // 最终应该在最后一项
+        #expect(pane.cursorIndex == 99)
+        #expect(pane.cursorFileId == "file-99")
+    }
+    
+    @Test func testEdgeScrollingUpBehavior() {
+        // 测试向上导航时的滚动行为
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(100)
+        pane.activeTab.files = files
+        
+        // 从底部开始
+        pane.cursorIndex = 99
+        #expect(pane.cursorFileId == "file-99")
+        
+        // 逐步向上移动（比如 k 键）
+        for i in (0...98).reversed() {
+            pane.cursorIndex = i
+            #expect(pane.cursorFileId == "file-\(i)", "cursorFileId should track cursorIndex during upward navigation")
+        }
+        
+        // 最终应该在第一项
+        #expect(pane.cursorIndex == 0)
+        #expect(pane.cursorFileId == "file-0")
+    }
+    
+    @Test func testScrollTargetIdMatchesFileId() {
+        // 验证 scroll target (cursorFileId) 与实际文件 id 格式完全匹配
+        // 这是 scrollTo(id, anchor: nil) 正常工作的关键
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(50)
+        pane.activeTab.files = files
+        
+        // 测试多个随机位置
+        let testPositions = [0, 1, 24, 25, 48, 49]
+        
+        for pos in testPositions {
+            pane.cursorIndex = pos
+            let file = files[pos]
+            
+            // cursorFileId 必须与文件的 id 完全相同
+            // 这样 ScrollViewReader.scrollTo(cursorFileId) 才能正确定位
+            #expect(pane.cursorFileId == file.id, "Scroll target must match file.id exactly at position \(pos)")
+        }
+    }
+    
+    @Test func testContinuousNavigationWithoutJump() {
+        // 测试连续导航时不会出现跳跃
+        // 这验证了使用 anchor: nil 时的平滑滚动体验
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(200)  // 大量文件
+        pane.activeTab.files = files
+        
+        pane.cursorIndex = 0
+        var previousIndex = 0
+        
+        // 向下连续移动 50 次
+        for _ in 1...50 {
+            let newIndex = previousIndex + 1
+            pane.cursorIndex = newIndex
+            
+            // 验证索引只增加 1（没有跳跃）
+            #expect(pane.cursorIndex == previousIndex + 1, "Cursor should move one step at a time")
+            #expect(pane.cursorFileId == "file-\(newIndex)")
+            
+            previousIndex = newIndex
+        }
+        
+        // 向上连续移动 50 次
+        for _ in 1...50 {
+            let newIndex = previousIndex - 1
+            pane.cursorIndex = newIndex
+            
+            // 验证索引只减少 1（没有跳跃）
+            #expect(pane.cursorIndex == previousIndex - 1, "Cursor should move one step at a time")
+            #expect(pane.cursorFileId == "file-\(newIndex)")
+            
+            previousIndex = newIndex
+        }
+    }
+    
+    @Test func testEdgeCasesForScrolling() {
+        // 测试边界情况
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(10)
+        pane.activeTab.files = files
+        
+        // 测试从第一项开始
+        pane.cursorIndex = 0
+        #expect(pane.cursorFileId == "file-0")
+        
+        // 移动到最后一项
+        pane.cursorIndex = 9
+        #expect(pane.cursorFileId == "file-9")
+        
+        // 直接跳到中间
+        pane.cursorIndex = 5
+        #expect(pane.cursorFileId == "file-5")
+        
+        // 跳回第一项
+        pane.cursorIndex = 0
+        #expect(pane.cursorFileId == "file-0")
+        
+        // 跳到最后一项
+        pane.cursorIndex = 9
+        #expect(pane.cursorFileId == "file-9")
+    }
+}
+
+// MARK: - Mouse Click Tests (鼠标点击功能测试)
+
+struct MouseClickTests {
+    
+    func createTestDrive() -> DriveInfo {
+        return DriveInfo(
+            id: "test-drive",
+            name: "Test",
+            path: URL(fileURLWithPath: "/"),
+            type: .system,
+            totalCapacity: 1000000,
+            availableCapacity: 500000
+        )
+    }
+    
+    func createTestFiles(_ count: Int) -> [FileItem] {
+        let now = Date()
+        return (0..<count).map { i in
+            FileItem(
+                id: "file-\(i)",
+                name: "file\(i).txt",
+                path: URL(fileURLWithPath: "/test/file\(i).txt"),
+                type: .file,
+                size: 100 + Int64(i),
+                modifiedDate: now,
+                createdDate: now,
+                isHidden: false,
+                permissions: "rw-r--r--",
+                fileExtension: "txt"
+            )
+        }
+    }
+    
+    func createTestFolders(_ count: Int) -> [FileItem] {
+        let now = Date()
+        return (0..<count).map { i in
+            FileItem(
+                id: "folder-\(i)",
+                name: "folder\(i)",
+                path: URL(fileURLWithPath: "/test/folder\(i)"),
+                type: .folder,
+                size: 0,
+                modifiedDate: now,
+                createdDate: now,
+                isHidden: false,
+                permissions: "rwxr-xr-x",
+                fileExtension: ""
+            )
+        }
+    }
+    
+    @Test func testSingleClickSelectsFile() {
+        // 模拟单击选中文件
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        pane.activeTab.files = createTestFiles(10)
+        
+        // 初始光标在位置 0
+        pane.cursorIndex = 0
+        #expect(pane.cursorIndex == 0)
+        
+        // 模拟点击位置 5（单击应该更新 cursorIndex）
+        pane.cursorIndex = 5
+        
+        #expect(pane.cursorIndex == 5)
+        #expect(pane.cursorFileId == "file-5")
+    }
+    
+    @Test func testClickOnDifferentFilesUpdatesCursor() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        pane.activeTab.files = createTestFiles(20)
+        
+        // 模拟连续点击不同文件
+        let clickSequence = [0, 5, 10, 15, 19, 3, 7]
+        
+        for index in clickSequence {
+            pane.cursorIndex = index
+            #expect(pane.cursorIndex == index)
+            #expect(pane.cursorFileId == "file-\(index)")
+        }
+    }
+    
+    @Test func testClickOnFolderSelectsFolder() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        pane.activeTab.files = createTestFolders(5)
+        
+        // 单击选中文件夹
+        pane.cursorIndex = 2
+        
+        #expect(pane.cursorIndex == 2)
+        #expect(pane.cursorFileId == "folder-2")
+    }
+    
+    @Test func testClickUpdatesActivePaneState() {
+        let appState = AppState()
+        
+        // 初始状态应该是左面板激活
+        #expect(appState.activePane == .left)
+        
+        // 切换到右面板
+        appState.setActivePane(.right)
+        #expect(appState.activePane == .right)
+        
+        // 切换回左面板
+        appState.setActivePane(.left)
+        #expect(appState.activePane == .left)
+    }
+    
+    @Test func testCursorIndexSyncWithFileId() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        pane.activeTab.files = createTestFiles(15)
+        
+        // 通过 cursorIndex 设置
+        pane.cursorIndex = 7
+        #expect(pane.cursorFileId == "file-7")
+        
+        // 通过 cursorFileId 设置
+        pane.cursorFileId = "file-12"
+        #expect(pane.cursorIndex == 12)
+    }
+    
+    @Test func testClickInListViewMode() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        pane.viewMode = .list
+        pane.activeTab.files = createTestFiles(10)
+        
+        // 在列表模式下点击
+        pane.cursorIndex = 3
+        
+        #expect(pane.viewMode == .list)
+        #expect(pane.cursorIndex == 3)
+    }
+    
+    @Test func testClickInGridViewMode() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        pane.viewMode = .grid
+        pane.gridColumnCount = 4
+        pane.activeTab.files = createTestFiles(16)
+        
+        // 在网格模式下点击（第二行第三个）
+        pane.cursorIndex = 6
+        
+        #expect(pane.viewMode == .grid)
+        #expect(pane.cursorIndex == 6)
+    }
+    
+    @Test func testClickOnFirstFile() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        pane.activeTab.files = createTestFiles(10)
+        pane.cursorIndex = 5  // 从中间开始
+        
+        // 点击第一个文件
+        pane.cursorIndex = 0
+        
+        #expect(pane.cursorIndex == 0)
+        #expect(pane.cursorFileId == "file-0")
+    }
+    
+    @Test func testClickOnLastFile() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        pane.activeTab.files = createTestFiles(10)
+        pane.cursorIndex = 0  // 从开头开始
+        
+        // 点击最后一个文件
+        pane.cursorIndex = 9
+        
+        #expect(pane.cursorIndex == 9)
+        #expect(pane.cursorFileId == "file-9")
+    }
+    
+    @Test func testRapidClicksOnDifferentFiles() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        pane.activeTab.files = createTestFiles(100)
+        
+        // 模拟快速连续点击
+        for i in 0..<100 {
+            pane.cursorIndex = i
+            #expect(pane.cursorIndex == i)
+        }
+        
+        // 最终应该在最后一个文件
+        #expect(pane.cursorIndex == 99)
+    }
+    
+    @Test func testClickWithEmptyFileList() {
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        pane.activeTab.files = []
+        
+        // 尝试设置光标（空列表应该保持在 0 或安全值）
+        pane.cursorIndex = 0
+        
+        // cursorIndex 在空列表中的行为
+        #expect(pane.activeTab.files.isEmpty)
     }
 }

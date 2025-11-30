@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import os.log
 
 // MARK: - 设置数据模型
 
@@ -138,7 +139,7 @@ class SettingsManager: ObservableObject {
             let decoder = JSONDecoder()
             settings = try decoder.decode(AppSettings.self, from: data)
         } catch {
-            print("Failed to load settings: \(error)")
+            Logger.settings.error("Failed to load settings: \(error.localizedDescription)")
         }
     }
     
@@ -150,7 +151,7 @@ class SettingsManager: ObservableObject {
             let data = try encoder.encode(settings)
             try data.write(to: settingsFileURL)
         } catch {
-            print("Failed to save settings: \(error)")
+            Logger.settings.error("Failed to save settings: \(error.localizedDescription)")
         }
     }
     

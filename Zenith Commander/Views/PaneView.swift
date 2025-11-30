@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import AppKit
 
 struct PaneView: View {
     @EnvironmentObject var appState: AppState
@@ -16,6 +17,7 @@ struct PaneView: View {
     
     @State private var permissionDeniedPath: URL? = nil
     @State private var showPermissionError: Bool = false
+    @State private var directoryMonitor: FSEventsDirectoryMonitor? = nil
     
     var isActivePane: Bool {
         appState.activePane == side
@@ -117,7 +119,15 @@ struct PaneView: View {
             // 使用异步加载避免在视图更新期间修改 @Published 属性
             DispatchQueue.main.async {
                 loadCurrentDirectoryWithPermissionCheck()
+                startDirectoryMonitoring()
             }
+        }
+        .onDisappear {
+            stopDirectoryMonitoring()
+        }
+        .onChange(of: pane.activeTab.currentPath) { oldPath, newPath in
+            // 当目录变化时，重新启动监控
+            startDirectoryMonitoring()
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(side == .left ? "left_pane" : "right_pane")
@@ -146,12 +156,16 @@ struct PaneView: View {
                             isSelected: pane.selections.contains(file.id),
                             isPaneActive: isActivePane
                         )
-                        .onTapGesture {
-                            handleFileClick(index: index)
-                        }
-                        .onTapGesture(count: 2) {
-                            handleFileDoubleClick(file: file)
-                        }
+                        .id(file.id)
+                        .contentShape(Rectangle())
+                        .simultaneousGesture(
+                            TapGesture(count: 2)
+                                .onEnded { handleFileDoubleClick(file: file) }
+                        )
+                        .simultaneousGesture(
+                            TapGesture(count: 1)
+                                .onEnded { handleFileClick(index: index) }
+                        )
                         .contextMenu {
                             fileContextMenu(file: file)
                         }
@@ -171,9 +185,11 @@ struct PaneView: View {
                         }
                 }
             }
-            .onChange(of: pane.cursorIndex) { _, newValue in
+            .onChange(of: pane.activeTab.cursorFileId) { _, newValue in
                 withAnimation(.easeInOut(duration: 0.1)) {
-                    proxy.scrollTo(newValue, anchor: .center)
+                    // 使用 nil anchor 让 SwiftUI 自动选择最小滚动量
+                    // 只在目标项即将超出可视区域时才滚动
+                    proxy.scrollTo(newValue, anchor: nil)
                 }
             }
             .id(pane.activeTab.currentPath)
@@ -201,12 +217,16 @@ struct PaneView: View {
                                 isSelected: pane.selections.contains(file.id),
                                 isPaneActive: isActivePane
                             )
-                            .onTapGesture {
-                                handleFileClick(index: index)
-                            }
-                            .onTapGesture(count: 2) {
-                                handleFileDoubleClick(file: file)
-                            }
+                            .id(file.id)
+                            .contentShape(Rectangle())
+                            .simultaneousGesture(
+                                TapGesture(count: 2)
+                                    .onEnded { handleFileDoubleClick(file: file) }
+                            )
+                            .simultaneousGesture(
+                                TapGesture(count: 1)
+                                    .onEnded { handleFileClick(index: index) }
+                            )
                             .contextMenu {
                                 fileContextMenu(file: file)
                             }
@@ -227,9 +247,13 @@ struct PaneView: View {
                             directoryContextMenu
                         }
                 }
-                .onChange(of: pane.cursorIndex) { _, newValue in
+                .onChange(
+                    of: pane.activeTab.cursorFileId
+                ) { _, newValue in
                     withAnimation(.easeInOut(duration: 0.1)) {
-                        proxy.scrollTo(newValue, anchor: .center)
+                        // 使用 nil anchor 让 SwiftUI 自动选择最小滚动量
+                        // 只在目标项即将超出可视区域时才滚动
+                        proxy.scrollTo(newValue, anchor: nil)
                     }
                 }
                 .id(pane.activeTab.currentPath)
@@ -294,12 +318,22 @@ struct PaneView: View {
             FileSystemService.shared.revealInFinder(file)
         }
         
+        Button("Copy Full Path") {
+            copyFullPath(file: file)
+        }
+        
         Divider()
         
         Button("Move to Trash") {
             deleteSelectedFiles()
         }
         .keyboardShortcut(.delete, modifiers: .command)
+        
+        Divider()
+        
+        Button("Refresh (R)") {
+            refreshDirectory()
+        }
     }
     
     /// 目录级右键菜单（空白处右键）
@@ -326,6 +360,11 @@ struct PaneView: View {
             FileSystemService.shared.openInTerminal(path: pane.activeTab.currentPath)
         }
         
+        Divider()
+        
+        Button("Refresh (R)") {
+            refreshDirectory()
+        }
     }
     
     // MARK: - 事件处理
@@ -348,6 +387,51 @@ struct PaneView: View {
             // 打开文件
             FileSystemService.shared.openFile(file)
         }
+    }
+    
+    /// 复制文件完整路径到剪贴板
+    private func copyFullPath(file: FileItem) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(file.path.path, forType: .string)
+        
+        // 显示成功提示
+        appState.showToast("Path copied: \(file.name)")
+    }
+    
+    /// 刷新当前目录
+    func refreshDirectory() {
+        loadCurrentDirectoryWithPermissionCheck()
+        appState.showToast("Refreshed")
+    }
+    
+    // MARK: - 目录监控
+    
+    /// 开始监控当前目录
+    private func startDirectoryMonitoring() {
+        // 停止之前的监控
+        stopDirectoryMonitoring()
+        
+        let currentPath = pane.activeTab.currentPath
+        let paneRef = pane
+        
+        // 使用 FSEvents 监控器（推荐方案，更可靠）
+        let monitor = FSEventsDirectoryMonitor(url: currentPath)
+        monitor.start {
+            // 目录变化时自动刷新
+            let result = FileSystemService.shared.loadDirectoryWithPermissionCheck(at: paneRef.activeTab.currentPath)
+            if case .success(let files) = result {
+                paneRef.activeTab.files = files
+            }
+        }
+        
+        directoryMonitor = monitor
+    }
+    
+    /// 停止监控当前目录
+    private func stopDirectoryMonitoring() {
+        directoryMonitor?.stop()
+        directoryMonitor = nil
     }
     
     // MARK: - 导航
@@ -418,13 +502,24 @@ struct PaneView: View {
     }
     
     func leaveDirectory() {
-        let parent = FileSystemService.shared.parentDirectory(of: pane.activeTab.currentPath)
+        let currentPath = pane.activeTab.currentPath
+        let parent = FileSystemService.shared.parentDirectory(of: currentPath)
+        
         // 检查是否已经在根目录
-        if parent.path != pane.activeTab.currentPath.path {
+        if parent.path != currentPath.path {
+            // 记住当前目录名，用于返回后定位
+            let currentDirName = currentPath.lastPathComponent
+            
             pane.activeTab.currentPath = parent
-            pane.cursorIndex = 0
             pane.clearSelections()
             loadCurrentDirectoryWithPermissionCheck()
+            
+            // 在上级目录中找到之前所在的目录并选中
+            if let index = pane.activeTab.files.firstIndex(where: { $0.name == currentDirName }) {
+                pane.activeTab.cursorFileId = pane.activeTab.files[index].id
+            } else {
+                pane.cursorIndex = 0
+            }
         }
     }
     

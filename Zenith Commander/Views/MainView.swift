@@ -74,6 +74,26 @@ struct MainView: View {
                     }
                 )
             }
+            
+            // 批量重命名模态窗口
+            if appState.showRenameModal {
+                Color.black.opacity(0.4)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        appState.showRenameModal = false
+                    }
+                
+                BatchRenameView(
+                    isPresented: $appState.showRenameModal,
+                    findText: $appState.renameFindText,
+                    replaceText: $appState.renameReplaceText,
+                    useRegex: $appState.renameUseRegex,
+                    selectedFiles: getSelectedFiles(),
+                    onApply: {
+                        performBatchRename()
+                    }
+                )
+            }
         }
         .sheet(isPresented: $showSettings) {
             SettingsView()
@@ -307,6 +327,14 @@ struct MainView: View {
                 pane.addTab()
                 refreshCurrentPane()
                 appState.showToast("New tab created")
+            }
+            return .handled
+        
+        // 刷新当前目录 (R 或 Cmd+R)
+        case KeyEquivalent("r"):
+            Task { @MainActor in
+                refreshCurrentPane()
+                appState.showToast("Refreshed")
             }
             return .handled
             
@@ -645,13 +673,24 @@ struct MainView: View {
     
     private func leaveDirectory() {
         let pane = appState.currentPane
-        let parent = FileSystemService.shared.parentDirectory(of: pane.activeTab.currentPath)
+        let currentPath = pane.activeTab.currentPath
+        let parent = FileSystemService.shared.parentDirectory(of: currentPath)
         
-        if parent.path != pane.activeTab.currentPath.path {
+        // 检查是否已经在根目录
+        if parent.path != currentPath.path {
+            // 记住当前目录名，用于返回后定位
+            let currentDirName = currentPath.lastPathComponent
+            
             pane.activeTab.currentPath = parent
-            pane.cursorIndex = 0
             pane.clearSelections()
             refreshCurrentPane()
+            
+            // 在上级目录中找到之前所在的目录并选中
+            if let index = pane.activeTab.files.firstIndex(where: { $0.name == currentDirName }) {
+                pane.activeTab.cursorFileId = pane.activeTab.files[index].id
+            } else {
+                pane.cursorIndex = 0
+            }
         }
     }
     
@@ -763,6 +802,122 @@ struct MainView: View {
         }
         pane.cursorIndex = 0
     }
+    
+    // MARK: - 批量重命名
+    
+    /// 获取当前选中的文件列表
+    private func getSelectedFiles() -> [FileItem] {
+        let pane = appState.currentPane
+        let selections = pane.selections
+        
+        if selections.isEmpty {
+            // 如果没有选中，返回当前光标所在的文件
+            if let file = pane.activeTab.files[safe: pane.cursorIndex],
+               !file.isParentDirectory {
+                return [file]
+            }
+            return []
+        } else {
+            // 返回选中的文件，排除父目录项
+            return pane.activeTab.files.filter { selections.contains($0.id) && !$0.isParentDirectory }
+        }
+    }
+    
+    /// 执行批量重命名
+    private func performBatchRename() {
+        let selectedFiles = getSelectedFiles()
+        guard !selectedFiles.isEmpty else {
+            appState.showToast("No files selected for rename")
+            return
+        }
+        
+        let findText = appState.renameFindText
+        let replaceText = appState.renameReplaceText
+        let useRegex = appState.renameUseRegex
+        
+        guard !findText.isEmpty else {
+            appState.showToast("Find text cannot be empty")
+            return
+        }
+        
+        var successCount = 0
+        var errorMessages: [String] = []
+        
+        for (index, file) in selectedFiles.enumerated() {
+            let newName = generateNewName(
+                originalName: file.name,
+                findText: findText,
+                replaceText: replaceText,
+                useRegex: useRegex,
+                index: index
+            )
+            
+            // 如果新名称与原名称相同，跳过
+            if newName == file.name {
+                continue
+            }
+            
+            let newPath = file.path.deletingLastPathComponent().appendingPathComponent(newName)
+            
+            do {
+                try FileManager.default.moveItem(at: file.path, to: newPath)
+                successCount += 1
+            } catch {
+                errorMessages.append("\(file.name): \(error.localizedDescription)")
+            }
+        }
+        
+        // 清空重命名状态
+        appState.renameFindText = ""
+        appState.renameReplaceText = ""
+        appState.renameUseRegex = false
+        
+        // 退出 Visual 模式并刷新
+        appState.currentPane.clearSelections()
+        appState.exitMode()
+        refreshCurrentPane()
+        
+        // 显示结果
+        if errorMessages.isEmpty {
+            appState.showToast("\(successCount) file(s) renamed successfully")
+        } else {
+            appState.showToast("\(successCount) renamed, \(errorMessages.count) failed")
+        }
+    }
+    
+    /// 生成新文件名
+    private func generateNewName(
+        originalName: String,
+        findText: String,
+        replaceText: String,
+        useRegex: Bool,
+        index: Int
+    ) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd"
+        let dateString = formatter.string(from: Date())
+        
+        var processedReplace = replaceText
+            .replacingOccurrences(of: "{n}", with: String(format: "%03d", index + 1))
+            .replacingOccurrences(of: "{date}", with: dateString)
+        
+        if useRegex {
+            if let regex = try? NSRegularExpression(pattern: findText, options: []) {
+                let range = NSRange(originalName.startIndex..., in: originalName)
+                return regex.stringByReplacingMatches(
+                    in: originalName,
+                    options: [],
+                    range: range,
+                    withTemplate: processedReplace
+                )
+            }
+            return originalName
+        } else {
+            return originalName.replacingOccurrences(of: findText, with: processedReplace)
+        }
+    }
+    
+    // MARK: - 删除文件
     
     private func deleteSelectedFiles() {
         let pane = appState.currentPane
