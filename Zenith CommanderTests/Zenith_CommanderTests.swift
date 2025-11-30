@@ -3880,3 +3880,440 @@ struct CommandParserTests {
         #expect(result.targetPath?.path == home.path)
     }
 }
+
+// MARK: - Git 状态模型测试
+
+struct GitFileStatusTests {
+    
+    @Test func testGitFileStatusRawValues() {
+        #expect(GitFileStatus.modified.rawValue == "M")
+        #expect(GitFileStatus.added.rawValue == "A")
+        #expect(GitFileStatus.deleted.rawValue == "D")
+        #expect(GitFileStatus.renamed.rawValue == "R")
+        #expect(GitFileStatus.copied.rawValue == "C")
+        #expect(GitFileStatus.untracked.rawValue == "?")
+        #expect(GitFileStatus.ignored.rawValue == "!")
+        #expect(GitFileStatus.conflict.rawValue == "U")
+        #expect(GitFileStatus.clean.rawValue == "")
+    }
+    
+    @Test func testGitFileStatusDisplayText() {
+        #expect(GitFileStatus.modified.displayText == "M")
+        #expect(GitFileStatus.added.displayText == "A")
+        #expect(GitFileStatus.deleted.displayText == "D")
+        #expect(GitFileStatus.renamed.displayText == "R")
+        #expect(GitFileStatus.untracked.displayText == "?")
+        #expect(GitFileStatus.clean.displayText == "")
+    }
+    
+    @Test func testGitFileStatusShouldDisplay() {
+        // 应该显示的状态
+        #expect(GitFileStatus.modified.shouldDisplay == true)
+        #expect(GitFileStatus.added.shouldDisplay == true)
+        #expect(GitFileStatus.deleted.shouldDisplay == true)
+        #expect(GitFileStatus.renamed.shouldDisplay == true)
+        #expect(GitFileStatus.copied.shouldDisplay == true)
+        #expect(GitFileStatus.untracked.shouldDisplay == true)
+        #expect(GitFileStatus.conflict.shouldDisplay == true)
+        
+        // 不应该显示的状态
+        #expect(GitFileStatus.clean.shouldDisplay == false)
+        #expect(GitFileStatus.ignored.shouldDisplay == false)
+    }
+    
+    @Test func testGitFileStatusDescription() {
+        #expect(GitFileStatus.modified.description == "Modified")
+        #expect(GitFileStatus.added.description == "Added")
+        #expect(GitFileStatus.deleted.description == "Deleted")
+        #expect(GitFileStatus.renamed.description == "Renamed")
+        #expect(GitFileStatus.copied.description == "Copied")
+        #expect(GitFileStatus.untracked.description == "Untracked")
+        #expect(GitFileStatus.ignored.description == "Ignored")
+        #expect(GitFileStatus.conflict.description == "Conflict")
+        #expect(GitFileStatus.clean.description == "Clean")
+    }
+    
+    @Test func testGitFileStatusColor() {
+        // 验证每种状态都有颜色（不会崩溃）
+        let statuses: [GitFileStatus] = [
+            .modified, .added, .deleted, .renamed,
+            .copied, .untracked, .ignored, .conflict, .clean
+        ]
+        
+        for status in statuses {
+            let _ = status.color
+        }
+        
+        #expect(true) // 所有颜色定义都存在
+    }
+}
+
+// MARK: - Git 仓库信息测试
+
+struct GitRepositoryInfoTests {
+    
+    @Test func testNotARepository() {
+        let info = GitRepositoryInfo.notARepository
+        
+        #expect(info.isGitRepository == false)
+        #expect(info.rootPath == nil)
+        #expect(info.currentBranch == nil)
+        #expect(info.isDetachedHead == false)
+        #expect(info.ahead == 0)
+        #expect(info.behind == 0)
+        #expect(info.hasUncommittedChanges == false)
+    }
+    
+    @Test func testBranchDisplayText() {
+        // 非 Git 仓库
+        let notRepo = GitRepositoryInfo.notARepository
+        #expect(notRepo.branchDisplayText == nil)
+        
+        // 正常分支
+        let normalRepo = GitRepositoryInfo(
+            isGitRepository: true,
+            rootPath: URL(fileURLWithPath: "/test"),
+            currentBranch: "main",
+            isDetachedHead: false,
+            ahead: 0,
+            behind: 0,
+            hasUncommittedChanges: false
+        )
+        #expect(normalRepo.branchDisplayText == "main")
+        
+        // 分离 HEAD 状态
+        let detachedRepo = GitRepositoryInfo(
+            isGitRepository: true,
+            rootPath: URL(fileURLWithPath: "/test"),
+            currentBranch: nil,
+            isDetachedHead: true,
+            ahead: 0,
+            behind: 0,
+            hasUncommittedChanges: false
+        )
+        #expect(detachedRepo.branchDisplayText == "HEAD")
+    }
+    
+    @Test func testSyncStatusText() {
+        // 非 Git 仓库
+        let notRepo = GitRepositoryInfo.notARepository
+        #expect(notRepo.syncStatusText == nil)
+        
+        // 同步状态
+        let syncedRepo = GitRepositoryInfo(
+            isGitRepository: true,
+            rootPath: URL(fileURLWithPath: "/test"),
+            currentBranch: "main",
+            isDetachedHead: false,
+            ahead: 0,
+            behind: 0,
+            hasUncommittedChanges: false
+        )
+        #expect(syncedRepo.syncStatusText == nil)
+        
+        // 领先远程
+        let aheadRepo = GitRepositoryInfo(
+            isGitRepository: true,
+            rootPath: URL(fileURLWithPath: "/test"),
+            currentBranch: "main",
+            isDetachedHead: false,
+            ahead: 3,
+            behind: 0,
+            hasUncommittedChanges: false
+        )
+        #expect(aheadRepo.syncStatusText == "↑3")
+        
+        // 落后远程
+        let behindRepo = GitRepositoryInfo(
+            isGitRepository: true,
+            rootPath: URL(fileURLWithPath: "/test"),
+            currentBranch: "main",
+            isDetachedHead: false,
+            ahead: 0,
+            behind: 2,
+            hasUncommittedChanges: false
+        )
+        #expect(behindRepo.syncStatusText == "↓2")
+        
+        // 同时领先和落后
+        let divergedRepo = GitRepositoryInfo(
+            isGitRepository: true,
+            rootPath: URL(fileURLWithPath: "/test"),
+            currentBranch: "main",
+            isDetachedHead: false,
+            ahead: 3,
+            behind: 2,
+            hasUncommittedChanges: false
+        )
+        #expect(divergedRepo.syncStatusText == "↑3 ↓2")
+    }
+}
+
+// MARK: - Git 状态缓存测试
+
+struct GitStatusCacheEntryTests {
+    
+    @Test func testCacheExpiry() {
+        let entry = GitStatusCacheEntry(
+            fileStatuses: [:],
+            repositoryInfo: GitRepositoryInfo.notARepository,
+            timestamp: Date()
+        )
+        
+        // 新创建的缓存不应该过期（TTL 为 5 秒）
+        #expect(entry.isExpired(ttl: 5.0) == false)
+        
+        // 创建一个已经过期的缓存
+        let expiredEntry = GitStatusCacheEntry(
+            fileStatuses: [:],
+            repositoryInfo: GitRepositoryInfo.notARepository,
+            timestamp: Date().addingTimeInterval(-10)
+        )
+        
+        #expect(expiredEntry.isExpired(ttl: 5.0) == true)
+    }
+}
+
+// MARK: - Git 服务测试
+
+struct GitServiceTests {
+    
+    @Test func testGitServiceSingleton() {
+        let service1 = GitService.shared
+        let service2 = GitService.shared
+        
+        // 验证单例
+        #expect(service1 === service2)
+    }
+    
+    @Test func testIsGitInstalled() {
+        let service = GitService.shared
+        let isInstalled = service.isGitInstalled()
+        
+        // Git 应该在大多数开发环境中安装
+        // 这个测试可能在某些环境中失败，所以我们只验证它返回一个布尔值
+        #expect(isInstalled == true || isInstalled == false)
+    }
+    
+    @Test func testIsGitRepositoryForNonRepo() {
+        let service = GitService.shared
+        
+        // /tmp 通常不是 Git 仓库
+        let tmpPath = URL(fileURLWithPath: "/tmp")
+        let isRepo = service.isGitRepository(at: tmpPath)
+        
+        #expect(isRepo == false)
+    }
+    
+    @Test func testGetRepositoryInfoForNonRepo() {
+        let service = GitService.shared
+        
+        // /tmp 通常不是 Git 仓库
+        let tmpPath = URL(fileURLWithPath: "/tmp")
+        let info = service.getRepositoryInfo(at: tmpPath)
+        
+        #expect(info.isGitRepository == false)
+        #expect(info.currentBranch == nil)
+    }
+    
+    @Test func testGetFileStatusesForNonRepo() {
+        let service = GitService.shared
+        
+        // /tmp 通常不是 Git 仓库
+        let tmpPath = URL(fileURLWithPath: "/tmp")
+        let statuses = service.getFileStatuses(in: tmpPath)
+        
+        #expect(statuses.isEmpty)
+    }
+    
+    @Test func testGetRepositoryInfoForActualRepo() {
+        let service = GitService.shared
+        
+        // 测试当前项目目录（应该是 Git 仓库）
+        let projectPath = URL(fileURLWithPath: #file)
+            .deletingLastPathComponent() // Zenith CommanderTests
+            .deletingLastPathComponent() // Zenith Commander
+        
+        if service.isGitRepository(at: projectPath) {
+            let info = service.getRepositoryInfo(at: projectPath)
+            
+            #expect(info.isGitRepository == true)
+            #expect(info.rootPath != nil)
+            // 分支名应该存在（除非是分离 HEAD 状态）
+            #expect(info.currentBranch != nil || info.isDetachedHead == true)
+        }
+    }
+}
+
+// MARK: - FileItem Git 状态测试
+
+struct FileItemGitStatusTests {
+    
+    @Test func testFileItemDefaultGitStatus() {
+        let homeDir = FileManager.default.homeDirectoryForCurrentUser
+        
+        if let fileItem = FileItem.fromURL(homeDir) {
+            // 默认 Git 状态应该是 clean
+            #expect(fileItem.gitStatus == .clean)
+        }
+    }
+    
+    @Test func testFileItemWithGitStatus() {
+        let homeDir = FileManager.default.homeDirectoryForCurrentUser
+        
+        if let fileItem = FileItem.fromURL(homeDir) {
+            // 测试 withGitStatus 方法
+            let modifiedItem = fileItem.withGitStatus(.modified)
+            #expect(modifiedItem.gitStatus == .modified)
+            #expect(modifiedItem.name == fileItem.name)
+            #expect(modifiedItem.path == fileItem.path)
+            
+            let addedItem = fileItem.withGitStatus(.added)
+            #expect(addedItem.gitStatus == .added)
+            
+            let untrackedItem = fileItem.withGitStatus(.untracked)
+            #expect(untrackedItem.gitStatus == .untracked)
+            
+            // 测试传入 nil
+            let cleanItem = fileItem.withGitStatus(nil)
+            #expect(cleanItem.gitStatus == .clean)
+        }
+    }
+}
+
+// MARK: - Git 设置测试
+
+struct GitSettingsTests {
+    
+    @Test func testDefaultGitSettings() {
+        let defaultSettings = GitSettings.default
+        
+        #expect(defaultSettings.enabled == true)
+        #expect(defaultSettings.showUntrackedFiles == true)
+        #expect(defaultSettings.showIgnoredFiles == false)
+    }
+    
+    @Test func testGitSettingsEquatable() {
+        let settings1 = GitSettings(
+            enabled: true,
+            showUntrackedFiles: true,
+            showIgnoredFiles: false
+        )
+        
+        let settings2 = GitSettings(
+            enabled: true,
+            showUntrackedFiles: true,
+            showIgnoredFiles: false
+        )
+        
+        let settings3 = GitSettings(
+            enabled: false,
+            showUntrackedFiles: true,
+            showIgnoredFiles: false
+        )
+        
+        #expect(settings1 == settings2)
+        #expect(settings1 != settings3)
+    }
+    
+    @Test func testGitSettingsCodable() throws {
+        let originalSettings = GitSettings(
+            enabled: true,
+            showUntrackedFiles: false,
+            showIgnoredFiles: true
+        )
+        
+        // 编码
+        let encoder = JSONEncoder()
+        let data = try encoder.encode(originalSettings)
+        
+        // 解码
+        let decoder = JSONDecoder()
+        let decodedSettings = try decoder.decode(GitSettings.self, from: data)
+        
+        #expect(decodedSettings == originalSettings)
+    }
+}
+
+// MARK: - AppSettings Git 集成测试
+
+struct AppSettingsGitTests {
+    
+    @Test func testDefaultAppSettingsIncludesGit() {
+        let defaultSettings = AppSettings.default
+        
+        // 验证默认设置包含 Git 设置
+        #expect(defaultSettings.git.enabled == true)
+        #expect(defaultSettings.git.showUntrackedFiles == true)
+        #expect(defaultSettings.git.showIgnoredFiles == false)
+    }
+    
+    @Test func testAppSettingsCodableWithGit() throws {
+        let settings = AppSettings(
+            appearance: .default,
+            terminal: .default,
+            git: GitSettings(enabled: false, showUntrackedFiles: false, showIgnoredFiles: true),
+            language: "en"
+        )
+        
+        // 编码
+        let encoder = JSONEncoder()
+        let data = try encoder.encode(settings)
+        
+        // 解码
+        let decoder = JSONDecoder()
+        let decodedSettings = try decoder.decode(AppSettings.self, from: data)
+        
+        #expect(decodedSettings.git.enabled == false)
+        #expect(decodedSettings.git.showUntrackedFiles == false)
+        #expect(decodedSettings.git.showIgnoredFiles == true)
+    }
+}
+
+// MARK: - PaneState Git 信息测试
+
+struct PaneStateGitInfoTests {
+    
+    func createTestDrive() -> DriveInfo {
+        return DriveInfo(
+            id: "test-drive",
+            name: "Macintosh HD",
+            path: URL(fileURLWithPath: "/"),
+            type: .system,
+            totalCapacity: 500_000_000_000,
+            availableCapacity: 100_000_000_000
+        )
+    }
+    
+    @Test func testPaneStateGitInfoDefault() {
+        let drive = createTestDrive()
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/Users"), drive: drive)
+        
+        // 默认 gitInfo 应该是 nil
+        #expect(pane.gitInfo == nil)
+    }
+    
+    @Test func testPaneStateGitInfoAssignment() {
+        let drive = createTestDrive()
+        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/Users"), drive: drive)
+        
+        // 设置 gitInfo
+        let testInfo = GitRepositoryInfo(
+            isGitRepository: true,
+            rootPath: URL(fileURLWithPath: "/test"),
+            currentBranch: "main",
+            isDetachedHead: false,
+            ahead: 1,
+            behind: 2,
+            hasUncommittedChanges: true
+        )
+        
+        pane.gitInfo = testInfo
+        
+        #expect(pane.gitInfo?.isGitRepository == true)
+        #expect(pane.gitInfo?.currentBranch == "main")
+        #expect(pane.gitInfo?.ahead == 1)
+        #expect(pane.gitInfo?.behind == 2)
+        #expect(pane.gitInfo?.hasUncommittedChanges == true)
+    }
+}

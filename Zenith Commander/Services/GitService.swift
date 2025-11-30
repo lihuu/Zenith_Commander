@@ -33,6 +33,12 @@ class GitService {
     
     // MARK: - Public API
     
+    /// 检查 Git 是否已安装
+    /// - Returns: Git 是否可用
+    func isGitInstalled() -> Bool {
+        return isGitAvailable
+    }
+    
     /// 检查目录是否在 Git 仓库中
     /// - Parameter path: 要检查的目录
     /// - Returns: 是否是 Git 仓库
@@ -131,15 +137,13 @@ class GitService {
     }
     
     /// 获取目录下所有文件的 Git 状态
-    /// - Parameter directory: 目录路径
-    /// - Returns: 文件名到状态的映射
-    func getFileStatuses(in directory: URL) -> [String: GitFileStatus] {
+    /// - Parameters:
+    ///   - directory: 目录路径
+    ///   - includeUntracked: 是否包含未跟踪文件
+    ///   - includeIgnored: 是否包含被忽略文件
+    /// - Returns: 文件 URL 到状态的映射
+    func getFileStatuses(in directory: URL, includeUntracked: Bool = true, includeIgnored: Bool = false) -> [URL: GitFileStatus] {
         guard isGitAvailable else { return [:] }
-        
-        // 检查缓存
-        if let cached = getCachedEntry(for: directory), !cached.isExpired(ttl: cacheTTL) {
-            return cached.fileStatuses
-        }
         
         // 检查是否是 Git 仓库
         guard let rootPath = getRepositoryRoot(for: directory) else {
@@ -151,7 +155,20 @@ class GitService {
             .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         
         // 运行 git status
-        var args = ["status", "--porcelain", "-uall"]
+        var args = ["status", "--porcelain"]
+        
+        // 处理未跟踪文件选项
+        if includeUntracked {
+            args.append("-uall")
+        } else {
+            args.append("-uno")
+        }
+        
+        // 处理被忽略文件选项
+        if includeIgnored {
+            args.append("--ignored")
+        }
+        
         if !relativePath.isEmpty {
             args.append(contentsOf: ["--", relativePath])
         }
@@ -161,7 +178,7 @@ class GitService {
         }
         
         // 解析状态
-        var statuses: [String: GitFileStatus] = [:]
+        var statuses: [URL: GitFileStatus] = [:]
         let lines = statusOutput.split(separator: "\n", omittingEmptySubsequences: true)
         
         for line in lines {
@@ -185,7 +202,6 @@ class GitService {
             // 检查是否在当前目录或子目录
             if fileDir.path == directory.path || fileDir.path.hasPrefix(directory.path + "/") {
                 let status = parseGitStatus(statusChars)
-                let name = fileURL.lastPathComponent
                 
                 // 如果文件在子目录，标记目录
                 if fileDir.path != directory.path {
@@ -193,20 +209,17 @@ class GitService {
                     let subPath = fileDir.path.replacingOccurrences(of: directory.path + "/", with: "")
                     let directSubDir = subPath.split(separator: "/").first.map(String.init) ?? ""
                     if !directSubDir.isEmpty {
+                        let subDirURL = directory.appendingPathComponent(directSubDir)
                         // 如果目录已有状态且不是 modified，保持原状态
-                        if statuses[directSubDir] == nil || statuses[directSubDir] == .clean {
-                            statuses[directSubDir] = .modified
+                        if statuses[subDirURL] == nil || statuses[subDirURL] == .clean {
+                            statuses[subDirURL] = .modified
                         }
                     }
                 } else {
-                    statuses[name] = status
+                    statuses[fileURL] = status
                 }
             }
         }
-        
-        // 更新缓存
-        let info = getRepositoryInfo(at: directory)
-        setCacheEntry(for: directory, fileStatuses: statuses, repositoryInfo: info)
         
         return statuses
     }
