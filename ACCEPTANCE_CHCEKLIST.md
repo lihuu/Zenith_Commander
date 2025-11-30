@@ -77,7 +77,7 @@ Zenith Commander - 验收测试清单 (Acceptance Checklist)
 
           批量重命名 (Batch Rename)
 
-    - [ ] 在 Visual 模式选中多个文件后按 r，弹出重命名模态窗口。
+    - [x] 在 Visual 模式选中多个文件后按 r，弹出重命名模态窗口。
     - [ ] 预览: 输入查找/替换文本时，右侧预览列实时更新。
     - [ ] 正则: 勾选 Regex 后，支持正则表达式匹配。
     - [ ] 变量: 使用 {n} 能正确生成序号，使用 {date} 能生成日期。
@@ -93,7 +93,7 @@ Zenith Commander - 验收测试清单 (Acceptance Checklist)
 
     终端集成:
 
-    - [ ] 点击 "Open in Terminal" 或右键菜单项，能唤起 iTerm2 或 Terminal.app 并定位到当前目录。
+    - [x] 点击 "Open in Terminal" 或右键菜单项，能唤起 iTerm2 或 Terminal.app 并定位到当前目录。
 
 7.  性能与稳定性 (Performance & Stability)
     - [x] 大文件夹测试: 加载包含 1000+ 文件的目录时，滚动流畅（LazyVStack 验证）。

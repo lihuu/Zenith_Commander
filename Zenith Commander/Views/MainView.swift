@@ -95,6 +95,7 @@ struct MainView: View {
                     .ignoresSafeArea()
                     .onTapGesture {
                         appState.showRenameModal = false
+                        appState.exitMode()  // 退出 RENAME 模式
                     }
                 
                 BatchRenameView(
@@ -105,6 +106,9 @@ struct MainView: View {
                     selectedFiles: getSelectedFiles(),
                     onApply: {
                         performBatchRename()
+                    },
+                    onDismiss: {
+                        appState.exitMode()  // 退出 RENAME 模式
                     }
                 )
             }
@@ -166,6 +170,9 @@ struct MainView: View {
         case .driveSelect:
             return handleDriveSelectModeKey(key)
         case .aiAnalysis:
+            return .ignored
+        case .rename:
+            // RENAME 模式：忽略所有键盘事件，让输入框处理
             return .ignored
         }
     }
@@ -467,8 +474,11 @@ struct MainView: View {
             return .handled
             
         case KeyEquivalent("r"):
-            // 批量重命名
-            Task { @MainActor in appState.showRenameModal = true }
+            // 批量重命名 - 进入 RENAME 模式
+            Task { @MainActor in
+                appState.enterMode(.rename)
+                appState.showRenameModal = true
+            }
             return .handled
             
         case KeyEquivalent("v"), .escape:

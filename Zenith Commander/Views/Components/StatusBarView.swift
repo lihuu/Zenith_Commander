@@ -67,6 +67,8 @@ struct StatusBarView: View {
             return "j/k to navigate"
         case .aiAnalysis:
             return "ESC to close"
+        case .rename:
+            return "ESC to cancel"
         }
     }
     
