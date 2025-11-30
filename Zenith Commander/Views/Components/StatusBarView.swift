@@ -69,6 +69,8 @@ struct StatusBarView: View {
             return "ESC to close"
         case .rename:
             return "ESC to cancel"
+        case .settings:
+            return "ESC to close"
         }
     }
     

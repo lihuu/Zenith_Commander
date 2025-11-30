@@ -53,17 +53,43 @@ struct AppModeTests {
         #expect(AppMode.command.rawValue == "COMMAND")
         #expect(AppMode.filter.rawValue == "FILTER")
         #expect(AppMode.driveSelect.rawValue == "DRIVES")
+        #expect(AppMode.rename.rawValue == "RENAME")
+        #expect(AppMode.settings.rawValue == "SETTINGS")
     }
     
     @Test func testAppModeColors() {
         // 验证每种模式都有颜色
-        let modes: [AppMode] = [.normal, .visual, .command, .filter, .driveSelect, .aiAnalysis]
+        let modes: [AppMode] = [.normal, .visual, .command, .filter, .driveSelect, .aiAnalysis, .rename, .settings]
         
         for mode in modes {
             let _ = mode.color // 如果没有定义颜色会崩溃
         }
         
         #expect(true) // 如果能到达这里，说明所有颜色都已定义
+    }
+    
+    @Test func testAppModeIsModalMode() {
+        // 测试 isModalMode 属性
+        // 非模态模式
+        #expect(AppMode.normal.isModalMode == false)
+        #expect(AppMode.visual.isModalMode == false)
+        #expect(AppMode.command.isModalMode == false)
+        #expect(AppMode.filter.isModalMode == false)
+        #expect(AppMode.driveSelect.isModalMode == false)
+        
+        // 模态模式 - 这些模式应该阻止全局键盘事件
+        #expect(AppMode.rename.isModalMode == true)
+        #expect(AppMode.settings.isModalMode == true)
+        #expect(AppMode.aiAnalysis.isModalMode == true)
+    }
+    
+    @Test func testAppModeDescription() {
+        // 验证每种模式都有描述
+        let modes = AppMode.allCases
+        
+        for mode in modes {
+            #expect(!mode.description.isEmpty)
+        }
     }
 }
 

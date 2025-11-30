@@ -113,7 +113,10 @@ struct MainView: View {
                 )
             }
         }
-        .sheet(isPresented: $showSettings) {
+        .sheet(isPresented: $showSettings, onDismiss: {
+            // 关闭设置时退出 SETTINGS 模式
+            appState.exitMode()
+        }) {
             SettingsView()
         }
         .focusable()
@@ -127,6 +130,7 @@ struct MainView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
+            appState.enterMode(.settings)  // 进入 SETTINGS 模式
             showSettings = true
         }
     }
@@ -152,9 +156,15 @@ struct MainView: View {
         // Cmd+, - 打开设置
         if key == KeyEquivalent(",") && modifiers.contains(.command) {
             Task { @MainActor in
+                appState.enterMode(.settings)  // 进入 SETTINGS 模式
                 showSettings = true
             }
             return .handled
+        }
+        
+        // 模态模式：忽略所有键盘事件，让模态窗口/视图处理
+        if appState.mode.isModalMode {
+            return .ignored
         }
         
         // 根据模式处理按键
@@ -169,10 +179,8 @@ struct MainView: View {
             return handleFilterModeKey(keyPress)
         case .driveSelect:
             return handleDriveSelectModeKey(key)
-        case .aiAnalysis:
-            return .ignored
-        case .rename:
-            // RENAME 模式：忽略所有键盘事件，让输入框处理
+        default:
+            // 其他未处理的模式
             return .ignored
         }
     }
