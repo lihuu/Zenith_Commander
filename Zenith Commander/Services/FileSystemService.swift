@@ -378,36 +378,149 @@ class FileSystemService {
         NSWorkspace.shared.activateFileViewerSelecting([file.path])
     }
     
-    /// 在终端打开
+    /// 在终端打开（使用用户设置的默认终端）
     func openInTerminal(path: URL) {
-        let script: String
+        // 获取用户设置的默认终端
+        let settings = SettingsManager.shared.settings
+        let terminalOption = settings.terminal.currentTerminal
         
-        // 尝试打开 iTerm2，如果没有则使用 Terminal.app
-        if NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.googlecode.iterm2") != nil {
-            script = """
-            tell application "iTerm2"
-                create window with default profile
-                tell current session of current window
-                    write text "cd '\(path.path)'"
-                end tell
-                activate
-            end tell
-            """
-        } else {
-            script = """
-            tell application "Terminal"
-                do script "cd '\(path.path)'"
-                activate
-            end tell
-            """
+        Logger.fileSystem.debug("Opening terminal '\(terminalOption.name)' at path: \(path.path)")
+        
+        // 根据终端类型选择打开方式
+        switch terminalOption.id {
+        case "terminal":
+            openInMacTerminal(path: path)
+        case "iterm":
+            openInITerm(path: path)
+        case "warp":
+            openInWarp(path: path)
+        case "alacritty":
+            openInAlacritty(path: path)
+        case "kitty":
+            openInKitty(path: path)
+        case "hyper":
+            openInHyper(path: path)
+        default:
+            openInMacTerminal(path: path)
         }
+    }
+    
+    /// 在 macOS Terminal.app 打开
+    private func openInMacTerminal(path: URL) {
+        // 使用 open 命令 + .command 脚本文件，避免 AppleScript 权限问题
+        let escapedPath = path.path.replacingOccurrences(of: "'", with: "'\\''")
         
-        if let appleScript = NSAppleScript(source: script) {
-            var error: NSDictionary?
-            appleScript.executeAndReturnError(&error)
-            if let error = error {
-                Logger.fileSystem.error("AppleScript error: \(error)")
-            }
+        // 创建临时 .command 脚本
+        let tempScript = FileManager.default.temporaryDirectory
+            .appendingPathComponent("zenith_open_\(UUID().uuidString).command")
+        
+        // 脚本内容：cd 到目录，然后清理自身，启动交互式 shell
+        let scriptContent = """
+        #!/bin/bash
+        cd '\(escapedPath)'
+        rm -f "\(tempScript.path)"
+        exec bash -l
+        """
+        
+        do {
+            try scriptContent.write(to: tempScript, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tempScript.path)
+            
+            // 使用 open -a Terminal 打开脚本
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            process.arguments = ["-a", "Terminal", tempScript.path]
+            try process.run()
+            
+            Logger.fileSystem.debug("Opened Terminal.app at: \(path.path)")
+        } catch {
+            Logger.fileSystem.error("Failed to open Terminal: \(error.localizedDescription)")
+        }
+    }
+    
+    /// 在 iTerm2 打开
+    private func openInITerm(path: URL) {
+        let escapedPath = path.path.replacingOccurrences(of: "'", with: "'\\''")
+        
+        // iTerm2 支持通过 URL scheme 打开
+        // 或者使用 open -a 打开目录
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        process.arguments = ["-a", "iTerm", path.path]
+        
+        do {
+            try process.run()
+            process.waitUntilExit()
+            Logger.fileSystem.debug("Opened iTerm at: \(path.path)")
+        } catch {
+            Logger.fileSystem.error("Failed to open iTerm: \(error.localizedDescription)")
+            // 回退到默认终端
+            openInMacTerminal(path: path)
+        }
+    }
+    
+    /// 在 Warp 打开
+    private func openInWarp(path: URL) {
+        // Warp 支持通过 open -a Warp <directory> 打开指定目录
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        process.arguments = ["-a", "Warp", path.path]
+        
+        do {
+            try process.run()
+            process.waitUntilExit()
+            Logger.fileSystem.debug("Opened Warp at: \(path.path)")
+        } catch {
+            Logger.fileSystem.error("Failed to open Warp: \(error.localizedDescription)")
+            openInMacTerminal(path: path)
+        }
+    }
+    
+    /// 在 Alacritty 打开
+    private func openInAlacritty(path: URL) {
+        // Alacritty 使用 --working-directory 参数
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        process.arguments = ["-a", "Alacritty", "--args", "--working-directory", path.path]
+        
+        do {
+            try process.run()
+            Logger.fileSystem.debug("Opened Alacritty at: \(path.path)")
+        } catch {
+            Logger.fileSystem.error("Failed to open Alacritty: \(error.localizedDescription)")
+            openInMacTerminal(path: path)
+        }
+    }
+    
+    /// 在 Kitty 打开
+    private func openInKitty(path: URL) {
+        // Kitty 使用 --directory 参数
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        process.arguments = ["-a", "kitty", "--args", "--directory", path.path]
+        
+        do {
+            try process.run()
+            Logger.fileSystem.debug("Opened Kitty at: \(path.path)")
+        } catch {
+            Logger.fileSystem.error("Failed to open Kitty: \(error.localizedDescription)")
+            openInMacTerminal(path: path)
+        }
+    }
+    
+    /// 在 Hyper 打开
+    private func openInHyper(path: URL) {
+        // Hyper 通过打开目录来工作
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        process.arguments = ["-a", "Hyper", path.path]
+        
+        do {
+            try process.run()
+            Logger.fileSystem.debug("Opened Hyper at: \(path.path)")
+        } catch {
+            Logger.fileSystem.error("Failed to open Hyper: \(error.localizedDescription)")
+            openInMacTerminal(path: path)
         }
     }
     
