@@ -17,6 +17,7 @@ struct PaneView: View {
     
     @State private var permissionDeniedPath: URL? = nil
     @State private var showPermissionError: Bool = false
+    @State private var directoryMonitor: DirectoryMonitor? = nil
     
     var isActivePane: Bool {
         appState.activePane == side
@@ -118,7 +119,15 @@ struct PaneView: View {
             // 使用异步加载避免在视图更新期间修改 @Published 属性
             DispatchQueue.main.async {
                 loadCurrentDirectoryWithPermissionCheck()
+                startDirectoryMonitoring()
             }
+        }
+        .onDisappear {
+            stopDirectoryMonitoring()
+        }
+        .onChange(of: pane.activeTab.currentPath) { oldPath, newPath in
+            // 当目录变化时，重新启动监控
+            startDirectoryMonitoring()
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(side == .left ? "left_pane" : "right_pane")
@@ -315,6 +324,12 @@ struct PaneView: View {
             deleteSelectedFiles()
         }
         .keyboardShortcut(.delete, modifiers: .command)
+        
+        Divider()
+        
+        Button("Refresh (R)") {
+            refreshDirectory()
+        }
     }
     
     /// 目录级右键菜单（空白处右键）
@@ -341,6 +356,11 @@ struct PaneView: View {
             FileSystemService.shared.openInTerminal(path: pane.activeTab.currentPath)
         }
         
+        Divider()
+        
+        Button("Refresh (R)") {
+            refreshDirectory()
+        }
     }
     
     // MARK: - 事件处理
@@ -373,6 +393,43 @@ struct PaneView: View {
         
         // 显示成功提示
         appState.showToast("Path copied: \(file.name)")
+    }
+    
+    /// 刷新当前目录
+    func refreshDirectory() {
+        loadCurrentDirectoryWithPermissionCheck()
+        appState.showToast("Refreshed")
+    }
+    
+    // MARK: - 目录监控
+    
+    /// 开始监控当前目录
+    private func startDirectoryMonitoring() {
+        // 停止之前的监控
+        stopDirectoryMonitoring()
+        
+        let currentPath = pane.activeTab.currentPath
+        let paneRef = pane
+        
+        // 创建新的监控器
+        let monitor = DirectoryMonitor(url: currentPath)
+        monitor.start {
+            // 目录变化时自动刷新
+            DispatchQueue.main.async {
+                let result = FileSystemService.shared.loadDirectoryWithPermissionCheck(at: paneRef.activeTab.currentPath)
+                if case .success(let files) = result {
+                    paneRef.activeTab.files = files
+                }
+            }
+        }
+        
+        directoryMonitor = monitor
+    }
+    
+    /// 停止监控当前目录
+    private func stopDirectoryMonitoring() {
+        directoryMonitor?.stop()
+        directoryMonitor = nil
     }
     
     // MARK: - 导航

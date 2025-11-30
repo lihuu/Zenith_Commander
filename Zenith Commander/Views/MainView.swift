@@ -329,6 +329,14 @@ struct MainView: View {
                 appState.showToast("New tab created")
             }
             return .handled
+        
+        // 刷新当前目录 (R 或 Cmd+R)
+        case KeyEquivalent("r"):
+            Task { @MainActor in
+                refreshCurrentPane()
+                appState.showToast("Refreshed")
+            }
+            return .handled
             
         default:
             return .ignored
