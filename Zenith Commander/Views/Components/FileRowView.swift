@@ -21,10 +21,22 @@ struct FileRowView: View {
         CGFloat(settingsManager.settings.appearance.fontSize)
     }
     
+    // 基于设置的行高计算
+    private var lineHeight: CGFloat {
+        CGFloat(settingsManager.settings.appearance.lineHeight)
+    }
+    
     private var iconSize: CGFloat { baseFontSize + 1 }
     private var nameSize: CGFloat { baseFontSize }
     private var detailSize: CGFloat { max(baseFontSize - 2, 9) }
-    private var rowPadding: CGFloat { max(baseFontSize * 0.3, 3) }
+    
+    // 行内垂直间距基于行高设置计算
+    // lineHeight 1.0 = 紧凑, 1.4 = 默认, 2.0 = 宽松
+    private var rowPadding: CGFloat {
+        let baseRowHeight = baseFontSize * lineHeight
+        let textHeight = baseFontSize
+        return max((baseRowHeight - textHeight) / 2, 2)
+    }
     
     var body: some View {
         HStack(spacing: 8) {
