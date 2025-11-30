@@ -78,7 +78,12 @@ struct HelpView: View {
                         HelpRow(keys: [":term"], description: "Open terminal here")
                         HelpRow(keys: [":mkdir <name>"], description: "Create directory")
                         HelpRow(keys: [":touch <name>"], description: "Create file")
+                        HelpRow(keys: [":mv <dest>"], description: "Move selected to dest")
+                        HelpRow(keys: [":mv <src> <dest>"], description: "Move src to dest")
+                        HelpRow(keys: [":cp <dest>"], description: "Copy selected to dest")
+                        HelpRow(keys: [":cp <src> <dest>"], description: "Copy src to dest")
                         HelpRow(keys: [":rm"], description: "Delete selected files")
+                        HelpRow(keys: [":rm <name>"], description: "Delete specified file")
                     }
                 }
                 .padding(24)
