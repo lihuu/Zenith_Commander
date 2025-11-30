@@ -2,12 +2,171 @@
 //  DirectoryMonitor.swift
 //  Zenith Commander
 //
-//  目录变化监控服务，使用 DispatchSource 监听文件系统变化
+//  目录变化监控服务
+//  主要使用 FSEvents API（macOS 推荐方案），DispatchSource 作为备选
 //
 
 import Foundation
+import CoreServices
 
-/// 目录监控器，监听指定目录的文件变化
+// MARK: - FSEvents 监控器（推荐方案）
+
+/// 基于 FSEvents 的目录监控器
+/// FSEvents 是 macOS 文件系统监控的标准 API，Finder 等系统应用都使用它
+/// 优点：可靠、支持递归监控、系统级优化、低资源消耗
+class FSEventsDirectoryMonitor {
+    
+    // MARK: - Properties
+    
+    /// 监控的目录路径
+    private let paths: [String]
+    
+    /// FSEvents 流
+    private var eventStream: FSEventStreamRef?
+    
+    /// 变化回调
+    private var onChange: (() -> Void)?
+    
+    /// 是否正在监控
+    private(set) var isMonitoring: Bool = false
+    
+    /// 防抖相关
+    private var debounceWorkItem: DispatchWorkItem?
+    private let debounceDelay: TimeInterval = 0.3
+    private let callbackQueue = DispatchQueue(label: "com.zenithcommander.fsevents", qos: .utility)
+    
+    // MARK: - Initialization
+    
+    /// 初始化 FSEvents 监控器
+    /// - Parameter url: 要监控的目录 URL
+    init(url: URL) {
+        self.paths = [url.path]
+    }
+    
+    /// 初始化 FSEvents 监控器（多目录）
+    /// - Parameter urls: 要监控的目录 URL 数组
+    init(urls: [URL]) {
+        self.paths = urls.map { $0.path }
+    }
+    
+    deinit {
+        stop()
+    }
+    
+    // MARK: - Public Methods
+    
+    /// 开始监控
+    /// - Parameter onChange: 当目录内容变化时的回调（在主线程调用）
+    func start(onChange: @escaping () -> Void) {
+        if isMonitoring {
+            stop()
+        }
+        
+        self.onChange = onChange
+        
+        // 设置回调上下文
+        var context = FSEventStreamContext(
+            version: 0,
+            info: Unmanaged.passUnretained(self).toOpaque(),
+            retain: nil,
+            release: nil,
+            copyDescription: nil
+        )
+        
+        // 创建 FSEvents 流
+        // 使用 kFSEventStreamCreateFlagUseCFTypes 获取更多事件信息
+        // 使用 kFSEventStreamCreateFlagFileEvents 监控文件级别的变化
+        let flags: FSEventStreamCreateFlags = UInt32(
+            kFSEventStreamCreateFlagUseCFTypes |
+            kFSEventStreamCreateFlagFileEvents |
+            kFSEventStreamCreateFlagNoDefer
+        )
+        
+        guard let stream = FSEventStreamCreate(
+            nil,                                    // allocator
+            fsEventsCallback,                       // callback
+            &context,                               // context
+            paths as CFArray,                       // pathsToWatch
+            FSEventStreamEventId(kFSEventStreamEventIdSinceNow),  // sinceWhen
+            0.1,                                    // latency (秒) - FSEvents 内置延迟
+            flags                                   // flags
+        ) else {
+            print("FSEventsDirectoryMonitor: Failed to create event stream")
+            return
+        }
+        
+        eventStream = stream
+        
+        // 将流调度到后台队列
+        FSEventStreamSetDispatchQueue(stream, callbackQueue)
+        
+        // 启动流
+        if FSEventStreamStart(stream) {
+            isMonitoring = true
+            print("FSEventsDirectoryMonitor: Started monitoring: \(paths)")
+        } else {
+            print("FSEventsDirectoryMonitor: Failed to start event stream")
+            FSEventStreamInvalidate(stream)
+            FSEventStreamRelease(stream)
+            eventStream = nil
+        }
+    }
+    
+    /// 停止监控
+    func stop() {
+        debounceWorkItem?.cancel()
+        debounceWorkItem = nil
+        
+        if let stream = eventStream {
+            FSEventStreamStop(stream)
+            FSEventStreamInvalidate(stream)
+            FSEventStreamRelease(stream)
+            eventStream = nil
+        }
+        
+        isMonitoring = false
+        onChange = nil
+        print("FSEventsDirectoryMonitor: Stopped monitoring")
+    }
+    
+    // MARK: - Private Methods
+    
+    /// 处理 FSEvents 回调（带防抖）
+    fileprivate func handleEvent() {
+        debounceWorkItem?.cancel()
+        
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self = self, let onChange = self.onChange else { return }
+            DispatchQueue.main.async {
+                onChange()
+            }
+        }
+        
+        debounceWorkItem = workItem
+        callbackQueue.asyncAfter(deadline: .now() + debounceDelay, execute: workItem)
+    }
+}
+
+// MARK: - FSEvents Callback
+
+/// FSEvents 回调函数（C 函数指针）
+private func fsEventsCallback(
+    streamRef: ConstFSEventStreamRef,
+    clientCallBackInfo: UnsafeMutableRawPointer?,
+    numEvents: Int,
+    eventPaths: UnsafeMutableRawPointer,
+    eventFlags: UnsafePointer<FSEventStreamEventFlags>,
+    eventIds: UnsafePointer<FSEventStreamEventId>
+) {
+    guard let info = clientCallBackInfo else { return }
+    let monitor = Unmanaged<FSEventsDirectoryMonitor>.fromOpaque(info).takeUnretainedValue()
+    monitor.handleEvent()
+}
+
+// MARK: - DispatchSource 监控器（备选方案）
+
+/// 基于 DispatchSource 的目录监控器
+/// 轻量级方案，适合简单场景，但可能漏掉一些事件
 class DirectoryMonitor {
     
     // MARK: - Properties

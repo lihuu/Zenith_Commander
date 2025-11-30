@@ -17,7 +17,7 @@ struct PaneView: View {
     
     @State private var permissionDeniedPath: URL? = nil
     @State private var showPermissionError: Bool = false
-    @State private var directoryMonitor: DirectoryMonitor? = nil
+    @State private var directoryMonitor: FSEventsDirectoryMonitor? = nil
     
     var isActivePane: Bool {
         appState.activePane == side
@@ -411,15 +411,13 @@ struct PaneView: View {
         let currentPath = pane.activeTab.currentPath
         let paneRef = pane
         
-        // 创建新的监控器
-        let monitor = DirectoryMonitor(url: currentPath)
+        // 使用 FSEvents 监控器（推荐方案，更可靠）
+        let monitor = FSEventsDirectoryMonitor(url: currentPath)
         monitor.start {
             // 目录变化时自动刷新
-            DispatchQueue.main.async {
-                let result = FileSystemService.shared.loadDirectoryWithPermissionCheck(at: paneRef.activeTab.currentPath)
-                if case .success(let files) = result {
-                    paneRef.activeTab.files = files
-                }
+            let result = FileSystemService.shared.loadDirectoryWithPermissionCheck(at: paneRef.activeTab.currentPath)
+            if case .success(let files) = result {
+                paneRef.activeTab.files = files
             }
         }
         
