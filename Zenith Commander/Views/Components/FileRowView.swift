@@ -9,23 +9,34 @@ import SwiftUI
 
 struct FileRowView: View {
     @ObservedObject private var themeManager = ThemeManager.shared
+    @ObservedObject private var settingsManager = SettingsManager.shared
     
     let file: FileItem
     let isActive: Bool       // 光标所在
     let isSelected: Bool     // 被选中
     let isPaneActive: Bool   // 面板是否激活
     
+    // 基于设置的字体大小计算
+    private var baseFontSize: CGFloat {
+        CGFloat(settingsManager.settings.appearance.fontSize)
+    }
+    
+    private var iconSize: CGFloat { baseFontSize + 1 }
+    private var nameSize: CGFloat { baseFontSize }
+    private var detailSize: CGFloat { max(baseFontSize - 2, 9) }
+    private var rowPadding: CGFloat { max(baseFontSize * 0.3, 3) }
+    
     var body: some View {
         HStack(spacing: 8) {
             // 文件图标
             Image(systemName: file.iconName)
-                .font(.system(size: 14, weight: .regular))
+                .font(.system(size: iconSize, weight: .regular))
                 .foregroundColor(iconColor)
-                .frame(width: 18)
+                .frame(width: baseFontSize + 4)
             
             // 文件名
             Text(file.name)
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: nameSize, weight: .medium))
                 .foregroundColor(textColor)
                 .lineLimit(1)
                 .truncationMode(.middle)
@@ -34,18 +45,18 @@ struct FileRowView: View {
             
             // 文件大小
             Text(file.formattedSize)
-                .font(.system(size: 11, weight: .regular, design: .monospaced))
+                .font(.system(size: detailSize, weight: .regular, design: .monospaced))
                 .foregroundColor(sizeColor)
                 .frame(width: 70, alignment: .trailing)
             
             // 修改日期
             Text(file.formattedDate)
-                .font(.system(size: 11, weight: .regular))
+                .font(.system(size: detailSize, weight: .regular))
                 .foregroundColor(dateColor)
                 .frame(width: 120, alignment: .trailing)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 4)
+        .padding(.vertical, rowPadding)
         .background(backgroundColor)
         .overlay(
             // 光标边框（非活动面板时显示空心框）
