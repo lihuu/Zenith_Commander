@@ -29,6 +29,16 @@ struct FileItem: Identifiable, Hashable {
     let permissions: String
     let fileExtension: String
     
+    /// Git 状态（可选）
+    var gitStatus: GitFileStatus = .clean
+    
+    /// 创建带有 Git 状态的副本
+    func withGitStatus(_ status: GitFileStatus?) -> FileItem {
+        var copy = self
+        copy.gitStatus = status ?? .clean
+        return copy
+    }
+    
     /// 格式化的文件大小
     var formattedSize: String {
         if type == .folder {

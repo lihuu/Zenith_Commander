@@ -59,6 +59,7 @@ class PaneState: ObservableObject {
     @Published var activeTabIndex: Int
     @Published var viewMode: ViewMode
     @Published var selections: Set<String> // 存储选中的文件 ID
+    @Published var gitInfo: GitRepositoryInfo? = nil // Git 仓库信息
     var visualAnchor: Int? // Visual 模式的锚点位置
     
     /// Grid View 每行的列数（用于键盘导航）

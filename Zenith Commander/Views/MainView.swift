@@ -62,6 +62,7 @@ struct MainView: View {
                 driveName: appState.currentPane.activeTab.drive.name,
                 itemCount: appState.currentPane.activeTab.files.count,
                 selectedCount: appState.currentPane.selections.count,
+                gitInfo: appState.currentPane.gitInfo,
                 onDriveClick: {
                     appState.enterMode(.driveSelect)
                 }

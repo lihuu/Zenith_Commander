@@ -13,6 +13,7 @@ struct PaneView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject var pane: PaneState
     @ObservedObject private var themeManager = ThemeManager.shared
+    @ObservedObject private var settingsManager = SettingsManager.shared
     @ObservedObject var bookmarkManager: BookmarkManager
     let side: PaneSide
     
@@ -432,13 +433,51 @@ struct PaneView: View {
         
         let currentPath = pane.activeTab.currentPath
         let paneRef = pane
+        let settingsRef = settingsManager
         
         // 使用 FSEvents 监控器（推荐方案，更可靠）
         let monitor = FSEventsDirectoryMonitor(url: currentPath)
         monitor.start {
             // 目录变化时自动刷新
             let result = FileSystemService.shared.loadDirectoryWithPermissionCheck(at: paneRef.activeTab.currentPath)
-            if case .success(let files) = result {
+            if case .success(var files) = result {
+                // 获取 Git 状态（如果启用）
+                if settingsRef.settings.git.enabled {
+                    let gitSettings = settingsRef.settings.git
+                    let gitService = GitService.shared
+                    
+                    // 获取仓库信息
+                    let repoInfo = gitService.getRepositoryInfo(at: currentPath)
+                    
+                    if repoInfo.isGitRepository {
+                        // 获取文件状态
+                        let statusDict = gitService.getFileStatuses(
+                            in: currentPath,
+                            includeUntracked: gitSettings.showUntrackedFiles,
+                            includeIgnored: gitSettings.showIgnoredFiles
+                        )
+                        
+                        // 应用状态到文件
+                        for index in files.indices {
+                            if let status = statusDict[files[index].path] {
+                                files[index] = files[index].withGitStatus(status)
+                            } else if files[index].type == .folder {
+                                let folderPath = files[index].path.path + "/"
+                                let hasModifiedChildren = statusDict.keys.contains { key in
+                                    key.path.hasPrefix(folderPath)
+                                }
+                                if hasModifiedChildren {
+                                    files[index] = files[index].withGitStatus(.modified)
+                                }
+                            }
+                        }
+                        
+                        DispatchQueue.main.async {
+                            paneRef.gitInfo = repoInfo
+                        }
+                    }
+                }
+                
                 paneRef.activeTab.files = files
             }
         }
@@ -465,7 +504,15 @@ struct PaneView: View {
         let result = FileSystemService.shared.loadDirectoryWithPermissionCheck(at: pane.activeTab.currentPath)
         
         switch result {
-        case .success(let files):
+        case .success(var files):
+            // 获取 Git 状态（如果启用）
+            if settingsManager.settings.git.enabled {
+                let gitSettings = settingsManager.settings.git
+                applyGitStatus(to: &files, settings: gitSettings)
+            } else {
+                pane.gitInfo = nil
+            }
+            
             pane.activeTab.files = files
             permissionDeniedPath = nil
             showPermissionError = false
@@ -476,6 +523,7 @@ struct PaneView: View {
             pane.activeTab.files = []
             permissionDeniedPath = path
             showPermissionError = true
+            pane.gitInfo = nil
             pane.objectWillChange.send()
             
         case .notFound(let path):
@@ -483,6 +531,7 @@ struct PaneView: View {
             appState.showToast("Directory not found: \(path.lastPathComponent)")
             permissionDeniedPath = nil
             showPermissionError = false
+            pane.gitInfo = nil
             pane.objectWillChange.send()
             // 尝试返回上级目录
             leaveDirectory()
@@ -492,7 +541,48 @@ struct PaneView: View {
             appState.showToast("Error: \(message)")
             permissionDeniedPath = nil
             showPermissionError = false
+            pane.gitInfo = nil
             pane.objectWillChange.send()
+        }
+    }
+    
+    /// 应用 Git 状态到文件列表
+    private func applyGitStatus(to files: inout [FileItem], settings: GitSettings) {
+        let currentPath = pane.activeTab.currentPath
+        let gitService = GitService.shared
+        
+        // 获取仓库信息
+        pane.gitInfo = gitService.getRepositoryInfo(at: currentPath)
+        
+        // 如果不是 Git 仓库，清除状态
+        guard pane.gitInfo?.isGitRepository == true else {
+            pane.gitInfo = nil
+            return
+        }
+        
+        // 获取文件状态
+        let statusDict = gitService.getFileStatuses(
+            in: currentPath,
+            includeUntracked: settings.showUntrackedFiles,
+            includeIgnored: settings.showIgnoredFiles
+        )
+        
+        // 应用状态到文件
+        for index in files.indices {
+            if let status = statusDict[files[index].path] {
+                files[index] = files[index].withGitStatus(status)
+            } else {
+                // 文件可能在子目录中有修改（对于目录项）
+                if files[index].type == .folder {
+                    let folderPath = files[index].path.path + "/"
+                    let hasModifiedChildren = statusDict.keys.contains { key in
+                        key.path.hasPrefix(folderPath)
+                    }
+                    if hasModifiedChildren {
+                        files[index] = files[index].withGitStatus(.modified)
+                    }
+                }
+            }
         }
     }
     

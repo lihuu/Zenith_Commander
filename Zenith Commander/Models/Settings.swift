@@ -19,6 +19,9 @@ struct AppSettings: Codable, Equatable {
     /// 终端设置
     var terminal: TerminalSettings
     
+    /// Git 设置
+    var git: GitSettings
+    
     /// 语言设置
     var language: String
     
@@ -27,7 +30,29 @@ struct AppSettings: Codable, Equatable {
         AppSettings(
             appearance: .default,
             terminal: .default,
+            git: .default,
             language: AppLanguage.english.rawValue
+        )
+    }
+}
+
+/// Git 设置
+struct GitSettings: Codable, Equatable {
+    /// 是否启用 Git 集成
+    var enabled: Bool
+    
+    /// 是否显示未追踪文件
+    var showUntrackedFiles: Bool
+    
+    /// 是否显示被忽略文件的状态
+    var showIgnoredFiles: Bool
+    
+    /// 默认设置
+    static var `default`: GitSettings {
+        GitSettings(
+            enabled: true,
+            showUntrackedFiles: true,
+            showIgnoredFiles: false
         )
     }
 }

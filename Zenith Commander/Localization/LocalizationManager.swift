@@ -152,6 +152,28 @@ enum LocalizedStringKey: String, CaseIterable {
     case settingsLanguage
     case settingsLanguageDescription
     
+    // MARK: - Git 设置
+    case settingsGit
+    case settingsGitEnabled
+    case settingsGitEnabledDescription
+    case settingsGitInstalled
+    case settingsGitNotInstalled
+    case settingsGitShowUntracked
+    case settingsGitShowUntrackedDescription
+    case settingsGitShowIgnored
+    case settingsGitShowIgnoredDescription
+    
+    // MARK: - Git 状态显示
+    case gitStatusModified
+    case gitStatusAdded
+    case gitStatusDeleted
+    case gitStatusRenamed
+    case gitStatusUntracked
+    case gitStatusConflict
+    case gitBranch
+    case gitAhead
+    case gitBehind
+    
     // MARK: - 帮助页面
     case help
     case helpKeyboardShortcuts
@@ -335,6 +357,28 @@ class LocalizedStrings {
             .settingsLanguage: "Language",
             .settingsLanguageDescription: "Select your preferred language",
             
+            // Git 设置
+            .settingsGit: "Git Integration",
+            .settingsGitEnabled: "Enable Git Integration",
+            .settingsGitEnabledDescription: "Show Git status indicators for files and folders",
+            .settingsGitInstalled: "Git is installed",
+            .settingsGitNotInstalled: "Git is not installed",
+            .settingsGitShowUntracked: "Show Untracked Files",
+            .settingsGitShowUntrackedDescription: "Display status for files not tracked by Git",
+            .settingsGitShowIgnored: "Show Ignored Files",
+            .settingsGitShowIgnoredDescription: "Display status for files in .gitignore",
+            
+            // Git 状态显示
+            .gitStatusModified: "Modified",
+            .gitStatusAdded: "Added",
+            .gitStatusDeleted: "Deleted",
+            .gitStatusRenamed: "Renamed",
+            .gitStatusUntracked: "Untracked",
+            .gitStatusConflict: "Conflict",
+            .gitBranch: "Branch",
+            .gitAhead: "ahead",
+            .gitBehind: "behind",
+            
             // 帮助页面
             .help: "Help",
             .helpKeyboardShortcuts: "Keyboard Shortcuts",
@@ -500,6 +544,28 @@ class LocalizedStrings {
             .settingsResetConfirmMessage: "确定要将所有设置恢复为默认值吗？",
             .settingsLanguage: "语言",
             .settingsLanguageDescription: "选择界面显示语言",
+            
+            // Git 设置
+            .settingsGit: "Git 集成",
+            .settingsGitEnabled: "启用 Git 集成",
+            .settingsGitEnabledDescription: "为文件和文件夹显示 Git 状态指示器",
+            .settingsGitInstalled: "Git 已安装",
+            .settingsGitNotInstalled: "Git 未安装",
+            .settingsGitShowUntracked: "显示未跟踪文件",
+            .settingsGitShowUntrackedDescription: "显示未被 Git 跟踪的文件状态",
+            .settingsGitShowIgnored: "显示被忽略文件",
+            .settingsGitShowIgnoredDescription: "显示在 .gitignore 中的文件状态",
+            
+            // Git 状态显示
+            .gitStatusModified: "已修改",
+            .gitStatusAdded: "已添加",
+            .gitStatusDeleted: "已删除",
+            .gitStatusRenamed: "已重命名",
+            .gitStatusUntracked: "未跟踪",
+            .gitStatusConflict: "冲突",
+            .gitBranch: "分支",
+            .gitAhead: "领先",
+            .gitBehind: "落后",
             
             // 帮助页面
             .help: "帮助",

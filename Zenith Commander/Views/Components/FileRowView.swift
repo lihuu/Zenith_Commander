@@ -53,6 +53,14 @@ struct FileRowView: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
             
+            // Git 状态标记
+            if file.gitStatus.shouldDisplay {
+                Text(file.gitStatus.displayText)
+                    .font(.system(size: detailSize, weight: .bold, design: .monospaced))
+                    .foregroundColor(file.gitStatus.color)
+                    .frame(width: 16)
+            }
+            
             Spacer()
             
             // 文件大小
