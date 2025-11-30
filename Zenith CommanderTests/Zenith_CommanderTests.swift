@@ -3348,3 +3348,220 @@ struct MouseClickTests {
         #expect(pane.activeTab.files.isEmpty)
     }
 }
+
+// MARK: - 书签功能测试
+
+struct BookmarkItemTests {
+    
+    @Test func testBookmarkItemCreation() {
+        let path = URL(fileURLWithPath: "/Users/test/Documents")
+        let bookmark = BookmarkItem(
+            name: "Documents",
+            path: path,
+            type: .folder,
+            iconName: "folder.fill"
+        )
+        
+        #expect(bookmark.name == "Documents")
+        #expect(bookmark.path == path)
+        #expect(bookmark.type == .folder)
+        #expect(bookmark.iconName == "folder.fill")
+        #expect(bookmark.id != UUID())
+    }
+    
+    @Test func testBookmarkItemFromFileItem() {
+        let homeDir = FileManager.default.homeDirectoryForCurrentUser
+        
+        if let fileItem = FileItem.fromURL(homeDir) {
+            let bookmark = BookmarkItem.from(fileItem: fileItem)
+            
+            #expect(bookmark.name == fileItem.name)
+            #expect(bookmark.path == fileItem.path)
+            #expect(bookmark.iconName == fileItem.iconName)
+        }
+    }
+    
+    @Test func testBookmarkItemTypes() {
+        let folderBookmark = BookmarkItem(
+            name: "Folder",
+            path: URL(fileURLWithPath: "/test/folder"),
+            type: .folder
+        )
+        let fileBookmark = BookmarkItem(
+            name: "File",
+            path: URL(fileURLWithPath: "/test/file.txt"),
+            type: .file
+        )
+        
+        #expect(folderBookmark.type == .folder)
+        #expect(fileBookmark.type == .file)
+    }
+    
+    @Test func testBookmarkItemEquality() {
+        let id = UUID()
+        let bookmark1 = BookmarkItem(
+            id: id,
+            name: "Test",
+            path: URL(fileURLWithPath: "/test"),
+            type: .folder
+        )
+        let bookmark2 = BookmarkItem(
+            id: id,
+            name: "Test",
+            path: URL(fileURLWithPath: "/test"),
+            type: .folder
+        )
+        
+        #expect(bookmark1.id == bookmark2.id)
+        #expect(bookmark1.name == bookmark2.name)
+        #expect(bookmark1.path == bookmark2.path)
+    }
+    
+    @Test func testBookmarkItemCodable() throws {
+        let bookmark = BookmarkItem(
+            name: "Test Bookmark",
+            path: URL(fileURLWithPath: "/Users/test/Documents"),
+            type: .folder,
+            iconName: "folder.fill"
+        )
+        
+        let encoder = JSONEncoder()
+        let data = try encoder.encode(bookmark)
+        
+        let decoder = JSONDecoder()
+        let decoded = try decoder.decode(BookmarkItem.self, from: data)
+        
+        #expect(decoded.id == bookmark.id)
+        #expect(decoded.name == bookmark.name)
+        #expect(decoded.path == bookmark.path)
+        #expect(decoded.type == bookmark.type)
+        #expect(decoded.iconName == bookmark.iconName)
+    }
+}
+
+struct BookmarkManagerTests {
+    
+    @Test func testBookmarkManagerAddBookmark() {
+        let manager = BookmarkManager()
+        manager.bookmarks = []  // 清空初始书签
+        
+        let bookmark = BookmarkItem(
+            name: "Test",
+            path: URL(fileURLWithPath: "/test"),
+            type: .folder
+        )
+        
+        manager.add(bookmark)
+        
+        #expect(manager.bookmarks.count == 1)
+        #expect(manager.bookmarks.first?.name == "Test")
+    }
+    
+    @Test func testBookmarkManagerRemoveBookmark() {
+        let manager = BookmarkManager()
+        manager.bookmarks = []
+        
+        let bookmark = BookmarkItem(
+            name: "Test",
+            path: URL(fileURLWithPath: "/test"),
+            type: .folder
+        )
+        
+        manager.add(bookmark)
+        #expect(manager.bookmarks.count == 1)
+        
+        manager.remove(bookmark)
+        #expect(manager.bookmarks.isEmpty)
+    }
+    
+    @Test func testBookmarkManagerPreventDuplicatePath() {
+        let manager = BookmarkManager()
+        manager.bookmarks = []
+        
+        let path = URL(fileURLWithPath: "/test/duplicate")
+        let bookmark1 = BookmarkItem(name: "First", path: path, type: .folder)
+        let bookmark2 = BookmarkItem(name: "Second", path: path, type: .folder)
+        
+        manager.add(bookmark1)
+        manager.add(bookmark2)  // 相同路径不应重复添加
+        
+        #expect(manager.bookmarks.count == 1)
+        #expect(manager.bookmarks.first?.name == "First")
+    }
+    
+    @Test func testBookmarkManagerReorder() {
+        let manager = BookmarkManager()
+        manager.bookmarks = []
+        
+        let bookmark1 = BookmarkItem(name: "A", path: URL(fileURLWithPath: "/a"), type: .folder)
+        let bookmark2 = BookmarkItem(name: "B", path: URL(fileURLWithPath: "/b"), type: .folder)
+        let bookmark3 = BookmarkItem(name: "C", path: URL(fileURLWithPath: "/c"), type: .folder)
+        
+        manager.add(bookmark1)
+        manager.add(bookmark2)
+        manager.add(bookmark3)
+        
+        // 移动第一个到最后
+        manager.reorder(from: IndexSet(integer: 0), to: 3)
+        
+        #expect(manager.bookmarks[0].name == "B")
+        #expect(manager.bookmarks[1].name == "C")
+        #expect(manager.bookmarks[2].name == "A")
+    }
+    
+    @Test func testBookmarkManagerContainsPath() {
+        let manager = BookmarkManager()
+        manager.bookmarks = []
+        
+        let path = URL(fileURLWithPath: "/test/exists")
+        let bookmark = BookmarkItem(name: "Test", path: path, type: .folder)
+        
+        manager.add(bookmark)
+        
+        #expect(manager.contains(path: path) == true)
+        #expect(manager.contains(path: URL(fileURLWithPath: "/other/path")) == false)
+    }
+    
+    @Test func testBookmarkManagerAddFileItem() {
+        let manager = BookmarkManager()
+        manager.bookmarks = []
+        
+        let homeDir = FileManager.default.homeDirectoryForCurrentUser
+        if let fileItem = FileItem.fromURL(homeDir) {
+            manager.addBookmark(for: fileItem)
+            
+            #expect(manager.bookmarks.count == 1)
+            #expect(manager.bookmarks.first?.path == homeDir)
+        }
+    }
+    
+    @Test func testBookmarkManagerToggleBookmark() {
+        let manager = BookmarkManager()
+        manager.bookmarks = []
+        
+        let homeDir = FileManager.default.homeDirectoryForCurrentUser
+        if let fileItem = FileItem.fromURL(homeDir) {
+            // 添加书签
+            manager.toggleBookmark(for: fileItem)
+            #expect(manager.bookmarks.count == 1)
+            
+            // 再次切换应该移除
+            manager.toggleBookmark(for: fileItem)
+            #expect(manager.bookmarks.isEmpty)
+        }
+    }
+    
+    @Test func testBookmarkManagerClearAll() {
+        let manager = BookmarkManager()
+        manager.bookmarks = []
+        
+        manager.add(BookmarkItem(name: "A", path: URL(fileURLWithPath: "/a"), type: .folder))
+        manager.add(BookmarkItem(name: "B", path: URL(fileURLWithPath: "/b"), type: .folder))
+        manager.add(BookmarkItem(name: "C", path: URL(fileURLWithPath: "/c"), type: .folder))
+        
+        #expect(manager.bookmarks.count == 3)
+        
+        manager.clearAll()
+        #expect(manager.bookmarks.isEmpty)
+    }
+}
