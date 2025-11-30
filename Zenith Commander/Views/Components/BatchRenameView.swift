@@ -15,6 +15,7 @@ struct BatchRenameView: View {
     
     let selectedFiles: [FileItem]
     let onApply: () -> Void
+    var onDismiss: (() -> Void)? = nil  // 关闭时的回调
     
     var body: some View {
         VStack(spacing: 0) {
@@ -30,7 +31,7 @@ struct BatchRenameView: View {
                 
                 Spacer()
                 
-                Button(action: { isPresented = false }) {
+                Button(action: { dismissView() }) {
                     Image(systemName: "xmark")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(Theme.textTertiary)
@@ -188,13 +189,13 @@ struct BatchRenameView: View {
                 Spacer()
                 
                 Button("Cancel") {
-                    isPresented = false
+                    dismissView()
                 }
                 .buttonStyle(SecondaryButtonStyle())
                 
                 Button("Apply Rename") {
                     onApply()
-                    isPresented = false
+                    dismissView()
                 }
                 .buttonStyle(PrimaryButtonStyle())
                 .disabled(findText.isEmpty)
@@ -210,6 +211,14 @@ struct BatchRenameView: View {
             RoundedRectangle(cornerRadius: 10)
                 .stroke(Theme.borderLight, lineWidth: 1)
         )
+    }
+    
+    // MARK: - 辅助方法
+    
+    /// 关闭视图并调用回调
+    private func dismissView() {
+        isPresented = false
+        onDismiss?()
     }
     
     // MARK: - 预览新文件名

@@ -15,6 +15,7 @@ enum AppMode: String, CaseIterable {
     case filter = "FILTER"
     case driveSelect = "DRIVES"
     case aiAnalysis = "AI"
+    case rename = "RENAME"  // 重命名模式 - 阻止键盘事件传播
     
     /// 模式显示颜色
     var color: Color {
@@ -31,6 +32,8 @@ enum AppMode: String, CaseIterable {
             return .purple
         case .aiAnalysis:
             return .pink
+        case .rename:
+            return .cyan
         }
     }
     
