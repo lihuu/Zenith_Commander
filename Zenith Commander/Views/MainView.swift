@@ -10,17 +10,30 @@ import Combine
 
 struct MainView: View {
     @StateObject private var appState = AppState()
+    @StateObject private var bookmarkManager = BookmarkManager()
     @ObservedObject private var themeManager = ThemeManager.shared
     @State private var showSettings = false
+    @State private var showBookmarkBar = true  // 书签栏显示状态
     
     var body: some View {
         VStack(spacing: 0) {
+            // 书签栏
+            if showBookmarkBar {
+                BookmarkBarView(
+                    bookmarkManager: bookmarkManager,
+                    onBookmarkClicked: { bookmark in
+                        navigateToBookmark(bookmark)
+                    }
+                )
+            }
+            
             // 双面板区域
             GeometryReader { geometry in
                 HStack(spacing: 0) {
                     // 左面板
                     PaneView(
                         pane: appState.leftPane,
+                        bookmarkManager: bookmarkManager,
                         side: .left
                     )
                     .frame(width: geometry.size.width / 2)
@@ -33,6 +46,7 @@ struct MainView: View {
                     // 右面板
                     PaneView(
                         pane: appState.rightPane,
+                        bookmarkManager: bookmarkManager,
                         side: .right
                     )
                     .frame(width: geometry.size.width / 2 - 1)
@@ -335,6 +349,24 @@ struct MainView: View {
             Task { @MainActor in
                 refreshCurrentPane()
                 appState.showToast("Refreshed")
+            }
+            return .handled
+        
+        // 切换书签栏显示 (B)
+        case KeyEquivalent("b"):
+            if modifiers.contains(.command) {
+                // Cmd+B 添加当前选中项到书签
+                Task { @MainActor in
+                    addCurrentToBookmark()
+                }
+            } else {
+                // B 切换书签栏显示
+                Task { @MainActor in
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showBookmarkBar.toggle()
+                    }
+                    appState.showToast(showBookmarkBar ? "Bookmark bar shown" : "Bookmark bar hidden")
+                }
             }
             return .handled
             
@@ -700,6 +732,74 @@ struct MainView: View {
         pane.activeTab.files = files
         // 手动触发 UI 刷新
         pane.objectWillChange.send()
+    }
+    
+    // MARK: - 书签操作
+    
+    /// 导航到书签位置
+    private func navigateToBookmark(_ bookmark: BookmarkItem) {
+        let pane = appState.currentPane
+        
+        if bookmark.type == .folder {
+            // 如果是文件夹，导航到该目录
+            pane.activeTab.currentPath = bookmark.path
+            let files = FileSystemService.shared.loadDirectory(at: bookmark.path)
+            pane.activeTab.files = files
+            pane.cursorIndex = 0
+            pane.objectWillChange.send()
+            appState.showToast("Navigated to \(bookmark.name)")
+        } else {
+            // 如果是文件，导航到其父目录并选中该文件
+            let parentPath = bookmark.path.deletingLastPathComponent()
+            pane.activeTab.currentPath = parentPath
+            let files = FileSystemService.shared.loadDirectory(at: parentPath)
+            pane.activeTab.files = files
+            
+            // 查找并选中该文件
+            if let index = files.firstIndex(where: { $0.path == bookmark.path }) {
+                pane.cursorIndex = index
+            } else {
+                pane.cursorIndex = 0
+            }
+            
+            pane.objectWillChange.send()
+            appState.showToast("Navigated to \(bookmark.name)")
+        }
+    }
+    
+    /// 添加当前选中项到书签
+    private func addCurrentToBookmark() {
+        let pane = appState.currentPane
+        
+        // 如果有选中的文件，添加所有选中项
+        if !pane.selections.isEmpty {
+            var addedCount = 0
+            for fileId in pane.selections {
+                if let file = pane.activeTab.files.first(where: { $0.id == fileId }) {
+                    if !bookmarkManager.contains(path: file.path) {
+                        bookmarkManager.addBookmark(for: file)
+                        addedCount += 1
+                    }
+                }
+            }
+            if addedCount > 0 {
+                appState.showToast("\(addedCount) bookmark(s) added")
+            } else {
+                appState.showToast("Already bookmarked")
+            }
+        } else {
+            // 否则添加当前光标所在的文件
+            let files = pane.activeTab.files
+            guard pane.cursorIndex < files.count else { return }
+            
+            let file = files[pane.cursorIndex]
+            if bookmarkManager.contains(path: file.path) {
+                appState.showToast("Already bookmarked")
+            } else {
+                bookmarkManager.addBookmark(for: file)
+                appState.showToast("Bookmark added: \(file.name)")
+            }
+        }
     }
     
     private func pasteFiles() {

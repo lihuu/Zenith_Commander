@@ -13,6 +13,7 @@ struct PaneView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject var pane: PaneState
     @ObservedObject private var themeManager = ThemeManager.shared
+    @ObservedObject var bookmarkManager: BookmarkManager
     let side: PaneSide
     
     @State private var permissionDeniedPath: URL? = nil
@@ -299,6 +300,23 @@ struct PaneView: View {
         Button("Open in Terminal") {
             let path = file.type == .folder ? file.path : pane.activeTab.currentPath
             FileSystemService.shared.openInTerminal(path: path)
+        }
+        
+        Divider()
+        
+        // 书签操作
+        if bookmarkManager.contains(path: file.path) {
+            Button("Remove from Bookmarks") {
+                if let bookmark = bookmarkManager.bookmarks.first(where: { $0.path == file.path }) {
+                    bookmarkManager.remove(bookmark)
+                    appState.showToast("Bookmark removed: \(file.name)")
+                }
+            }
+        } else {
+            Button("Add to Bookmarks (⌘B)") {
+                bookmarkManager.addBookmark(for: file)
+                appState.showToast("Bookmark added: \(file.name)")
+            }
         }
         
         Divider()
@@ -643,8 +661,10 @@ struct ViewModeToggle: View {
 
 #Preview {
     let appState = AppState()
-    return PaneView(
+    let bookmarkManager = BookmarkManager()
+    PaneView(
         pane: appState.leftPane,
+        bookmarkManager: bookmarkManager,
         side: .left
     )
     .environmentObject(appState)
