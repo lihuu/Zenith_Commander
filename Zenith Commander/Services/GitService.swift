@@ -143,18 +143,16 @@ class GitService {
     ///   - includeIgnored: 是否包含被忽略文件
     /// - Returns: 文件 URL 到状态的映射
     func getFileStatuses(in directory: URL, includeUntracked: Bool = true, includeIgnored: Bool = false) -> [URL: GitFileStatus] {
-        guard isGitAvailable else { return [:] }
+        guard isGitAvailable else { 
+            return [:] 
+        }
         
         // 检查是否是 Git 仓库
         guard let rootPath = getRepositoryRoot(for: directory) else {
             return [:]
         }
         
-        // 获取相对路径
-        let relativePath = directory.path.replacingOccurrences(of: rootPath.path, with: "")
-            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        
-        // 运行 git status
+        // 运行 git status - 从仓库根目录获取所有状态
         var args = ["status", "--porcelain"]
         
         // 处理未跟踪文件选项
@@ -169,11 +167,8 @@ class GitService {
             args.append("--ignored")
         }
         
-        if !relativePath.isEmpty {
-            args.append(contentsOf: ["--", relativePath])
-        }
-        
-        guard let statusOutput = runGitCommand(args, at: directory) else {
+        // 从仓库根目录运行命令以获取完整路径
+        guard let statusOutput = runGitCommand(args, at: rootPath) else {
             return [:]
         }
         
@@ -185,38 +180,55 @@ class GitService {
             guard line.count >= 3 else { continue }
             
             let statusChars = String(line.prefix(2))
-            let filePath = String(line.dropFirst(3))
+            var filePath = String(line.dropFirst(3))
+            
+            // 移除引号（当路径包含空格时 Git 会添加引号）
+            if filePath.hasPrefix("\"") && filePath.hasSuffix("\"") {
+                filePath = String(filePath.dropFirst().dropLast())
+            }
+            
+            // 处理 Git 的转义序列（如 \303\247 表示 UTF-8 字符）
+            filePath = unescapeGitPath(filePath)
             
             // 获取文件名（处理重命名情况：old -> new）
             let fileName: String
             if filePath.contains(" -> ") {
-                fileName = String(filePath.split(separator: " -> ").last ?? Substring(filePath))
+                var newPath = String(filePath.split(separator: " -> ").last ?? Substring(filePath))
+                // 重命名的新路径也可能有引号
+                if newPath.hasPrefix("\"") && newPath.hasSuffix("\"") {
+                    newPath = String(newPath.dropFirst().dropLast())
+                }
+                fileName = newPath
             } else {
                 fileName = filePath
             }
             
-            // 只处理当前目录下的文件
+            // 构建完整文件路径
             let fileURL = rootPath.appendingPathComponent(fileName)
             let fileDir = fileURL.deletingLastPathComponent()
             
+            // 标准化路径以便比较
+            let normalizedFileDir = fileDir.standardizedFileURL.path
+            let normalizedDirectory = directory.standardizedFileURL.path
+            
             // 检查是否在当前目录或子目录
-            if fileDir.path == directory.path || fileDir.path.hasPrefix(directory.path + "/") {
+            if normalizedFileDir == normalizedDirectory {
+                // 文件直接在当前目录下
+                let status = parseGitStatus(statusChars)
+                statuses[fileURL.standardizedFileURL] = status
+            } else if normalizedFileDir.hasPrefix(normalizedDirectory + "/") {
+                // 文件在子目录中，标记父目录
                 let status = parseGitStatus(statusChars)
                 
-                // 如果文件在子目录，标记目录
-                if fileDir.path != directory.path {
-                    // 获取直接子目录名
-                    let subPath = fileDir.path.replacingOccurrences(of: directory.path + "/", with: "")
-                    let directSubDir = subPath.split(separator: "/").first.map(String.init) ?? ""
-                    if !directSubDir.isEmpty {
-                        let subDirURL = directory.appendingPathComponent(directSubDir)
-                        // 如果目录已有状态且不是 modified，保持原状态
-                        if statuses[subDirURL] == nil || statuses[subDirURL] == .clean {
-                            statuses[subDirURL] = .modified
-                        }
+                // 获取直接子目录
+                let subPath = normalizedFileDir.replacingOccurrences(of: normalizedDirectory + "/", with: "")
+                let directSubDir = subPath.split(separator: "/").first.map(String.init) ?? ""
+                if !directSubDir.isEmpty {
+                    let subDirURL = directory.appendingPathComponent(directSubDir).standardizedFileURL
+                    // 子目录有修改的文件，标记为 modified
+                    if statuses[subDirURL] == nil {
+                        statuses[subDirURL] = .modified
                     }
-                } else {
-                    statuses[fileURL] = status
                 }
             }
         }
@@ -325,6 +337,62 @@ class GitService {
         }
         
         return .clean
+    }
+    
+    /// 解码 Git 的转义路径
+    /// Git 对包含非 ASCII 字符的路径使用八进制转义序列
+    private func unescapeGitPath(_ path: String) -> String {
+        var result = ""
+        var index = path.startIndex
+        
+        while index < path.endIndex {
+            let char = path[index]
+            
+            if char == "\\" {
+                let nextIndex = path.index(after: index)
+                if nextIndex < path.endIndex {
+                    let nextChar = path[nextIndex]
+                    
+                    // 检查是否是八进制序列 (如 \303\247)
+                    if nextChar.isNumber {
+                        // 尝试读取3位八进制数
+                        var octalStr = ""
+                        var octalIndex = nextIndex
+                        while octalIndex < path.endIndex && octalStr.count < 3 {
+                            let c = path[octalIndex]
+                            if c >= "0" && c <= "7" {
+                                octalStr.append(c)
+                                octalIndex = path.index(after: octalIndex)
+                            } else {
+                                break
+                            }
+                        }
+                        
+                        if octalStr.count == 3, let octalValue = UInt8(octalStr, radix: 8) {
+                            result.append(Character(UnicodeScalar(octalValue)))
+                            index = octalIndex
+                            continue
+                        }
+                    }
+                    
+                    // 处理其他转义字符
+                    switch nextChar {
+                    case "n": result.append("\n")
+                    case "t": result.append("\t")
+                    case "\\": result.append("\\")
+                    case "\"": result.append("\"")
+                    default: result.append(char); result.append(nextChar)
+                    }
+                    index = path.index(after: nextIndex)
+                    continue
+                }
+            }
+            
+            result.append(char)
+            index = path.index(after: index)
+        }
+        
+        return result
     }
     
     /// 获取缓存条目

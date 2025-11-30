@@ -34,6 +34,22 @@ struct AppSettings: Codable, Equatable {
             language: AppLanguage.english.rawValue
         )
     }
+    
+    // 自定义解码器，处理旧版设置文件缺少 git 字段的情况
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        appearance = try container.decodeIfPresent(AppearanceSettings.self, forKey: .appearance) ?? .default
+        terminal = try container.decodeIfPresent(TerminalSettings.self, forKey: .terminal) ?? .default
+        git = try container.decodeIfPresent(GitSettings.self, forKey: .git) ?? .default
+        language = try container.decodeIfPresent(String.self, forKey: .language) ?? AppLanguage.english.rawValue
+    }
+    
+    init(appearance: AppearanceSettings, terminal: TerminalSettings, git: GitSettings, language: String) {
+        self.appearance = appearance
+        self.terminal = terminal
+        self.git = git
+        self.language = language
+    }
 }
 
 /// Git 设置

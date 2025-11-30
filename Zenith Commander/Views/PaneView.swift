@@ -457,12 +457,13 @@ struct PaneView: View {
                             includeIgnored: gitSettings.showIgnoredFiles
                         )
                         
-                        // 应用状态到文件
+                        // 应用状态到文件（使用标准化路径比较）
                         for index in files.indices {
-                            if let status = statusDict[files[index].path] {
+                            let standardizedPath = files[index].path.standardizedFileURL
+                            if let status = statusDict[standardizedPath] {
                                 files[index] = files[index].withGitStatus(status)
                             } else if files[index].type == .folder {
-                                let folderPath = files[index].path.path + "/"
+                                let folderPath = standardizedPath.path + "/"
                                 let hasModifiedChildren = statusDict.keys.contains { key in
                                     key.path.hasPrefix(folderPath)
                                 }
@@ -569,12 +570,14 @@ struct PaneView: View {
         
         // 应用状态到文件
         for index in files.indices {
-            if let status = statusDict[files[index].path] {
+            // 使用标准化路径进行比较
+            let standardizedPath = files[index].path.standardizedFileURL
+            if let status = statusDict[standardizedPath] {
                 files[index] = files[index].withGitStatus(status)
             } else {
                 // 文件可能在子目录中有修改（对于目录项）
                 if files[index].type == .folder {
-                    let folderPath = files[index].path.path + "/"
+                    let folderPath = standardizedPath.path + "/"
                     let hasModifiedChildren = statusDict.keys.contains { key in
                         key.path.hasPrefix(folderPath)
                     }
