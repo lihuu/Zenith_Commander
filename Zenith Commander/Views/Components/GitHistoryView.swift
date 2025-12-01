@@ -139,7 +139,7 @@ struct GitHistoryPanelView: View {
                 }
             }
         }
-        .drawingGroup() // 使用 Metal 渲染提升滚动性能
+
     }
 }
 
@@ -239,7 +239,7 @@ struct ResizableBottomPanel<Content: View>: View {
                 content()
                     .frame(height: displayHeight)
             }
-            .drawingGroup() // 使用 Metal 渲染提升性能
+
             .transition(.move(edge: .bottom).combined(with: .opacity))
         }
     }
