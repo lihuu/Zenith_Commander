@@ -16,6 +16,7 @@ struct MainView: View {
     @State private var showSettings = false
     @State private var showHelp = false  // 帮助视图显示状态
     @State private var showBookmarkBar = true  // 书签栏显示状态
+    @State private var gitHistoryPanelHeight: CGFloat = 250 // Git 历史面板高度（本地状态，避免触发全局刷新）
 
     var body: some View {
         VStack(spacing: 0) {
@@ -59,7 +60,7 @@ struct MainView: View {
                     if appState.showGitHistory {
                         
                         ResizableBottomPanel(
-                            height: $appState.gitHistoryPanelHeight,
+                            height: $gitHistoryPanelHeight,
                             isVisible: $appState.showGitHistory,
                             minHeight: 100,
                             maxHeight: geometry.size.height * 0.6
@@ -69,7 +70,6 @@ struct MainView: View {
                                 commits: appState.gitHistoryCommits,
                                 isLoading: appState.gitHistoryLoading,
                                 onClose: {
-                                    Logger.git.debug("Close button clicked")
                                     withAnimation(.easeInOut(duration: 0.2)) {
                                         appState.closeGitHistory()
                                     }
@@ -1345,7 +1345,7 @@ struct MainView: View {
         formatter.dateFormat = "yyyyMMdd"
         let dateString = formatter.string(from: Date())
 
-        var processedReplace =
+        let processedReplace =
             replaceText
             .replacingOccurrences(
                 of: "{n}",

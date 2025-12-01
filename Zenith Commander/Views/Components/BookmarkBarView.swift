@@ -85,6 +85,7 @@ struct BookmarkBarView: View {
             .help(isEditing ? "完成编辑" : "编辑书签")
         }
         .frame(height: 28)
+        .background(WindowDragHandle())
         .background(Theme.backgroundSecondary.opacity(0.5))
     }
 }

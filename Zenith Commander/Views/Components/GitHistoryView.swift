@@ -123,6 +123,7 @@ struct GitHistoryPanelView: View {
                         isSelected: selectedCommitId == commit.id,
                         isHovered: hoveredCommitId == commit.id
                     )
+                    .equatable()
                     .onTapGesture {
                         selectedCommitId = commit.id
                         onCommitSelected(commit)
@@ -138,15 +139,23 @@ struct GitHistoryPanelView: View {
                 }
             }
         }
+        .drawingGroup() // 使用 Metal 渲染提升滚动性能
     }
 }
 
 // MARK: - Commit Row View
 
-struct GitCommitRowView: View {
+/// 优化的 Git Commit 行视图 - 使用 Equatable 减少重绘
+struct GitCommitRowView: View, Equatable {
     let commit: GitCommit
     let isSelected: Bool
     let isHovered: Bool
+    
+    static func == (lhs: GitCommitRowView, rhs: GitCommitRowView) -> Bool {
+        lhs.commit.id == rhs.commit.id &&
+        lhs.isSelected == rhs.isSelected &&
+        lhs.isHovered == rhs.isHovered
+    }
     
     var body: some View {
         HStack(spacing: 10) {
@@ -202,7 +211,7 @@ struct GitCommitRowView: View {
 
 // MARK: - Resizable Panel Container
 
-/// 可调整大小的底部面板容器
+/// 可调整大小的底部面板容器 - 优化拖动性能
 struct ResizableBottomPanel<Content: View>: View {
     @Binding var height: CGFloat
     @Binding var isVisible: Bool
@@ -211,6 +220,14 @@ struct ResizableBottomPanel<Content: View>: View {
     let content: () -> Content
     
     @State private var isDragging = false
+    @State private var dragOffset: CGFloat = 0
+    @GestureState private var dragState: CGFloat = 0
+    
+    // 计算实际显示高度：基础高度 + 拖动偏移
+    private var displayHeight: CGFloat {
+        let newHeight = height - dragState
+        return min(max(newHeight, minHeight), maxHeight)
+    }
     
     var body: some View {
         if isVisible {
@@ -218,10 +235,11 @@ struct ResizableBottomPanel<Content: View>: View {
                 // 拖动手柄
                 dragHandle
                 
-                // 内容
+                // 内容 - 使用 displayHeight 实现流畅拖动
                 content()
-                    .frame(height: height)
+                    .frame(height: displayHeight)
             }
+            .drawingGroup() // 使用 Metal 渲染提升性能
             .transition(.move(edge: .bottom).combined(with: .opacity))
         }
     }
@@ -239,13 +257,19 @@ struct ResizableBottomPanel<Content: View>: View {
             .frame(height: 12)
             .contentShape(Rectangle())
             .gesture(
-                DragGesture()
-                    .onChanged { value in
-                        isDragging = true
+                DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                    .updating($dragState) { value, state, _ in
+                        state = value.translation.height
+                    }
+                    .onChanged { _ in
+                        if !isDragging {
+                            isDragging = true
+                        }
+                    }
+                    .onEnded { value in
+                        // 拖动结束时更新实际高度
                         let newHeight = height - value.translation.height
                         height = min(max(newHeight, minHeight), maxHeight)
-                    }
-                    .onEnded { _ in
                         isDragging = false
                     }
             )

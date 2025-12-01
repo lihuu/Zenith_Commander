@@ -278,7 +278,6 @@ class AppState: ObservableObject {
     @Published var gitHistoryFile: FileItem?
     @Published var gitHistoryCommits: [GitCommit] = []
     @Published var gitHistoryLoading: Bool = false
-    @Published var gitHistoryPanelHeight: CGFloat = 200
     
     // MARK: - 右键菜单状态
     @Published var contextMenuPosition: CGPoint?

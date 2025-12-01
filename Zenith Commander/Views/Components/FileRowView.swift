@@ -7,7 +7,8 @@
 
 import SwiftUI
 
-struct FileRowView: View {
+/// 优化的文件行视图 - 使用 Equatable 减少不必要的重绘
+struct FileRowView: View, Equatable {
     @ObservedObject private var themeManager = ThemeManager.shared
     @ObservedObject private var settingsManager = SettingsManager.shared
     
@@ -15,6 +16,16 @@ struct FileRowView: View {
     let isActive: Bool       // 光标所在
     let isSelected: Bool     // 被选中
     let isPaneActive: Bool   // 面板是否激活
+    
+    // 实现 Equatable 以优化重绘
+    static func == (lhs: FileRowView, rhs: FileRowView) -> Bool {
+        lhs.file.id == rhs.file.id &&
+        lhs.file.name == rhs.file.name &&
+        lhs.file.gitStatus == rhs.file.gitStatus &&
+        lhs.isActive == rhs.isActive &&
+        lhs.isSelected == rhs.isSelected &&
+        lhs.isPaneActive == rhs.isPaneActive
+    }
     
     // 基于设置的字体大小计算
     private var baseFontSize: CGFloat {
