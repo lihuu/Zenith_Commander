@@ -20,6 +20,7 @@ struct GitHistoryPanelView: View {
     
     @State private var selectedCommitId: String?
     @State private var hoveredCommitId: String?
+    @State private var showingCommitDetail: GitCommit?
     
     var body: some View {
         
@@ -39,6 +40,9 @@ struct GitHistoryPanelView: View {
             }
         }
         .background(Theme.background)
+        .sheet(item: $showingCommitDetail) { commit in
+            GitCommitDetailView(commit: commit)
+        }
         .onAppear {
             Logger.git.info("GitHistoryPanelView appeared - fileName: \(fileName, privacy: .public), commits: \(commits.count)")
         }
@@ -127,6 +131,7 @@ struct GitHistoryPanelView: View {
                     .onTapGesture {
                         selectedCommitId = commit.id
                         onCommitSelected(commit)
+                        showingCommitDetail = commit
                     }
                     .onHover { isHovered in
                         hoveredCommitId = isHovered ? commit.id : nil
@@ -140,6 +145,93 @@ struct GitHistoryPanelView: View {
             }
         }
 
+    }
+}
+
+// MARK: - Commit Detail View
+
+/// Git 提交详情视图
+struct GitCommitDetailView: View {
+    let commit: GitCommit
+    @Environment(\.presentationMode) var presentationMode
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // 标题栏
+            HStack {
+                Text(L(.gitCommitDetails))
+                    .font(.headline)
+                    .foregroundColor(Theme.textPrimary)
+                
+                Spacer()
+                
+                Button(action: {
+                    presentationMode.wrappedValue.dismiss()
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(Theme.textSecondary)
+                        .font(.system(size: 16))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding()
+            .background(Theme.backgroundSecondary)
+            
+            Divider()
+            
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    // 基本信息
+                    Group {
+                        detailRow(icon: "number", title: L(.gitCommitHash), value: commit.id)
+                        detailRow(icon: "person", title: L(.gitCommitAuthor), value: "\(commit.author) <\(commit.authorEmail)>")
+                        detailRow(icon: "calendar", title: L(.gitCommitDate), value: commit.formattedDate)
+                        if !commit.parentHashes.isEmpty {
+                            detailRow(icon: "arrow.turn.up.left", title: L(.gitCommitParent), value: commit.parentHashes.joined(separator: ", "))
+                        }
+                    }
+                    
+                    Divider()
+                    
+                    // 提交信息
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label(L(.gitCommitMessage), systemImage: "text.alignleft")
+                            .font(.subheadline)
+                            .foregroundColor(Theme.textSecondary)
+                        
+                        Text(commit.fullMessage)
+                            .font(.system(.body, design: .monospaced))
+                            .foregroundColor(Theme.textPrimary)
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Theme.backgroundSecondary.opacity(0.5))
+                            .cornerRadius(8)
+                    }
+                }
+                .padding()
+            }
+        }
+        .frame(width: 500, height: 400)
+        .background(Theme.background)
+    }
+    
+    private func detailRow(icon: String, title: String, value: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .frame(width: 20)
+                .foregroundColor(Theme.textTertiary)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundColor(Theme.textSecondary)
+                
+                Text(value)
+                    .font(.system(.body, design: .monospaced))
+                    .foregroundColor(Theme.textPrimary)
+                    .textSelection(.enabled)
+            }
+        }
     }
 }
 
