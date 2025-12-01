@@ -122,20 +122,7 @@ struct GitHistoryPanelView: View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 ForEach(commits) { commit in
-                    GitCommitRowView(
-                        commit: commit,
-                        isSelected: selectedCommitId == commit.id,
-                        isHovered: hoveredCommitId == commit.id
-                    )
-                    .equatable()
-                    .onTapGesture {
-                        selectedCommitId = commit.id
-                        onCommitSelected(commit)
-                        showingCommitDetail = commit
-                    }
-                    .onHover { isHovered in
-                        hoveredCommitId = isHovered ? commit.id : nil
-                    }
+                    makeCommitRow(for: commit)
                     
                     if commit.id != commits.last?.id {
                         Divider()
@@ -144,7 +131,34 @@ struct GitHistoryPanelView: View {
                 }
             }
         }
-
+    }
+    
+    @ViewBuilder
+    private func makeCommitRow(for commit: GitCommit) -> some View {
+        GitCommitRowView(
+            commit: commit,
+            isSelected: selectedCommitId == commit.id,
+            isHovered: hoveredCommitId == commit.id
+        )
+        .equatable()
+        .onTapGesture {
+            selectedCommitId = commit.id
+            onCommitSelected(commit)
+        }
+        .contextMenu {
+            Button(L(.gitShowDetails)) {
+                showingCommitDetail = commit
+            }
+            
+            Button(L(.gitCopyHash)) {
+                let pasteboard = NSPasteboard.general
+                pasteboard.clearContents()
+                pasteboard.setString(commit.id, forType: .string)
+            }
+        }
+        .onHover { isHovered in
+            hoveredCommitId = isHovered ? commit.id : nil
+        }
     }
 }
 

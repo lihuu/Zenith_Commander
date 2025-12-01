@@ -295,6 +295,8 @@ enum LocalizedStringKey: String, CaseIterable {
     case gitCommitDate
     case gitCommitMessage
     case gitCommitParent
+    case gitShowDetails
+    case gitCopyHash
     
     // MARK: - 错误消息
     case errorFileNotFound
@@ -410,6 +412,8 @@ class LocalizedStrings {
             .gitCommitDate: "Date",
             .gitCommitMessage: "Message",
             .gitCommitParent: "Parent",
+            .gitShowDetails: "Show Details",
+            .gitCopyHash: "Copy Hash",
             
             // 帮助页面
             .help: "Help",
@@ -612,8 +616,10 @@ class LocalizedStrings {
             .gitCommitHash: "提交哈希",
             .gitCommitAuthor: "作者",
             .gitCommitDate: "日期",
-            .gitCommitMessage: "消息",
+            .gitCommitMessage: "提交信息",
             .gitCommitParent: "父提交",
+            .gitShowDetails: "显示详情",
+            .gitCopyHash: "复制哈希",
             
             // 帮助页面
             .help: "帮助",
