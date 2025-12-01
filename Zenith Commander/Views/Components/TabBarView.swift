@@ -48,8 +48,11 @@ struct TabBarView: View {
                     NSCursor.pop()
                 }
             }
+            
+            Spacer()
         }
         .frame(height: 28)
+        .background(WindowDragHandle())
         .background(Theme.backgroundSecondary)
         .opacity(isActivePane ? 1.0 : 0.7)
     }

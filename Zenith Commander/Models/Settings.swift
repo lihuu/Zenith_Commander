@@ -19,11 +19,56 @@ struct AppSettings: Codable, Equatable {
     /// 终端设置
     var terminal: TerminalSettings
     
+    /// Git 设置
+    var git: GitSettings
+    
+    /// 语言设置
+    var language: String
+    
     /// 默认设置
     static var `default`: AppSettings {
         AppSettings(
             appearance: .default,
-            terminal: .default
+            terminal: .default,
+            git: .default,
+            language: AppLanguage.english.rawValue
+        )
+    }
+    
+    // 自定义解码器，处理旧版设置文件缺少 git 字段的情况
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        appearance = try container.decodeIfPresent(AppearanceSettings.self, forKey: .appearance) ?? .default
+        terminal = try container.decodeIfPresent(TerminalSettings.self, forKey: .terminal) ?? .default
+        git = try container.decodeIfPresent(GitSettings.self, forKey: .git) ?? .default
+        language = try container.decodeIfPresent(String.self, forKey: .language) ?? AppLanguage.english.rawValue
+    }
+    
+    init(appearance: AppearanceSettings, terminal: TerminalSettings, git: GitSettings, language: String) {
+        self.appearance = appearance
+        self.terminal = terminal
+        self.git = git
+        self.language = language
+    }
+}
+
+/// Git 设置
+struct GitSettings: Codable, Equatable {
+    /// 是否启用 Git 集成
+    var enabled: Bool
+    
+    /// 是否显示未追踪文件
+    var showUntrackedFiles: Bool
+    
+    /// 是否显示被忽略文件的状态
+    var showIgnoredFiles: Bool
+    
+    /// 默认设置
+    static var `default`: GitSettings {
+        GitSettings(
+            enabled: true,
+            showUntrackedFiles: true,
+            showIgnoredFiles: false
         )
     }
 }
@@ -160,6 +205,11 @@ class SettingsManager: ObservableObject {
         // 应用主题 - 使用异步更新避免在视图更新期间修改 @Published 属性
         DispatchQueue.main.async {
             ThemeManager.shared.mode = self.settings.appearance.themeModeEnum
+            
+            // 应用语言设置
+            if let language = AppLanguage(rawValue: self.settings.language) {
+                LocalizationManager.shared.setLanguage(language)
+            }
         }
     }
     

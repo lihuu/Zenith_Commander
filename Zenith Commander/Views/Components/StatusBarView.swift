@@ -15,12 +15,18 @@ struct StatusBarView: View {
     let driveName: String
     let itemCount: Int
     let selectedCount: Int
+    var gitInfo: GitRepositoryInfo? = nil
     var onDriveClick: (() -> Void)? = nil
     
     var body: some View {
         HStack(spacing: 8) {
             // 模式指示器
             ModeIndicator(mode: mode)
+            
+            // Git 分支信息
+            if let gitInfo = gitInfo, gitInfo.isGitRepository {
+                GitBranchIndicator(gitInfo: gitInfo)
+            }
             
             // 状态文本 - 驱动器名称可点击
             statusContent
@@ -143,6 +149,55 @@ struct ModeIndicator: View {
             .accessibilityLabel(mode.rawValue)
             .accessibilityValue(mode.rawValue)
             .accessibilityIdentifier("mode_indicator")
+    }
+}
+
+/// Git 分支指示器
+struct GitBranchIndicator: View {
+    let gitInfo: GitRepositoryInfo
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            // 分支图标
+            Image(systemName: "arrow.triangle.branch")
+                .font(.system(size: 9, weight: .medium))
+                .foregroundColor(branchColor)
+            
+            // 分支名
+            if let branch = gitInfo.branchDisplayText {
+                Text(branch)
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .foregroundColor(branchColor)
+                    .lineLimit(1)
+            }
+            
+            // ahead/behind 状态
+            if let syncStatus = gitInfo.syncStatusText {
+                Text(syncStatus)
+                    .font(.system(size: 9, weight: .medium, design: .monospaced))
+                    .foregroundColor(Theme.textTertiary)
+            }
+            
+            // 未提交更改标记
+            if gitInfo.hasUncommittedChanges {
+                Circle()
+                    .fill(Color.orange)
+                    .frame(width: 5, height: 5)
+            }
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(Theme.backgroundTertiary)
+        .cornerRadius(3)
+        .accessibilityLabel("Git branch: \(gitInfo.branchDisplayText ?? "unknown")")
+        .accessibilityIdentifier("git_branch_indicator")
+    }
+    
+    private var branchColor: Color {
+        if gitInfo.isDetachedHead {
+            return .orange
+        }
+        return Theme.accent
     }
 }
 

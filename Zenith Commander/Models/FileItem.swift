@@ -29,6 +29,16 @@ struct FileItem: Identifiable, Hashable {
     let permissions: String
     let fileExtension: String
     
+    /// Git 状态（可选）
+    var gitStatus: GitFileStatus = .clean
+    
+    /// 创建带有 Git 状态的副本
+    func withGitStatus(_ status: GitFileStatus?) -> FileItem {
+        var copy = self
+        copy.gitStatus = status ?? .clean
+        return copy
+    }
+    
     /// 格式化的文件大小
     var formattedSize: String {
         if type == .folder {
@@ -105,6 +115,14 @@ struct FileItem: Identifiable, Hashable {
     static func fromURL(_ url: URL) -> FileItem? {
         let fileManager = FileManager.default
         
+        // Start accessing security scoped resource if needed
+        let isSecured = url.startAccessingSecurityScopedResource()
+        defer {
+            if isSecured {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+        
         guard let attributes = try? fileManager.attributesOfItem(atPath: url.path) else {
             return nil
         }
@@ -135,7 +153,7 @@ struct FileItem: Identifiable, Hashable {
         let isHidden = name.hasPrefix(".")
         
         return FileItem(
-            id: url.path,
+            id: url.path, // Ensure stable ID using path
             name: name,
             path: url,
             type: fileType,

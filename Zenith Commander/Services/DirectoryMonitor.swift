@@ -104,7 +104,6 @@ class FSEventsDirectoryMonitor {
         // 启动流
         if FSEventStreamStart(stream) {
             isMonitoring = true
-            Logger.monitor.debug("FSEventsDirectoryMonitor: Started monitoring: \(self.paths)")
         } else {
             Logger.monitor.error("FSEventsDirectoryMonitor: Failed to start event stream")
             FSEventStreamInvalidate(stream)
@@ -127,7 +126,6 @@ class FSEventsDirectoryMonitor {
         
         isMonitoring = false
         onChange = nil
-        Logger.monitor.debug("FSEventsDirectoryMonitor: Stopped monitoring")
     }
     
     // MARK: - Private Methods
@@ -252,8 +250,6 @@ class DirectoryMonitor {
         // 开始监控
         source?.resume()
         isMonitoring = true
-        
-        Logger.monitor.debug("DirectoryMonitor: Started monitoring: \(self.url.path)")
     }
     
     /// 停止监控
@@ -268,8 +264,6 @@ class DirectoryMonitor {
         
         isMonitoring = false
         onChange = nil
-        
-        Logger.monitor.debug("DirectoryMonitor: Stopped monitoring")
     }
     
     // MARK: - Private Methods

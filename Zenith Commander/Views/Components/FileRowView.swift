@@ -7,7 +7,8 @@
 
 import SwiftUI
 
-struct FileRowView: View {
+/// 优化的文件行视图 - 使用 Equatable 减少不必要的重绘
+struct FileRowView: View, Equatable {
     @ObservedObject private var themeManager = ThemeManager.shared
     @ObservedObject private var settingsManager = SettingsManager.shared
     
@@ -15,6 +16,16 @@ struct FileRowView: View {
     let isActive: Bool       // 光标所在
     let isSelected: Bool     // 被选中
     let isPaneActive: Bool   // 面板是否激活
+    
+    // 实现 Equatable 以优化重绘
+    static func == (lhs: FileRowView, rhs: FileRowView) -> Bool {
+        lhs.file.id == rhs.file.id &&
+        lhs.file.name == rhs.file.name &&
+        lhs.file.gitStatus == rhs.file.gitStatus &&
+        lhs.isActive == rhs.isActive &&
+        lhs.isSelected == rhs.isSelected &&
+        lhs.isPaneActive == rhs.isPaneActive
+    }
     
     // 基于设置的字体大小计算
     private var baseFontSize: CGFloat {
@@ -40,11 +51,15 @@ struct FileRowView: View {
     
     var body: some View {
         HStack(spacing: 8) {
-            // 文件图标
-            Image(systemName: file.iconName)
-                .font(.system(size: iconSize, weight: .regular))
-                .foregroundColor(iconColor)
-                .frame(width: baseFontSize + 4)
+            // 文件图标 (异步加载)
+            AsyncIconView(
+                url: file.path,
+                type: file.type,
+                iconName: file.iconName,
+                size: baseFontSize + 4
+            )
+            .foregroundColor(iconColor) // Apply color to fallback SF Symbol
+            .frame(width: baseFontSize + 4, height: baseFontSize + 4)
             
             // 文件名
             Text(file.name)
@@ -52,6 +67,14 @@ struct FileRowView: View {
                 .foregroundColor(textColor)
                 .lineLimit(1)
                 .truncationMode(.middle)
+            
+            // Git 状态标记
+            if file.gitStatus.shouldDisplay {
+                Text(file.gitStatus.displayText)
+                    .font(.system(size: detailSize, weight: .bold, design: .monospaced))
+                    .foregroundColor(file.gitStatus.color)
+                    .frame(width: 16)
+            }
             
             Spacer()
             
@@ -162,10 +185,14 @@ struct FileGridItemView: View {
     var body: some View {
         VStack(spacing: 6) {
             // 图标
-            Image(systemName: file.iconName)
-                .font(.system(size: 32, weight: .light))
-                .foregroundColor(iconColor)
-                .frame(width: 48, height: 48)
+            AsyncIconView(
+                url: file.path,
+                type: file.type,
+                iconName: file.iconName,
+                size: 48
+            )
+            .foregroundColor(iconColor)
+            .frame(width: 48, height: 48)
             
             // 文件名
             Text(file.name)
