@@ -20,7 +20,7 @@ struct PaneView: View {
     
     @State private var permissionDeniedPath: URL? = nil
     @State private var showPermissionError: Bool = false
-    @State private var directoryMonitor: FSEventsDirectoryMonitor? = nil
+    @State private var directoryMonitor: DispatchSourceDirectoryMonitor? = nil
     
     var isActivePane: Bool {
         appState.activePane == side
@@ -458,56 +458,99 @@ struct PaneView: View {
         let paneRef = pane
         let settingsRef = settingsManager
         
-        // 使用 FSEvents 监控器（推荐方案，更可靠）
-        let monitor = FSEventsDirectoryMonitor(url: currentPath)
-        monitor.start {
-            // 目录变化时自动刷新
-            Task {
-                let result = await FileSystemService.shared.loadDirectoryWithPermissionCheck(at: paneRef.activeTab.currentPath)
-                
-                await MainActor.run {
-                    if case .success(var files) = result {
-                        // 获取 Git 状态（如果启用）
-                        if settingsRef.settings.git.enabled {
-                            let gitSettings = settingsRef.settings.git
-                            let gitService = GitService.shared
-                            
-                            // 获取仓库信息
-                            let repoInfo = gitService.getRepositoryInfo(at: currentPath)
-                            
-                            if repoInfo.isGitRepository {
-                                // 获取文件状态
-                                let statusDict = gitService.getFileStatuses(
-                                    in: currentPath,
-                                    includeUntracked: gitSettings.showUntrackedFiles,
-                                    includeIgnored: gitSettings.showIgnoredFiles
-                                )
+        // 使用 DispatchSource 监控器（轻量级方案）
+        let monitor = DispatchSourceDirectoryMonitor(url: currentPath)
+        monitor.start(
+            onChange: {
+                // 目录变化时自动刷新
+                Task {
+                    Logger.fileSystem.info("Directory change detected at path: \(currentPath.path, privacy: .public). Reloading directory.")
+                    let result = await FileSystemService.shared.loadDirectoryWithPermissionCheck(at: paneRef.activeTab.currentPath)
+                    
+                    await MainActor.run {
+                        if case .success(var files) = result {
+                            // 获取 Git 状态（如果启用）
+                            if settingsRef.settings.git.enabled {
+                                Logger.git.info("Directory change detected at path: \(currentPath.path, privacy: .public). Refreshing Git status.")
+                                let gitSettings = settingsRef.settings.git
+                                let gitService = GitService.shared
                                 
-                                // 应用状态到文件（使用标准化路径比较）
-                                for index in files.indices {
-                                    let standardizedPath = files[index].path.standardizedFileURL
-                                    if let status = statusDict[standardizedPath] {
-                                        files[index] = files[index].withGitStatus(status)
-                                    } else if files[index].type == .folder {
-                                        let folderPath = standardizedPath.path + "/"
-                                        let hasModifiedChildren = statusDict.keys.contains { key in
-                                            key.path.hasPrefix(folderPath)
-                                        }
-                                        if hasModifiedChildren {
-                                            files[index] = files[index].withGitStatus(.modified)
+                                // 获取仓库信息
+                                let repoInfo = gitService.getRepositoryInfo(at: currentPath)
+                                
+                                if repoInfo.isGitRepository {
+                                    // 获取文件状态
+                                    let statusDict = gitService.getFileStatuses(
+                                        in: currentPath,
+                                        includeUntracked: gitSettings.showUntrackedFiles,
+                                        includeIgnored: gitSettings.showIgnoredFiles
+                                    )
+                                    
+                                    // 应用状态到文件（使用标准化路径比较）
+                                    for index in files.indices {
+                                        let standardizedPath = files[index].path.standardizedFileURL
+                                        if let status = statusDict[standardizedPath] {
+                                            files[index] = files[index].withGitStatus(status)
+                                        } else if files[index].type == .folder {
+                                            let folderPath = standardizedPath.path + "/"
+                                            let hasModifiedChildren = statusDict.keys.contains { key in
+                                                key.path.hasPrefix(folderPath)
+                                            }
+                                            if hasModifiedChildren {
+                                                files[index] = files[index].withGitStatus(.modified)
+                                            }
                                         }
                                     }
+                                    
+                                    paneRef.gitInfo = repoInfo
                                 }
-                                
-                                paneRef.gitInfo = repoInfo
+                            }
+                            
+                            paneRef.activeTab.files = files
+                        }
+                    }
+                }
+            },
+            onDirectoryInvalidated: {
+                // 目录被删除/移动/重命名时，导航到父目录
+                Logger.monitor.warning("Directory invalidated, navigating to parent: \(currentPath.path, privacy: .public)")
+                
+                let parentPath = currentPath.deletingLastPathComponent()
+                
+                // 检查父目录是否存在，如果不存在则导航到用户主目录
+                var isDir: ObjCBool = false
+                let parentExists = FileManager.default.fileExists(atPath: parentPath.path, isDirectory: &isDir)
+                
+                if parentExists && isDir.boolValue {
+                    paneRef.activeTab.currentPath = parentPath
+                    paneRef.cursorIndex = 0
+                    paneRef.clearSelections()
+                    // 重新加载目录
+                    Task {
+                        let result = await FileSystemService.shared.loadDirectoryWithPermissionCheck(at: parentPath)
+                        await MainActor.run {
+                            if case .success(let files) = result {
+                                paneRef.activeTab.files = files
                             }
                         }
-                        
-                        paneRef.activeTab.files = files
+                    }
+                } else {
+                    // 父目录也不存在，导航到用户主目录
+                    let homeDir = FileManager.default.homeDirectoryForCurrentUser
+                    paneRef.activeTab.currentPath = homeDir
+                    paneRef.cursorIndex = 0
+                    paneRef.clearSelections()
+                    Task {
+                        let result = await FileSystemService.shared.loadDirectoryWithPermissionCheck(at: homeDir)
+                        await MainActor.run {
+                            if case .success(let files) = result {
+                                paneRef.activeTab.files = files
+                            }
+                        }
                     }
                 }
             }
-        }
+        )
         
         directoryMonitor = monitor
     }

@@ -19,7 +19,7 @@ Zenith Commander - 验收测试清单 (Acceptance Checklist)
 
       文件导航 (Normal Mode)
 
-    - [x ] j / ↓: 光标向下移动一行（到底部停止或循环，需符合 Finder 习惯）。
+    - [x] j / ↓: 光标向下移动一行（到底部停止或循环，需符合 Finder 习惯）。
     - [x] k / ↑: 光标向上移动一行。
     - [x] l / Enter / 双击文件夹: 进入当前选中的目录。
     - [x] h / Backspace: 返回上一级目录（在根目录时提示无法返回）。
