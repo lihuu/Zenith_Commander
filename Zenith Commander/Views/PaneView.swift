@@ -173,7 +173,6 @@ struct PaneView: View {
                         .contextMenu {
                             fileContextMenu(file: file)
                         }
-                        .transition(.opacity.combined(with: .scale(scale: 0.98)))
                     }
                     
                     if pane.activeTab.files.isEmpty {
@@ -189,7 +188,6 @@ struct PaneView: View {
                             directoryContextMenu
                         }
                 }
-                .animation(.easeInOut(duration: 0.15), value: pane.activeTab.files.map(\.id))
             }
             .onChange(of: pane.activeTab.cursorFileId) { _, newValue in
                 withAnimation(.easeInOut(duration: 0.1)) {
@@ -236,11 +234,9 @@ struct PaneView: View {
                             .contextMenu {
                                 fileContextMenu(file: file)
                             }
-                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
                         }
                     }
                     .padding(gridPadding)
-                    .animation(.easeInOut(duration: 0.15), value: pane.activeTab.files.map(\.id))
                     
                     if pane.activeTab.files.isEmpty {
                         emptyDirectoryView
