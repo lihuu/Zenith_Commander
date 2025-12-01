@@ -154,6 +154,7 @@ struct ModeIndicator: View {
 
 /// Git 分支指示器
 struct GitBranchIndicator: View {
+    @ObservedObject private var themeManager = ThemeManager.shared
     let gitInfo: GitRepositoryInfo
     
     var body: some View {

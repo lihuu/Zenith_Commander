@@ -344,7 +344,7 @@ struct PaneView: View {
         }
         
         // Git History 选项 - 仅在 Git 仓库中且非文件夹时显示
-        if pane.gitInfo?.isGitRepository == true && file.type != .folder {
+        if settingsManager.settings.git.enabled && pane.gitInfo?.isGitRepository == true && file.type != .folder {
             Divider()
             
             Button(LocalizationManager.shared.localized(.gitShowHistory)) {
@@ -399,7 +399,7 @@ struct PaneView: View {
         }
         
         // Git History 选项 - 仅在 Git 仓库中显示
-        if pane.gitInfo?.isGitRepository == true {
+        if settingsManager.settings.git.enabled && pane.gitInfo?.isGitRepository == true {
             Divider()
             
             Button(LocalizationManager.shared.localized(.gitRepoHistory)) {
