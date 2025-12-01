@@ -59,6 +59,16 @@ struct BookmarkItem: Identifiable, Codable, Equatable {
     static func from(fileItem: FileItem) -> BookmarkItem {
         let type: BookmarkType = fileItem.type == .folder ? .folder : .file
         
+        // 如果是父目录项 (..)，使用实际的目录名和标准文件夹图标
+        if fileItem.isParentDirectory {
+            return BookmarkItem(
+                name: fileItem.path.lastPathComponent,
+                path: fileItem.path,
+                type: type,
+                iconName: "folder.fill"
+            )
+        }
+        
         return BookmarkItem(
             name: fileItem.name,
             path: fileItem.path,

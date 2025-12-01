@@ -425,7 +425,7 @@ class GitService {
                 statuses[fileURL.standardizedFileURL] = status
             } else if normalizedFileDir.hasPrefix(normalizedDirectory + "/") {
                 // 文件在子目录中，标记父目录
-                let status = parseGitStatus(statusChars)
+                let _ = parseGitStatus(statusChars)
                 
                 // 获取直接子目录
                 let subPath = normalizedFileDir.replacingOccurrences(of: normalizedDirectory + "/", with: "")

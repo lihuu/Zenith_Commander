@@ -854,24 +854,10 @@ struct MainView: View {
                     appState.showToast("Navigated to \(bookmark.name)")
                 }
             } else {
-                // 如果是文件，导航到其父目录并选中该文件
-                let parentPath = bookmark.path.deletingLastPathComponent()
-                pane.activeTab.currentPath = parentPath
-                let files = await FileSystemService.shared.loadDirectory(at: parentPath)
-                
+                // 如果是文件，直接使用默认应用打开
                 await MainActor.run {
-                    pane.activeTab.files = files
-                    
-                    // 查找并选中该文件
-                    if let index = files.firstIndex(where: { $0.path == bookmark.path })
-                    {
-                        pane.cursorIndex = index
-                    } else {
-                        pane.cursorIndex = 0
-                    }
-                    
-                    pane.objectWillChange.send()
-                    appState.showToast("Navigated to \(bookmark.name)")
+                    NSWorkspace.shared.open(bookmark.path)
+                    appState.showToast("Opening \(bookmark.name)...")
                 }
             }
         }

@@ -22,7 +22,7 @@ import os.log
 extension Logger {
     
     /// 子系统标识符（使用 Bundle ID）
-    private static let subsystem = Bundle.main.bundleIdentifier ?? "com.zenithcommander"
+    private static let subsystem = "com.zenithcommander"
     
     // MARK: - 日志类别
     

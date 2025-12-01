@@ -230,7 +230,7 @@ struct BatchRenameView: View {
         formatter.dateFormat = "yyyyMMdd"
         let dateString = formatter.string(from: Date())
         
-        var processedReplace = replaceText
+        let processedReplace = replaceText
             .replacingOccurrences(of: "{n}", with: String(format: "%03d", index + 1))
             .replacingOccurrences(of: "{date}", with: dateString)
         
