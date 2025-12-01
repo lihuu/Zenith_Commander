@@ -51,11 +51,15 @@ struct FileRowView: View, Equatable {
     
     var body: some View {
         HStack(spacing: 8) {
-            // 文件图标
-            Image(systemName: file.iconName)
-                .font(.system(size: iconSize, weight: .regular))
-                .foregroundColor(iconColor)
-                .frame(width: baseFontSize + 4)
+            // 文件图标 (异步加载)
+            AsyncIconView(
+                url: file.path,
+                type: file.type,
+                iconName: file.iconName,
+                size: baseFontSize + 4
+            )
+            .foregroundColor(iconColor) // Apply color to fallback SF Symbol
+            .frame(width: baseFontSize + 4, height: baseFontSize + 4)
             
             // 文件名
             Text(file.name)
@@ -181,10 +185,14 @@ struct FileGridItemView: View {
     var body: some View {
         VStack(spacing: 6) {
             // 图标
-            Image(systemName: file.iconName)
-                .font(.system(size: 32, weight: .light))
-                .foregroundColor(iconColor)
-                .frame(width: 48, height: 48)
+            AsyncIconView(
+                url: file.path,
+                type: file.type,
+                iconName: file.iconName,
+                size: 48
+            )
+            .foregroundColor(iconColor)
+            .frame(width: 48, height: 48)
             
             // 文件名
             Text(file.name)

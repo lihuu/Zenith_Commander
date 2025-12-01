@@ -115,6 +115,14 @@ struct FileItem: Identifiable, Hashable {
     static func fromURL(_ url: URL) -> FileItem? {
         let fileManager = FileManager.default
         
+        // Start accessing security scoped resource if needed
+        let isSecured = url.startAccessingSecurityScopedResource()
+        defer {
+            if isSecured {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+        
         guard let attributes = try? fileManager.attributesOfItem(atPath: url.path) else {
             return nil
         }
@@ -145,7 +153,7 @@ struct FileItem: Identifiable, Hashable {
         let isHidden = name.hasPrefix(".")
         
         return FileItem(
-            id: url.path,
+            id: url.path, // Ensure stable ID using path
             name: name,
             path: url,
             type: fileType,

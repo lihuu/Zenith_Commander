@@ -466,47 +466,50 @@ struct PaneView: View {
         let monitor = FSEventsDirectoryMonitor(url: currentPath)
         monitor.start {
             // 目录变化时自动刷新
-            let result = FileSystemService.shared.loadDirectoryWithPermissionCheck(at: paneRef.activeTab.currentPath)
-            if case .success(var files) = result {
-                // 获取 Git 状态（如果启用）
-                if settingsRef.settings.git.enabled {
-                    let gitSettings = settingsRef.settings.git
-                    let gitService = GitService.shared
-                    
-                    // 获取仓库信息
-                    let repoInfo = gitService.getRepositoryInfo(at: currentPath)
-                    
-                    if repoInfo.isGitRepository {
-                        // 获取文件状态
-                        let statusDict = gitService.getFileStatuses(
-                            in: currentPath,
-                            includeUntracked: gitSettings.showUntrackedFiles,
-                            includeIgnored: gitSettings.showIgnoredFiles
-                        )
-                        
-                        // 应用状态到文件（使用标准化路径比较）
-                        for index in files.indices {
-                            let standardizedPath = files[index].path.standardizedFileURL
-                            if let status = statusDict[standardizedPath] {
-                                files[index] = files[index].withGitStatus(status)
-                            } else if files[index].type == .folder {
-                                let folderPath = standardizedPath.path + "/"
-                                let hasModifiedChildren = statusDict.keys.contains { key in
-                                    key.path.hasPrefix(folderPath)
+            Task {
+                let result = await FileSystemService.shared.loadDirectoryWithPermissionCheck(at: paneRef.activeTab.currentPath)
+                
+                await MainActor.run {
+                    if case .success(var files) = result {
+                        // 获取 Git 状态（如果启用）
+                        if settingsRef.settings.git.enabled {
+                            let gitSettings = settingsRef.settings.git
+                            let gitService = GitService.shared
+                            
+                            // 获取仓库信息
+                            let repoInfo = gitService.getRepositoryInfo(at: currentPath)
+                            
+                            if repoInfo.isGitRepository {
+                                // 获取文件状态
+                                let statusDict = gitService.getFileStatuses(
+                                    in: currentPath,
+                                    includeUntracked: gitSettings.showUntrackedFiles,
+                                    includeIgnored: gitSettings.showIgnoredFiles
+                                )
+                                
+                                // 应用状态到文件（使用标准化路径比较）
+                                for index in files.indices {
+                                    let standardizedPath = files[index].path.standardizedFileURL
+                                    if let status = statusDict[standardizedPath] {
+                                        files[index] = files[index].withGitStatus(status)
+                                    } else if files[index].type == .folder {
+                                        let folderPath = standardizedPath.path + "/"
+                                        let hasModifiedChildren = statusDict.keys.contains { key in
+                                            key.path.hasPrefix(folderPath)
+                                        }
+                                        if hasModifiedChildren {
+                                            files[index] = files[index].withGitStatus(.modified)
+                                        }
+                                    }
                                 }
-                                if hasModifiedChildren {
-                                    files[index] = files[index].withGitStatus(.modified)
-                                }
+                                
+                                paneRef.gitInfo = repoInfo
                             }
                         }
                         
-                        DispatchQueue.main.async {
-                            paneRef.gitInfo = repoInfo
-                        }
+                        paneRef.activeTab.files = files
                     }
                 }
-                
-                paneRef.activeTab.files = files
             }
         }
         
@@ -528,49 +531,64 @@ struct PaneView: View {
         loadCurrentDirectoryWithPermissionCheck()
     }
     
-    func loadCurrentDirectoryWithPermissionCheck() {
-        let result = FileSystemService.shared.loadDirectoryWithPermissionCheck(at: pane.activeTab.currentPath)
-        
-        switch result {
-        case .success(var files):
-            // 获取 Git 状态（如果启用）
-            if settingsManager.settings.git.enabled {
-                let gitSettings = settingsManager.settings.git
-                applyGitStatus(to: &files, settings: gitSettings)
-            } else {
-                pane.gitInfo = nil
+    func loadCurrentDirectoryWithPermissionCheck(restoreSelection: String? = nil) {
+        Task {
+            let result = await FileSystemService.shared.loadDirectoryWithPermissionCheck(at: pane.activeTab.currentPath)
+            
+            // Update UI on MainActor
+            await MainActor.run {
+                switch result {
+                case .success(var files):
+                    // 获取 Git 状态（如果启用）
+                    if settingsManager.settings.git.enabled {
+                        let gitSettings = settingsManager.settings.git
+                        applyGitStatus(to: &files, settings: gitSettings)
+                    } else {
+                        pane.gitInfo = nil
+                    }
+                    
+                    pane.activeTab.files = files
+                    permissionDeniedPath = nil
+                    showPermissionError = false
+                    
+                    // Restore selection if requested
+                    if let restoreName = restoreSelection {
+                        if let index = files.firstIndex(where: { $0.name == restoreName }) {
+                            pane.activeTab.cursorFileId = files[index].id
+                        } else {
+                            pane.cursorIndex = 0
+                        }
+                    }
+                    
+                    // 手动触发 UI 刷新
+                    pane.objectWillChange.send()
+                    
+                case .permissionDenied(let path):
+                    pane.activeTab.files = []
+                    permissionDeniedPath = path
+                    showPermissionError = true
+                    pane.gitInfo = nil
+                    pane.objectWillChange.send()
+                    
+                case .notFound(let path):
+                    pane.activeTab.files = []
+                    appState.showToast("Directory not found: \(path.lastPathComponent)")
+                    permissionDeniedPath = nil
+                    showPermissionError = false
+                    pane.gitInfo = nil
+                    pane.objectWillChange.send()
+                    // 尝试返回上级目录
+                    leaveDirectory()
+                    
+                case .error(let message):
+                    pane.activeTab.files = []
+                    appState.showToast("Error: \(message)")
+                    permissionDeniedPath = nil
+                    showPermissionError = false
+                    pane.gitInfo = nil
+                    pane.objectWillChange.send()
+                }
             }
-            
-            pane.activeTab.files = files
-            permissionDeniedPath = nil
-            showPermissionError = false
-            // 手动触发 UI 刷新
-            pane.objectWillChange.send()
-            
-        case .permissionDenied(let path):
-            pane.activeTab.files = []
-            permissionDeniedPath = path
-            showPermissionError = true
-            pane.gitInfo = nil
-            pane.objectWillChange.send()
-            
-        case .notFound(let path):
-            pane.activeTab.files = []
-            appState.showToast("Directory not found: \(path.lastPathComponent)")
-            permissionDeniedPath = nil
-            showPermissionError = false
-            pane.gitInfo = nil
-            pane.objectWillChange.send()
-            // 尝试返回上级目录
-            leaveDirectory()
-            
-        case .error(let message):
-            pane.activeTab.files = []
-            appState.showToast("Error: \(message)")
-            permissionDeniedPath = nil
-            showPermissionError = false
-            pane.gitInfo = nil
-            pane.objectWillChange.send()
         }
     }
     
@@ -650,14 +668,7 @@ struct PaneView: View {
             
             pane.activeTab.currentPath = parent
             pane.clearSelections()
-            loadCurrentDirectoryWithPermissionCheck()
-            
-            // 在上级目录中找到之前所在的目录并选中
-            if let index = pane.activeTab.files.firstIndex(where: { $0.name == currentDirName }) {
-                pane.activeTab.cursorFileId = pane.activeTab.files[index].id
-            } else {
-                pane.cursorIndex = 0
-            }
+            loadCurrentDirectoryWithPermissionCheck(restoreSelection: currentDirName)
         }
     }
     

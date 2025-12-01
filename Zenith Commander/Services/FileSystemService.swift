@@ -72,8 +72,8 @@ class FileSystemService {
     
     // MARK: - 目录操作
     
-    /// 加载目录内容（带权限检查）
-    func loadDirectoryWithPermissionCheck(at path: URL, showHidden: Bool = false) -> DirectoryLoadResult {
+    /// 加载目录内容（带权限检查）- 异步
+    func loadDirectoryWithPermissionCheck(at path: URL, showHidden: Bool = false) async -> DirectoryLoadResult {
         // 检查目录是否存在
         guard directoryExists(at: path) else {
             return .notFound(path)
@@ -84,53 +84,64 @@ class FileSystemService {
             return .permissionDenied(path)
         }
         
-        do {
-            let contents = try fileManager.contentsOfDirectory(
-                at: path,
-                includingPropertiesForKeys: [
-                    .isDirectoryKey,
-                    .fileSizeKey,
-                    .contentModificationDateKey,
-                    .creationDateKey,
-                    .isHiddenKey
-                ],
-                options: showHidden ? [] : [.skipsHiddenFiles]
-            )
-            
-            var files = contents.compactMap { url in
-                FileItem.fromURL(url)
-            }.sorted { item1, item2 in
-                // 文件夹优先，然后按名称排序
-                if item1.type == .folder && item2.type != .folder {
-                    return true
-                } else if item1.type != .folder && item2.type == .folder {
-                    return false
+        return await Task.detached(priority: .userInitiated) {
+            do {
+                let fileManager = FileManager.default
+                // Start accessing security scoped resource if needed
+                let isSecured = path.startAccessingSecurityScopedResource()
+                defer {
+                    if isSecured {
+                        path.stopAccessingSecurityScopedResource()
+                    }
                 }
-                return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+                
+                let contents = try fileManager.contentsOfDirectory(
+                    at: path,
+                    includingPropertiesForKeys: [
+                        .isDirectoryKey,
+                        .fileSizeKey,
+                        .contentModificationDateKey,
+                        .creationDateKey,
+                        .isHiddenKey
+                    ],
+                    options: showHidden ? [] : [.skipsHiddenFiles]
+                )
+                
+                var files = contents.compactMap { url in
+                    FileItem.fromURL(url)
+                }.sorted { item1, item2 in
+                    // 文件夹优先，然后按名称排序
+                    if item1.type == .folder && item2.type != .folder {
+                        return true
+                    } else if item1.type != .folder && item2.type == .folder {
+                        return false
+                    }
+                    return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+                }
+                
+                // 如果不是根目录，在列表开头添加 ".." 父目录项
+                let parentPath = path.deletingLastPathComponent()
+                if parentPath.path != path.path {
+                    let parentItem = FileItem.parentDirectoryItem(for: parentPath)
+                    files.insert(parentItem, at: 0)
+                }
+                
+                return .success(files)
+            } catch let error as NSError {
+                // 检查是否是权限错误
+                if error.domain == NSCocoaErrorDomain &&
+                   (error.code == NSFileReadNoPermissionError || error.code == 257) {
+                    return .permissionDenied(path)
+                }
+                Logger.fileSystem.error("Error loading directory: \(error.localizedDescription)")
+                return .error(error)
             }
-            
-            // 如果不是根目录，在列表开头添加 ".." 父目录项
-            let parentPath = path.deletingLastPathComponent()
-            if parentPath.path != path.path {
-                let parentItem = FileItem.parentDirectoryItem(for: parentPath)
-                files.insert(parentItem, at: 0)
-            }
-            
-            return .success(files)
-        } catch let error as NSError {
-            // 检查是否是权限错误
-            if error.domain == NSCocoaErrorDomain && 
-               (error.code == NSFileReadNoPermissionError || error.code == 257) {
-                return .permissionDenied(path)
-            }
-            Logger.fileSystem.error("Error loading directory: \(error.localizedDescription)")
-            return .error(error)
-        }
+        }.value
     }
     
-    /// 加载目录内容（简单版本，兼容旧代码）
-    func loadDirectory(at path: URL, showHidden: Bool = false) -> [FileItem] {
-        let result = loadDirectoryWithPermissionCheck(at: path, showHidden: showHidden)
+    /// 加载目录内容（简单版本，兼容旧代码）- 异步
+    func loadDirectory(at path: URL, showHidden: Bool = false) async -> [FileItem] {
+        let result = await loadDirectoryWithPermissionCheck(at: path, showHidden: showHidden)
         switch result {
         case .success(let files):
             return files
@@ -138,6 +149,9 @@ class FileSystemService {
             return []
         }
     }
+    
+    // 保留同步方法以兼容（如有必要），但建议全部迁移到异步
+    // ...
     
     /// 获取上级目录
     func parentDirectory(of path: URL) -> URL {

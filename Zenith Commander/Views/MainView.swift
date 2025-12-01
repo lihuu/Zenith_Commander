@@ -113,7 +113,7 @@ struct MainView: View {
                     drives: appState.availableDrives,
                     cursorIndex: appState.driveSelectorCursor,
                     onSelect: { drive in
-                        selectDrive(drive)
+                        Task { await selectDrive(drive) }
                     },
                     onDismiss: {
                         appState.exitMode()
@@ -137,7 +137,7 @@ struct MainView: View {
                     useRegex: $appState.renameUseRegex,
                     selectedFiles: getSelectedFiles(),
                     onApply: {
-                        performBatchRename()
+                        Task { await performBatchRename() }
                     },
                     onDismiss: {
                         appState.exitMode()  // 退出 RENAME 模式
@@ -254,7 +254,7 @@ struct MainView: View {
             if isGridView {
                 moveCursor(direction: .left)
             } else {
-                Task { @MainActor in leaveDirectory() }
+                Task { @MainActor in await leaveDirectory() }
             }
             return .handled
 
@@ -262,7 +262,7 @@ struct MainView: View {
             if isGridView {
                 moveCursor(direction: .right)
             } else {
-                Task { @MainActor in enterDirectory() }
+                Task { @MainActor in await enterDirectory() }
             }
             return .handled
 
@@ -279,7 +279,7 @@ struct MainView: View {
             if isGridView {
                 moveCursor(direction: .left)
             } else {
-                Task { @MainActor in leaveDirectory() }
+                Task { @MainActor in await leaveDirectory() }
             }
             return .handled
 
@@ -287,12 +287,12 @@ struct MainView: View {
             if isGridView {
                 moveCursor(direction: .right)
             } else {
-                Task { @MainActor in enterDirectory() }
+                Task { @MainActor in await enterDirectory() }
             }
             return .handled
 
         case .return:
-            Task { @MainActor in enterDirectory() }
+            Task { @MainActor in await enterDirectory() }
             return .handled
 
         // 切换面板
@@ -350,7 +350,7 @@ struct MainView: View {
             if modifiers.contains(.shift) {
                 Task { @MainActor in
                     appState.currentPane.previousTab()
-                    refreshCurrentPane()
+                    await refreshCurrentPane()
                 }
                 return .handled
             }
@@ -360,7 +360,7 @@ struct MainView: View {
             if modifiers.contains(.shift) {
                 Task { @MainActor in
                     appState.currentPane.nextTab()
-                    refreshCurrentPane()
+                    await refreshCurrentPane()
                 }
                 return .handled
             }
@@ -372,7 +372,7 @@ struct MainView: View {
             return .handled
 
         case KeyEquivalent("p"):
-            Task { @MainActor in pasteFiles() }
+            Task { @MainActor in await pasteFiles() }
             return .handled
 
         // 跳转到顶部/底部
@@ -405,7 +405,7 @@ struct MainView: View {
             Task { @MainActor in
                 let pane = appState.currentPane
                 pane.addTab()
-                refreshCurrentPane()
+                await refreshCurrentPane()
                 appState.showToast("New tab created")
             }
             return .handled
@@ -413,7 +413,7 @@ struct MainView: View {
         // 刷新当前目录 (R 或 Cmd+R)
         case KeyEquivalent("r"):
             Task { @MainActor in
-                refreshCurrentPane()
+                await refreshCurrentPane()
                 appState.showToast("Refreshed")
             }
             return .handled
@@ -532,7 +532,7 @@ struct MainView: View {
             // 删除选中文件
             Task { @MainActor in
                 let pane = appState.currentPane
-                deleteSelectedFiles()
+                await deleteSelectedFiles()
                 appState.exitMode()
                 pane.clearSelections()
             }
@@ -567,7 +567,7 @@ struct MainView: View {
         switch key {
         case .return:
             Task { @MainActor in
-                executeCommand()
+                await executeCommand()
             }
             return .handled
 
@@ -676,7 +676,7 @@ struct MainView: View {
                 if let drive = appState.availableDrives[
                     safe: appState.driveSelectorCursor
                 ] {
-                    selectDrive(drive)
+                    await selectDrive(drive)
                 }
             }
             return .handled
@@ -780,7 +780,7 @@ struct MainView: View {
         }
     }
 
-    private func enterDirectory() {
+    private func enterDirectory() async {
         let pane = appState.currentPane
         guard let file = pane.activeTab.files[safe: pane.cursorIndex] else {
             return
@@ -790,13 +790,13 @@ struct MainView: View {
             pane.activeTab.currentPath = file.path
             pane.cursorIndex = 0
             pane.clearSelections()
-            refreshCurrentPane()
+            await refreshCurrentPane()
         } else {
             FileSystemService.shared.openFile(file)
         }
     }
 
-    private func leaveDirectory() {
+    private func leaveDirectory() async {
         let pane = appState.currentPane
         let currentPath = pane.activeTab.currentPath
         let parent = FileSystemService.shared.parentDirectory(of: currentPath)
@@ -808,7 +808,7 @@ struct MainView: View {
 
             pane.activeTab.currentPath = parent
             pane.clearSelections()
-            refreshCurrentPane()
+            await refreshCurrentPane()
 
             // 在上级目录中找到之前所在的目录并选中
             if let index = pane.activeTab.files.firstIndex(where: {
@@ -821,49 +821,59 @@ struct MainView: View {
         }
     }
 
-    private func refreshCurrentPane() {
+    private func refreshCurrentPane() async {
         let pane = appState.currentPane
-        let files = FileSystemService.shared.loadDirectory(
+        let files = await FileSystemService.shared.loadDirectory(
             at: pane.activeTab.currentPath
         )
-        pane.activeTab.files = files
-        // 手动触发 UI 刷新
-        pane.objectWillChange.send()
+        await MainActor.run {
+            pane.activeTab.files = files
+            // 手动触发 UI 刷新
+            pane.objectWillChange.send()
+        }
     }
 
     // MARK: - 书签操作
 
     /// 导航到书签位置
     private func navigateToBookmark(_ bookmark: BookmarkItem) {
-        let pane = appState.currentPane
-
-        if bookmark.type == .folder {
-            // 如果是文件夹，导航到该目录
-            pane.activeTab.currentPath = bookmark.path
-            let files = FileSystemService.shared.loadDirectory(
-                at: bookmark.path
-            )
-            pane.activeTab.files = files
-            pane.cursorIndex = 0
-            pane.objectWillChange.send()
-            appState.showToast("Navigated to \(bookmark.name)")
-        } else {
-            // 如果是文件，导航到其父目录并选中该文件
-            let parentPath = bookmark.path.deletingLastPathComponent()
-            pane.activeTab.currentPath = parentPath
-            let files = FileSystemService.shared.loadDirectory(at: parentPath)
-            pane.activeTab.files = files
-
-            // 查找并选中该文件
-            if let index = files.firstIndex(where: { $0.path == bookmark.path })
-            {
-                pane.cursorIndex = index
+        Task {
+            let pane = appState.currentPane
+            
+            if bookmark.type == .folder {
+                // 如果是文件夹，导航到该目录
+                pane.activeTab.currentPath = bookmark.path
+                let files = await FileSystemService.shared.loadDirectory(
+                    at: bookmark.path
+                )
+                
+                await MainActor.run {
+                    pane.activeTab.files = files
+                    pane.cursorIndex = 0
+                    pane.objectWillChange.send()
+                    appState.showToast("Navigated to \(bookmark.name)")
+                }
             } else {
-                pane.cursorIndex = 0
+                // 如果是文件，导航到其父目录并选中该文件
+                let parentPath = bookmark.path.deletingLastPathComponent()
+                pane.activeTab.currentPath = parentPath
+                let files = await FileSystemService.shared.loadDirectory(at: parentPath)
+                
+                await MainActor.run {
+                    pane.activeTab.files = files
+                    
+                    // 查找并选中该文件
+                    if let index = files.firstIndex(where: { $0.path == bookmark.path })
+                    {
+                        pane.cursorIndex = index
+                    } else {
+                        pane.cursorIndex = 0
+                    }
+                    
+                    pane.objectWillChange.send()
+                    appState.showToast("Navigated to \(bookmark.name)")
+                }
             }
-
-            pane.objectWillChange.send()
-            appState.showToast("Navigated to \(bookmark.name)")
         }
     }
 
@@ -904,7 +914,7 @@ struct MainView: View {
         }
     }
 
-    private func pasteFiles() {
+    private func pasteFiles() async {
         guard !appState.clipboard.isEmpty else { return }
 
         do {
@@ -925,39 +935,41 @@ struct MainView: View {
                 appState.clipboard.removeAll()
             }
 
-            refreshCurrentPane()
+            await refreshCurrentPane()
             // 如果是移动操作，还需要刷新另一个面板（源文件可能在那里）
             if appState.clipboardOperation == .cut {
-                refreshOtherPane()
+                await refreshOtherPane()
             }
         } catch {
             appState.showToast("Error: \(error.localizedDescription)")
         }
     }
 
-    private func refreshOtherPane() {
+    private func refreshOtherPane() async {
         let otherPane =
-            appState.activePane == .left
-            ? appState.rightPane : appState.leftPane
-        let files = FileSystemService.shared.loadDirectory(
+        appState.activePane == .left
+        ? appState.rightPane : appState.leftPane
+        let files = await FileSystemService.shared.loadDirectory(
             at: otherPane.activeTab.currentPath
         )
-        otherPane.activeTab.files = files
-        otherPane.objectWillChange.send()
+        await MainActor.run {
+            otherPane.activeTab.files = files
+            otherPane.objectWillChange.send()
+        }
     }
 
-    private func selectDrive(_ drive: DriveInfo) {
+    private func selectDrive(_ drive: DriveInfo) async {
         let pane = appState.currentPane
         pane.activeTab.drive = drive
         pane.activeTab.currentPath = drive.path
         pane.cursorIndex = 0
         pane.clearSelections()
-        refreshCurrentPane()
+        await refreshCurrentPane()
         appState.exitMode()
         appState.showToast("Switched to \(drive.name)")
     }
 
-    private func executeCommand() {
+    private func executeCommand() async {
         let commandInput = appState.commandInput.trimmingCharacters(
             in: .whitespaces
         )
@@ -979,7 +991,7 @@ struct MainView: View {
                     at: currentPath,
                     name: folderName
                 )
-                refreshCurrentPane()
+                await refreshCurrentPane()
                 appState.showToast(
                     "Created directory: \(newDir.lastPathComponent)"
                 )
@@ -997,7 +1009,7 @@ struct MainView: View {
                     at: currentPath,
                     name: fileName
                 )
-                refreshCurrentPane()
+                await refreshCurrentPane()
                 appState.showToast("Created file: \(newFile.lastPathComponent)")
             } catch {
                 appState.showToast(
@@ -1007,15 +1019,15 @@ struct MainView: View {
 
         case .move, .mv:
             // move <src> <dest> 或 move <dest> (使用选中文件作为源)
-            executeMove(command: command, currentPath: currentPath)
+            await executeMove(command: command, currentPath: currentPath)
 
         case .copy, .cp:
             // copy <src> <dest> 或 copy <dest> (使用选中文件作为源)
-            executeCopy(command: command, currentPath: currentPath)
+            await executeCopy(command: command, currentPath: currentPath)
 
         case .delete, .rm:
             // delete [name] - 删除指定文件或当前选中文件
-            executeDelete(command: command, currentPath: currentPath)
+            await executeDelete(command: command, currentPath: currentPath)
 
         case .cd:
             // cd <path> - 切换目录
@@ -1025,7 +1037,7 @@ struct MainView: View {
             )
             if result.valid, let targetPath = result.targetPath {
                 appState.currentPane.activeTab.currentPath = targetPath
-                refreshCurrentPane()
+                await refreshCurrentPane()
             } else if let error = result.error {
                 appState.showToast(error)
             }
@@ -1062,7 +1074,7 @@ struct MainView: View {
     }
 
     /// 执行移动命令
-    private func executeMove(command: ParsedCommand, currentPath: URL) {
+    private func executeMove(command: ParsedCommand, currentPath: URL) async {
         let result = CommandParser.validateMoveOrCopy(
             command,
             currentPath: currentPath
@@ -1079,7 +1091,7 @@ struct MainView: View {
             // move <src> <dest>
             do {
                 try FileManager.default.moveItem(at: srcPath, to: destPath)
-                refreshCurrentPane()
+                await refreshCurrentPane()
                 appState.showToast("Moved to: \(destPath.lastPathComponent)")
             } catch {
                 appState.showToast("Move failed: \(error.localizedDescription)")
@@ -1097,7 +1109,7 @@ struct MainView: View {
                     selectedFiles,
                     to: destPath
                 )
-                refreshCurrentPane()
+                await refreshCurrentPane()
                 appState.showToast("Moved \(selectedFiles.count) item(s)")
             } catch {
                 appState.showToast("Move failed: \(error.localizedDescription)")
@@ -1106,7 +1118,7 @@ struct MainView: View {
     }
 
     /// 执行复制命令
-    private func executeCopy(command: ParsedCommand, currentPath: URL) {
+    private func executeCopy(command: ParsedCommand, currentPath: URL) async {
         let result = CommandParser.validateMoveOrCopy(
             command,
             currentPath: currentPath
@@ -1123,7 +1135,7 @@ struct MainView: View {
             // copy <src> <dest>
             do {
                 try FileManager.default.copyItem(at: srcPath, to: destPath)
-                refreshCurrentPane()
+                await refreshCurrentPane()
                 appState.showToast("Copied to: \(destPath.lastPathComponent)")
             } catch {
                 appState.showToast("Copy failed: \(error.localizedDescription)")
@@ -1141,7 +1153,7 @@ struct MainView: View {
                     selectedFiles,
                     to: destPath
                 )
-                refreshCurrentPane()
+                await refreshCurrentPane()
                 appState.showToast("Copied \(selectedFiles.count) item(s)")
             } catch {
                 appState.showToast("Copy failed: \(error.localizedDescription)")
@@ -1150,7 +1162,7 @@ struct MainView: View {
     }
 
     /// 执行删除命令
-    private func executeDelete(command: ParsedCommand, currentPath: URL) {
+    private func executeDelete(command: ParsedCommand, currentPath: URL) async {
         let result = CommandParser.validateDelete(
             command,
             currentPath: currentPath
@@ -1163,7 +1175,7 @@ struct MainView: View {
                     at: targetPath,
                     resultingItemURL: nil
                 )
-                refreshCurrentPane()
+                await refreshCurrentPane()
                 appState.showToast("Deleted: \(targetPath.lastPathComponent)")
             } catch {
                 appState.showToast(
@@ -1180,7 +1192,7 @@ struct MainView: View {
 
             do {
                 try FileSystemService.shared.trashFiles(selectedFiles)
-                refreshCurrentPane()
+                await refreshCurrentPane()
                 appState.showToast("Deleted \(selectedFiles.count) item(s)")
             } catch {
                 appState.showToast(
@@ -1267,7 +1279,7 @@ struct MainView: View {
     }
 
     /// 执行批量重命名
-    private func performBatchRename() {
+    private func performBatchRename() async {
         let selectedFiles = getSelectedFiles()
         guard !selectedFiles.isEmpty else {
             appState.showToast("No files selected for rename")
@@ -1321,7 +1333,7 @@ struct MainView: View {
         // 退出 Visual 模式并刷新
         appState.currentPane.clearSelections()
         appState.exitMode()
-        refreshCurrentPane()
+        await refreshCurrentPane()
 
         // 显示结果
         if errorMessages.isEmpty {
@@ -1380,7 +1392,7 @@ struct MainView: View {
 
     // MARK: - 删除文件
 
-    private func deleteSelectedFiles() {
+    private func deleteSelectedFiles() async {
         let pane = appState.currentPane
         let selections = pane.selections
         var filesToDelete: [FileItem]
@@ -1411,7 +1423,7 @@ struct MainView: View {
             try FileSystemService.shared.trashFiles(filesToDelete)
             appState.showToast("\(filesToDelete.count) file(s) moved to Trash")
             pane.clearSelections()
-            refreshCurrentPane()
+            await refreshCurrentPane()
         } catch {
             appState.showToast("Error: \(error.localizedDescription)")
         }
