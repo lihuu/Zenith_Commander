@@ -396,6 +396,16 @@ struct PaneView: View {
         Button("Refresh (R)") {
             refreshDirectory()
         }
+        
+        // Git History 选项 - 仅在 Git 仓库中显示
+        if pane.gitInfo?.isGitRepository == true {
+            Divider()
+            
+            Button(LocalizationManager.shared.localized(.gitRepoHistory)) {
+                Logger.git.info("Show Repo History menu item clicked for path: \(pane.activeTab.currentPath.path, privacy: .public)")
+                appState.showGitHistoryForRepo(at: pane.activeTab.currentPath)
+            }
+        }
     }
     
     // MARK: - 事件处理

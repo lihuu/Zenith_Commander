@@ -534,6 +534,38 @@ class AppState: ObservableObject {
         showGitHistoryForFile(file)
     }
     
+    /// 显示仓库的 Git 历史
+    func showGitHistoryForRepo(at path: URL) {
+        Logger.git.info("showGitHistoryForRepo called for: \(path.path, privacy: .public)")
+        
+        // 清除文件引用，表示是仓库级别的历史
+        gitHistoryFile = nil
+        gitHistoryLoading = true
+        showGitHistory = true
+        
+        Logger.git.debug("State updated: showGitHistory=true, gitHistoryLoading=true")
+        
+        // 异步加载历史
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            Logger.git.debug("Background thread started for getRepositoryHistory - path: \(path.path, privacy: .public)")
+            
+            let commits = GitService.shared.getRepositoryHistory(at: path)
+            
+            Logger.git.info("getRepositoryHistory returned \(commits.count) commits")
+            
+            DispatchQueue.main.async {
+                guard let self = self else {
+                    Logger.git.warning("Self was deallocated before UI update")
+                    return
+                }
+                Logger.git.debug("Main thread: updating UI with \(commits.count) commits")
+                self.gitHistoryCommits = commits
+                self.gitHistoryLoading = false
+                Logger.git.debug("State updated: gitHistoryLoading=false")
+            }
+        }
+    }
+    
     /// 关闭 Git 历史面板
     func closeGitHistory() {
         Logger.git.debug("closeGitHistory called")

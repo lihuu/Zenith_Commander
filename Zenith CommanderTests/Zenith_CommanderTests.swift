@@ -4317,3 +4317,33 @@ struct PaneStateGitInfoTests {
         #expect(pane.gitInfo?.hasUncommittedChanges == true)
     }
 }
+
+// MARK: - 8. AppState Git History Tests
+
+struct AppStateGitHistoryTests {
+    
+    @Test func testShowGitHistoryForRepoUpdatesState() {
+        let state = AppState()
+        let path = URL(fileURLWithPath: "/") // Just a path
+        
+        // Call the method
+        state.showGitHistoryForRepo(at: path)
+        
+        // Check immediate state changes
+        #expect(state.showGitHistory == true)
+        #expect(state.gitHistoryLoading == true)
+        #expect(state.gitHistoryFile == nil)
+    }
+    
+    @Test func testCloseGitHistoryResetsState() {
+        let state = AppState()
+        state.showGitHistory = true
+        state.gitHistoryLoading = false
+        
+        state.closeGitHistory()
+        
+        #expect(state.showGitHistory == false)
+        #expect(state.gitHistoryFile == nil)
+        #expect(state.gitHistoryCommits.isEmpty)
+    }
+}

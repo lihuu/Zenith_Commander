@@ -286,6 +286,7 @@ enum LocalizedStringKey: String, CaseIterable {
     case gitLoadingHistory
     case gitNoHistory
     case gitShowHistory
+    case gitRepoHistory
     case gitCommitDetails
     case gitChangedFiles
     case gitViewDiff
@@ -395,6 +396,7 @@ class LocalizedStrings {
             .gitLoadingHistory: "Loading history...",
             .gitNoHistory: "No git history for this file",
             .gitShowHistory: "Show Git History",
+            .gitRepoHistory: "Repository History",
             .gitCommitDetails: "Commit Details",
             .gitChangedFiles: "Changed Files",
             .gitViewDiff: "View Diff",
@@ -593,6 +595,7 @@ class LocalizedStrings {
             .gitLoadingHistory: "加载历史记录...",
             .gitNoHistory: "此文件没有 Git 历史记录",
             .gitShowHistory: "显示 Git 历史",
+            .gitRepoHistory: "仓库历史",
             .gitCommitDetails: "提交详情",
             .gitChangedFiles: "变更文件",
             .gitViewDiff: "查看差异",

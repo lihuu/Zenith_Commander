@@ -65,7 +65,7 @@ struct MainView: View {
                             maxHeight: geometry.size.height * 0.6
                         ) {
                             GitHistoryPanelView(
-                                fileName: appState.gitHistoryFile?.name ?? "",
+                                fileName: appState.gitHistoryFile?.name ?? LocalizationManager.shared.localized(.gitRepoHistory),
                                 commits: appState.gitHistoryCommits,
                                 isLoading: appState.gitHistoryLoading,
                                 onClose: {
