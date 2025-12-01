@@ -399,7 +399,14 @@ class AppState: ObservableObject {
         if mode == .filter {
             restoreUnfilteredFiles()
         }
-        mode = .normal
+        
+        if mode == .rename{
+            // Rename mode exit,should return visual mode if there are selections
+            mode = .visual
+        }else{
+            mode = .normal
+        }
+        
         commandInput = ""
         filterInput = ""
         filterUseRegex = false

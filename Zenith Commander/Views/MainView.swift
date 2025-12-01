@@ -194,6 +194,11 @@ struct MainView: View {
                 if appState.mode == .visual {
                     appState.currentPane.clearSelections()
                 }
+                if appState.mode == .rename{
+                    // 关闭重命名模态窗口
+                    appState.showRenameModal = false
+                }
+                
                 appState.exitMode()
             }
             return .handled
