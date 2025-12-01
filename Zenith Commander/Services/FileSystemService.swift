@@ -454,7 +454,7 @@ class FileSystemService {
     
     /// 在 iTerm2 打开
     private func openInITerm(path: URL) {
-        let escapedPath = path.path.replacingOccurrences(of: "'", with: "'\\''")
+        let _ = path.path.replacingOccurrences(of: "'", with: "'\\''")
         
         // iTerm2 支持通过 URL scheme 打开
         // 或者使用 open -a 打开目录
