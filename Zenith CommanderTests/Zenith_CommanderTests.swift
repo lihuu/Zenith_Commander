@@ -591,12 +591,12 @@ struct ParentDirectoryItemTests {
         #expect(regularFolder.iconName == "folder.fill")
     }
     
-    @Test func testLoadDirectoryIncludesParentItem() {
+    @Test func testLoadDirectoryIncludesParentItem() async {
         let service = FileSystemService.shared
         
         // 测试非根目录应该包含 ".." 项
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let result = service.loadDirectoryWithPermissionCheck(at: documentsPath)
+        let result = await service.loadDirectoryWithPermissionCheck(at: documentsPath)
         
         if case .success(let files) = result {
             // 非根目录的第一个项目应该是 ".."
@@ -607,12 +607,12 @@ struct ParentDirectoryItemTests {
         }
     }
     
-    @Test func testRootDirectoryNoParentItem() {
+    @Test func testRootDirectoryNoParentItem() async {
         let service = FileSystemService.shared
         
         // 测试根目录不应该包含 ".." 项
         let rootPath = URL(fileURLWithPath: "/")
-        let result = service.loadDirectoryWithPermissionCheck(at: rootPath)
+        let result = await service.loadDirectoryWithPermissionCheck(at: rootPath)
         
         if case .success(let files) = result {
             // 根目录的第一个项目不应该是 ".."
@@ -708,6 +708,7 @@ struct ParentDirectoryItemTests {
 
 // MARK: - 7. AppState 测试 (模态操作引擎)
 
+@MainActor
 struct AppStateTests {
     
     @Test func testInitialState() {
@@ -800,6 +801,7 @@ struct AppStateTests {
 
 // MARK: - 7.1 Visual 模式测试
 
+@MainActor
 struct VisualModeTests {
     
     func createTestDrive() -> DriveInfo {
@@ -1235,6 +1237,7 @@ struct VisualModeTests {
 
 // MARK: - 7.1.1 批量重命名测试
 
+@MainActor
 struct BatchRenameTests {
     
     /// 模拟生成新文件名的逻辑（与 MainView 中的逻辑相同）
@@ -1430,6 +1433,7 @@ struct BatchRenameTests {
 
 // MARK: - 7.2 Command 模式测试
 
+@MainActor
 struct CommandModeTests {
     
     // MARK: - 测试 1: 按 : 进入 Command 模式，状态栏显示 "COMMAND"
@@ -1672,6 +1676,7 @@ struct CommandModeTests {
 
 // MARK: - 7.3 Filter 模式测试
 
+@MainActor
 struct FilterModeTests {
     
     // 创建测试用文件列表
@@ -2250,11 +2255,11 @@ struct FileSystemServiceTests {
         #expect(service1 === service2)
     }
     
-    @Test func testLoadDirectory() {
+    @Test func testLoadDirectory() async {
         let service = FileSystemService.shared
         let homeDir = FileManager.default.homeDirectoryForCurrentUser
         
-        let files = service.loadDirectory(at: homeDir)
+        let files = await service.loadDirectory(at: homeDir)
         
         // 主目录应该有文件
         #expect(!files.isEmpty)
@@ -2308,11 +2313,11 @@ struct FileSystemServiceTests {
         #expect(service.hasReadPermission(for: homeDir) == true)
     }
     
-    @Test func testLoadDirectoryWithPermissionCheck() {
+    @Test func testLoadDirectoryWithPermissionCheck() async {
         let service = FileSystemService.shared
         let homeDir = FileManager.default.homeDirectoryForCurrentUser
         
-        let result = service.loadDirectoryWithPermissionCheck(at: homeDir)
+        let result = await service.loadDirectoryWithPermissionCheck(at: homeDir)
         
         switch result {
         case .success(let files):
@@ -2820,6 +2825,7 @@ struct ArrayExtensionTests {
 
 // MARK: - 12. 设置测试
 
+@MainActor
 struct SettingsTests {
     
     @Test func testAppSettingsDefault() {
@@ -3182,6 +3188,7 @@ struct ScrollSyncTests {
 
 // MARK: - Mouse Click Tests (鼠标点击功能测试)
 
+@MainActor
 struct MouseClickTests {
     
     func createTestDrive() -> DriveInfo {
@@ -3377,6 +3384,7 @@ struct MouseClickTests {
 
 // MARK: - 书签功能测试
 
+@MainActor
 struct BookmarkItemTests {
     
     @Test func testBookmarkItemCreation() {
@@ -3465,6 +3473,7 @@ struct BookmarkItemTests {
     }
 }
 
+@MainActor
 struct BookmarkManagerTests {
     
     @Test func testBookmarkManagerAddBookmark() {
@@ -4183,6 +4192,7 @@ struct FileItemGitStatusTests {
 
 // MARK: - Git 设置测试
 
+@MainActor
 struct GitSettingsTests {
     
     @Test func testDefaultGitSettings() {
@@ -4237,6 +4247,7 @@ struct GitSettingsTests {
 
 // MARK: - AppSettings Git 集成测试
 
+@MainActor
 struct AppSettingsGitTests {
     
     @Test func testDefaultAppSettingsIncludesGit() {
@@ -4320,6 +4331,7 @@ struct PaneStateGitInfoTests {
 
 // MARK: - 8. AppState Git History Tests
 
+@MainActor
 struct AppStateGitHistoryTests {
     
     @Test func testShowGitHistoryForRepoUpdatesState() {

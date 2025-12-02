@@ -13,10 +13,22 @@ struct MainView: View {
     @StateObject private var appState = AppState()
     @StateObject private var bookmarkManager = BookmarkManager()
     @ObservedObject private var themeManager = ThemeManager.shared
-    @State private var showSettings = false
-    @State private var showHelp = false  // 帮助视图显示状态
+    private var showSettings: Binding<Bool> {
+        Binding<Bool>(
+            get: { appState.mode == .settings },
+            set: { newValue in }
+        )
+    }
+
+    private var showHelp: Binding<Bool> {
+        Binding<Bool>(
+            get: { appState.mode == .help },
+            set: { newValue in }
+        )
+    }  // 帮助视图显示状态
+
     @State private var showBookmarkBar = true  // 书签栏显示状态
-    @State private var gitHistoryPanelHeight: CGFloat = 250 // Git 历史面板高度（本地状态，避免触发全局刷新）
+    @State private var gitHistoryPanelHeight: CGFloat = 250  // Git 历史面板高度（本地状态，避免触发全局刷新）
 
     var body: some View {
         VStack(spacing: 0) {
@@ -55,10 +67,10 @@ struct MainView: View {
                         )
                         .frame(width: geometry.size.width / 2 - 1)
                     }
-                    
+
                     // Git History 底部面板
                     if appState.showGitHistory {
-                        
+
                         ResizableBottomPanel(
                             height: $gitHistoryPanelHeight,
                             isVisible: $appState.showGitHistory,
@@ -66,7 +78,10 @@ struct MainView: View {
                             maxHeight: geometry.size.height * 0.6
                         ) {
                             GitHistoryPanelView(
-                                fileName: appState.gitHistoryFile?.name ?? LocalizationManager.shared.localized(.gitRepoHistory),
+                                fileName: appState.gitHistoryFile?.name
+                                    ?? LocalizationManager.shared.localized(
+                                        .gitRepoHistory
+                                    ),
                                 commits: appState.gitHistoryCommits,
                                 isLoading: appState.gitHistoryLoading,
                                 onClose: {
@@ -75,7 +90,9 @@ struct MainView: View {
                                     }
                                 },
                                 onCommitSelected: { commit in
-                                    Logger.git.debug("Commit selected: \(commit.shortHash, privacy: .public)")
+                                    Logger.git.debug(
+                                        "Commit selected: \(commit.shortHash, privacy: .public)"
+                                    )
                                     // TODO: 显示 commit 详情或 diff
                                 }
                             )
@@ -113,7 +130,7 @@ struct MainView: View {
                     drives: appState.availableDrives,
                     cursorIndex: appState.driveSelectorCursor,
                     onSelect: { drive in
-                        Task { await selectDrive(drive) }
+                        Task { await appState.selectDrive(drive) }
                     },
                     onDismiss: {
                         appState.exitMode()
@@ -146,7 +163,7 @@ struct MainView: View {
             }
         }
         .sheet(
-            isPresented: $showSettings,
+            isPresented: showSettings,
             onDismiss: {
                 // 关闭设置时退出 SETTINGS 模式
                 appState.exitMode()
@@ -155,7 +172,7 @@ struct MainView: View {
             SettingsView()
         }
         .sheet(
-            isPresented: $showHelp,
+            isPresented: showHelp,
             onDismiss: {
                 // 关闭帮助时退出 HELP 模式
                 appState.exitMode()
@@ -177,451 +194,141 @@ struct MainView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openSettings)) {
             _ in
             appState.enterMode(.settings)  // 进入 SETTINGS 模式
-            showSettings = true
         }
     }
 
-    // MARK: - 键盘处理
 
     private func handleKeyPress(_ keyPress: KeyPress) -> KeyPress.Result {
-        let key = keyPress.key
-        let modifiers = keyPress.modifiers
-
-        // ESC - 退出当前模式
-        if key == .escape {
-            Task { @MainActor in
-                // 如果在 Visual 模式，清除选中状态
-                if appState.mode == .visual {
-                    appState.currentPane.clearSelections()
-                }
-                appState.exitMode()
-            }
-            return .handled
-        }
-
-        // Cmd+, - 打开设置
-        if key == KeyEquivalent(",") && modifiers.contains(.command) {
-            Task { @MainActor in
-                appState.enterMode(.settings)  // 进入 SETTINGS 模式
-                showSettings = true
-            }
-            return .handled
-        }
-
-        // 模态模式：忽略所有键盘事件，让模态窗口/视图处理
-        if appState.mode.isModalMode {
+        guard let action = appState.mode.action(for: keyPress) else {
             return .ignored
         }
 
-        // 根据模式处理按键
-        switch appState.mode {
-        case .normal:
-            return handleNormalModeKey(key, modifiers: modifiers)
-        case .visual:
-            return handleVisualModeKey(key, modifiers: modifiers)
-        case .command:
-            return handleCommandModeKey(keyPress)
-        case .filter:
-            return handleFilterModeKey(keyPress)
-        case .driveSelect:
-            return handleDriveSelectModeKey(key)
-        default:
-            // 其他未处理的模式
-            return .ignored
+        Task{ @MainActor in
+            await apply(action)
         }
+
+        return .handled
+
     }
 
-    // MARK: - Normal 模式
-
-    private func handleNormalModeKey(
-        _ key: KeyEquivalent,
-        modifiers: EventModifiers
-    ) -> KeyPress.Result {
-        let pane = appState.currentPane
-        let isGridView = pane.viewMode == .grid
-
-        switch key {
-        // 方向键导航
-        case .upArrow:
-            moveCursor(direction: .up)
-            return .handled
-
-        case .downArrow:
-            moveCursor(direction: .down)
-            return .handled
-
-        case .leftArrow:
-            if isGridView {
-                moveCursor(direction: .left)
-            } else {
-                Task { @MainActor in await leaveDirectory() }
+    @MainActor
+    private func apply(_ action: AppAction) async{
+        switch action {
+        case .none:
+            break
+        case .enterMode(let mode):
+            appState.enterMode(mode)
+        case .exitMode:
+            appState.exitMode()
+        case .moveCursor(let direction):
+            appState.moveCursor(direction)
+        case .moveVisualCursor(let direction):
+            appState.moveVisualCursor(direction)
+        case .jumpToTop:
+            appState.jumpToTop()
+        case .jumpToBottom:
+            appState.jumpToBottom()
+        case .enterDirectory:
+            await appState.enterDirectory()
+        case .leaveDirectory:
+            await appState.leaveDirectory()
+        case .toggleActivePane:
+            appState.toggleActivePane()
+        case .newTab:
+            await appState.newTab()
+        case .closeTab:
+            appState.closeTab()
+            break
+        case .previousTab:
+            appState.currentPane.previousTab()
+            await appState.refreshCurrentPane()
+        case .nextTab:
+            appState.currentPane.nextTab()
+            await appState.refreshCurrentPane()
+        case .toggleBookmarkBar:
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showBookmarkBar.toggle()
             }
-            return .handled
+            appState.showToast(
+                showBookmarkBar
+                    ? "Bookmark bar shown" : "Bookmark bar hidden"
+            )
+        case .addBookmark:
+            addCurrentToBookmark()
 
-        case .rightArrow:
-            if isGridView {
-                moveCursor(direction: .right)
-            } else {
-                Task { @MainActor in await enterDirectory() }
-            }
-            return .handled
+        case .openHelp:
+            appState.enterMode(.help)
+        case .openSettings:
+            appState.enterMode(.settings)
 
-        // Vim 风格导航
-        case KeyEquivalent("j"):
-            moveCursor(direction: .down)
-            return .handled
+        case .yank:
+            appState.yankSelectedFiles()
+        case .visualModeYank:
+            let pane = appState.currentPane
+            appState.yankSelectedFiles()
+            appState.exitMode()
+            pane.clearSelections()
+        case .paste:
+            await appState.pasteFiles()
+        case .deleteSelectedFiles:
+            let pane = appState.currentPane
+            await deleteSelectedFiles()
+            appState.exitMode()
+            pane.clearSelections()
 
-        case KeyEquivalent("k"):
-            moveCursor(direction: .up)
-            return .handled
+        case .batchRename:
+            break
 
-        case KeyEquivalent("h"):
-            if isGridView {
-                moveCursor(direction: .left)
-            } else {
-                Task { @MainActor in await leaveDirectory() }
-            }
-            return .handled
+        case .refreshCurrentPane:
+            await appState.refreshCurrentPane()
 
-        case KeyEquivalent("l"):
-            if isGridView {
-                moveCursor(direction: .right)
-            } else {
-                Task { @MainActor in await enterDirectory() }
-            }
-            return .handled
-
-        case .return:
-            Task { @MainActor in await enterDirectory() }
-            return .handled
-
-        // 切换面板
-        case .tab:
-            Task { @MainActor in appState.toggleActivePane() }
-            return .handled
-
-        // 模式切换
-        case KeyEquivalent("v"):
-            Task { @MainActor in
-                appState.enterMode(.visual)
-                appState.currentPane.startVisualSelection()
-            }
-            return .handled
-
-        case KeyEquivalent(":"):
-            Task { @MainActor in appState.enterMode(.command) }
-            return .handled
-
-        case KeyEquivalent("/"):
-            Task { @MainActor in
-                appState.enterMode(.filter)
-                appState.filterUseRegex = false
-            }
-            return .handled
-
-        // 帮助 (?)
-        case KeyEquivalent("?"):
-            Task { @MainActor in
-                appState.enterMode(.help)
-                showHelp = true
-            }
-            return .handled
-
-        // 驱动器选择 (Shift + D)
-        case KeyEquivalent("D"):
-            if modifiers.contains(.shift) {
-                Task { @MainActor in appState.enterMode(.driveSelect) }
-                return .handled
-            }
-            return .ignored
-
-        // 关闭标签页
-        case KeyEquivalent("w"):
-            Task { @MainActor in
-                let pane = appState.currentPane
-                if pane.tabs.count > 1 {
-                    pane.closeTab(at: pane.activeTabIndex)
+        case .enterDriveSelection:
+            appState.enterMode(.driveSelect)
+        case .moveDriveCursor(let direction):
+            if direction == .up {
+                if appState.driveSelectorCursor > 0 {
+                    appState.driveSelectorCursor -= 1
                 }
             }
-            return .handled
 
-        // Shift + H/L 切换标签页
-        case KeyEquivalent("H"):
-            if modifiers.contains(.shift) {
-                Task { @MainActor in
-                    appState.currentPane.previousTab()
-                    await refreshCurrentPane()
-                }
-                return .handled
-            }
-            return .ignored
-
-        case KeyEquivalent("L"):
-            if modifiers.contains(.shift) {
-                Task { @MainActor in
-                    appState.currentPane.nextTab()
-                    await refreshCurrentPane()
-                }
-                return .handled
-            }
-            return .ignored
-
-        // 复制/粘贴
-        case KeyEquivalent("y"):
-            Task { @MainActor in appState.yankSelectedFiles() }
-            return .handled
-
-        case KeyEquivalent("p"):
-            Task { @MainActor in await pasteFiles() }
-            return .handled
-
-        // 跳转到顶部/底部
-        case KeyEquivalent("g"):
-            Task { @MainActor in appState.currentPane.cursorIndex = 0 }
-            return .handled
-
-        case KeyEquivalent("G"):
-            if modifiers.contains(.shift) {
-                Task { @MainActor in
-                    let pane = appState.currentPane
-                    pane.cursorIndex = max(0, pane.activeTab.files.count - 1)
-                }
-                return .handled
-            }
-            return .ignored
-
-        // 主题切换 (Ctrl+T)
-        case KeyEquivalent("t"):
-            if modifiers.contains(.control) {
-                Task { @MainActor in
-                    themeManager.cycleTheme()
-                    appState.showToast(
-                        "Theme: \(themeManager.mode.displayName)"
-                    )
-                }
-                return .handled
-            }
-            // 没有 Ctrl 修饰符时，创建新标签页
-            Task { @MainActor in
-                let pane = appState.currentPane
-                pane.addTab()
-                await refreshCurrentPane()
-                appState.showToast("New tab created")
-            }
-            return .handled
-
-        // 刷新当前目录 (R 或 Cmd+R)
-        case KeyEquivalent("r"):
-            Task { @MainActor in
-                await refreshCurrentPane()
-                appState.showToast("Refreshed")
-            }
-            return .handled
-
-        // 切换书签栏显示 (B)
-        case KeyEquivalent("b"):
-            if modifiers.contains(.command) {
-                // Cmd+B 添加当前选中项到书签
-                Task { @MainActor in
-                    addCurrentToBookmark()
-                }
-            } else {
-                // B 切换书签栏显示
-                Task { @MainActor in
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showBookmarkBar.toggle()
-                    }
-                    appState.showToast(
-                        showBookmarkBar
-                            ? "Bookmark bar shown" : "Bookmark bar hidden"
-                    )
+            if direction == .down {
+                if appState.driveSelectorCursor < appState.availableDrives.count
+                    - 1
+                {
+                    appState.driveSelectorCursor += 1
                 }
             }
-            return .handled
 
-        default:
-            return .ignored
-        }
-    }
-
-    // MARK: - Visual 模式
-
-    private func handleVisualModeKey(
-        _ key: KeyEquivalent,
-        modifiers: EventModifiers
-    ) -> KeyPress.Result {
-        let pane = appState.currentPane
-        let isGridView = pane.viewMode == .grid
-
-        switch key {
-        // 方向键导航
-        case .upArrow:
-            moveVisualCursor(direction: .up)
-            return .handled
-
-        case .downArrow:
-            moveVisualCursor(direction: .down)
-            return .handled
-
-        case .leftArrow:
-            if isGridView {
-                moveVisualCursor(direction: .left)
+        case .selectDrive:
+            if let drive = appState.availableDrives[
+                safe: appState.driveSelectorCursor
+            ] {
+                await appState.selectDrive(drive)
             }
-            return .handled
-
-        case .rightArrow:
-            if isGridView {
-                moveVisualCursor(direction: .right)
+        case .cycleTheme:
+            themeManager.cycleTheme()
+            appState.showToast(
+                "Theme: \(themeManager.mode.displayName)"
+            )
+        case .deleteCommand:
+            if !appState.commandInput.isEmpty {
+                appState.commandInput.removeLast()
             }
-            return .handled
-
-        // Vim 风格导航
-        case KeyEquivalent("j"):
-            moveVisualCursor(direction: .down)
-            return .handled
-
-        case KeyEquivalent("k"):
-            moveVisualCursor(direction: .up)
-            return .handled
-
-        case KeyEquivalent("h"):
-            if isGridView {
-                moveVisualCursor(direction: .left)
-            }
-            return .handled
-
-        case KeyEquivalent("l"):
-            if isGridView {
-                moveVisualCursor(direction: .right)
-            }
-            return .handled
-
-        case KeyEquivalent("g"):
-            // 跳到顶部
-            Task { @MainActor in
-                let pane = appState.currentPane
-                pane.cursorIndex = 0
-                pane.updateVisualSelection()
-                pane.objectWillChange.send()
-            }
-            return .handled
-
-        case KeyEquivalent("G"):
-            // 跳到底部
-            if modifiers.contains(.shift) {
-                Task { @MainActor in
-                    let pane = appState.currentPane
-                    pane.cursorIndex = max(0, pane.activeTab.files.count - 1)
-                    pane.updateVisualSelection()
-                    pane.objectWillChange.send()
-                }
-                return .handled
-            }
-            return .ignored
-
-        case KeyEquivalent("y"):
-            Task { @MainActor in
-                let pane = appState.currentPane
-                appState.yankSelectedFiles()
-                appState.exitMode()
-                pane.clearSelections()
-            }
-            return .handled
-
-        case KeyEquivalent("d"):
-            // 删除选中文件
-            Task { @MainActor in
-                let pane = appState.currentPane
-                await deleteSelectedFiles()
-                appState.exitMode()
-                pane.clearSelections()
-            }
-            return .handled
-
-        case KeyEquivalent("r"):
-            // 批量重命名 - 进入 RENAME 模式
-            Task { @MainActor in
-                appState.enterMode(.rename)
-                appState.showRenameModal = true
-            }
-            return .handled
-
-        case KeyEquivalent("v"), .escape:
-            // 退出 Visual 模式
-            Task { @MainActor in
-                appState.currentPane.clearSelections()
-                appState.exitMode()
-            }
-            return .handled
-
-        default:
-            return .ignored
-        }
-    }
-
-    // MARK: - Command 模式
-
-    private func handleCommandModeKey(_ keyPress: KeyPress) -> KeyPress.Result {
-        let key = keyPress.key
-
-        switch key {
-        case .return:
-            Task { @MainActor in
-                await executeCommand()
-            }
-            return .handled
-
-        case .delete:
-            Task { @MainActor in
-                if !appState.commandInput.isEmpty {
-                    appState.commandInput.removeLast()
-                }
-            }
-            return .handled
-
-        default:
-            let char = key.character
+        case .executeCommand:
+            await executeCommand()
+        case .insertCommand(let char):
             if char.isLetter || char.isNumber || char.isWhitespace
                 || char.isPunctuation
             {
-                Task { @MainActor in
-                    appState.commandInput.append(char)
-                }
-                return .handled
+                appState.commandInput.append(char)
             }
-            return .ignored
-        }
-    }
-
-    // MARK: - Filter 模式
-
-    private func handleFilterModeKey(_ keyPress: KeyPress) -> KeyPress.Result {
-        let key = keyPress.key
-
-        switch key {
-        case .return:
-            // 按 Enter 确认过滤，保持当前过滤结果，清空 unfilteredFiles
-            Task { @MainActor in
-                let pane = appState.currentPane
-                pane.activeTab.unfilteredFiles = []
-                appState.mode = .normal
-                appState.filterInput = ""
-                appState.filterUseRegex = false
+        case .deleteFilterCharacter:
+            if !appState.filterInput.isEmpty {
+                appState.filterInput.removeLast()
+                // 实时更新过滤
+                applyFilter()
             }
-            return .handled
-
-        case .delete:
-            Task { @MainActor in
-                if !appState.filterInput.isEmpty {
-                    appState.filterInput.removeLast()
-                    // 实时更新过滤
-                    applyFilter()
-                }
-            }
-            return .handled
-
-        default:
-            let char = key.character
+        case .inputFilterCharacter(let char):
             // 普通过滤支持常用字符，正则表达式支持更多特殊字符
             let isValidChar: Bool
             if appState.filterUseRegex {
@@ -636,217 +343,34 @@ struct MainView: View {
             }
 
             if isValidChar {
-                Task { @MainActor in
-                    appState.filterInput.append(char)
-                    // 实时过滤
-                    applyFilter()
-                }
-                return .handled
-            }
-            return .ignored
-        }
-    }
-
-    // MARK: - Drive Select 模式
-
-    private func handleDriveSelectModeKey(_ key: KeyEquivalent)
-        -> KeyPress.Result
-    {
-        switch key {
-        case KeyEquivalent("j"):
-            Task { @MainActor in
-                if appState.driveSelectorCursor < appState.availableDrives.count
-                    - 1
-                {
-                    appState.driveSelectorCursor += 1
-                }
-            }
-            return .handled
-
-        case KeyEquivalent("k"):
-            Task { @MainActor in
-                if appState.driveSelectorCursor > 0 {
-                    appState.driveSelectorCursor -= 1
-                }
-            }
-            return .handled
-
-        case .return:
-            Task { @MainActor in
-                if let drive = appState.availableDrives[
-                    safe: appState.driveSelectorCursor
-                ] {
-                    await selectDrive(drive)
-                }
-            }
-            return .handled
-
-        default:
-            return .ignored
-        }
-    }
-
-    // MARK: - 辅助方法
-
-    enum CursorDirection {
-        case up, down, left, right
-    }
-
-    private func moveCursor(direction: CursorDirection) {
-        let pane = appState.currentPane
-        let fileCount = pane.activeTab.files.count
-        guard fileCount > 0 else { return }
-
-        // 使用 Task 延迟执行，避免在视图更新期间修改状态
-        Task { @MainActor in
-            var currentIndex = pane.cursorIndex
-
-            if pane.viewMode == .grid {
-                // Grid View 模式：支持四向导航
-                let columnCount = pane.gridColumnCount
-                switch direction {
-                case .up:
-                    // 向上移动一行
-                    currentIndex = max(0, currentIndex - columnCount)
-                case .down:
-                    // 向下移动一行
-                    currentIndex = min(
-                        fileCount - 1,
-                        currentIndex + columnCount
-                    )
-                case .left:
-                    // 向左移动一格
-                    currentIndex = max(0, currentIndex - 1)
-                case .right:
-                    // 向右移动一格
-                    currentIndex = min(fileCount - 1, currentIndex + 1)
-                }
-            } else {
-                // List View 模式：只支持上下导航
-                switch direction {
-                case .up:
-                    currentIndex = max(0, currentIndex - 1)
-                case .down:
-                    currentIndex = min(fileCount - 1, currentIndex + 1)
-                case .left, .right:
-                    // List 模式不处理左右导航
-                    return
-                }
+                appState.filterInput.append(char)
+                // 实时过滤
+                applyFilter()
             }
 
-            pane.activeTab.cursorFileId = pane.activeTab.files[currentIndex].id
+        case .doFilter:
+            let pane = appState.currentPane
+            pane.activeTab.unfilteredFiles = []
+            appState.mode = .normal
+            appState.filterInput = ""
+            appState.filterUseRegex = false
         }
+
     }
 
-    private func moveVisualCursor(direction: CursorDirection) {
-        let pane = appState.currentPane
-        let fileCount = pane.activeTab.files.count
-        guard fileCount > 0 else { return }
-
-        Task { @MainActor in
-            var currentIndex = pane.cursorIndex
-
-            if pane.viewMode == .grid {
-                // Grid View 模式：支持四向导航
-                let columnCount = pane.gridColumnCount
-                switch direction {
-                case .up:
-                    currentIndex = max(0, currentIndex - columnCount)
-                case .down:
-                    currentIndex = min(
-                        fileCount - 1,
-                        currentIndex + columnCount
-                    )
-                case .left:
-                    currentIndex = max(0, currentIndex - 1)
-                case .right:
-                    currentIndex = min(fileCount - 1, currentIndex + 1)
-                }
-            } else {
-                // List View 模式：只支持上下导航
-                switch direction {
-                case .up:
-                    currentIndex = max(0, currentIndex - 1)
-                case .down:
-                    currentIndex = min(fileCount - 1, currentIndex + 1)
-                case .left, .right:
-                    return
-                }
-            }
-
-            pane.activeTab.cursorFileId = pane.activeTab.files[currentIndex].id
-            pane.updateVisualSelection()
-            pane.objectWillChange.send()
-        }
-    }
-
-    private func enterDirectory() async {
-        let pane = appState.currentPane
-        guard let file = pane.activeTab.files[safe: pane.cursorIndex] else {
-            return
-        }
-
-        if file.type == .folder {
-            pane.activeTab.currentPath = file.path
-            pane.cursorIndex = 0
-            pane.clearSelections()
-            await refreshCurrentPane()
-        } else {
-            FileSystemService.shared.openFile(file)
-        }
-    }
-
-    private func leaveDirectory() async {
-        let pane = appState.currentPane
-        let currentPath = pane.activeTab.currentPath
-        let parent = FileSystemService.shared.parentDirectory(of: currentPath)
-
-        // 检查是否已经在根目录
-        if parent.path != currentPath.path {
-            // 记住当前目录名，用于返回后定位
-            let currentDirName = currentPath.lastPathComponent
-
-            pane.activeTab.currentPath = parent
-            pane.clearSelections()
-            await refreshCurrentPane()
-
-            // 在上级目录中找到之前所在的目录并选中
-            if let index = pane.activeTab.files.firstIndex(where: {
-                $0.name == currentDirName
-            }) {
-                pane.activeTab.cursorFileId = pane.activeTab.files[index].id
-            } else {
-                pane.cursorIndex = 0
-            }
-        }
-    }
-
-    private func refreshCurrentPane() async {
-        let pane = appState.currentPane
-        let files = await FileSystemService.shared.loadDirectory(
-            at: pane.activeTab.currentPath
-        )
-        await MainActor.run {
-            pane.activeTab.files = files
-            // 手动触发 UI 刷新
-            pane.objectWillChange.send()
-        }
-    }
-
-    // MARK: - 书签操作
 
     /// 导航到书签位置
     private func navigateToBookmark(_ bookmark: BookmarkItem) {
         Task {
             let pane = appState.currentPane
-            
+
             if bookmark.type == .folder {
                 // 如果是文件夹，导航到该目录
                 pane.activeTab.currentPath = bookmark.path
                 let files = await FileSystemService.shared.loadDirectory(
                     at: bookmark.path
                 )
-                
+
                 await MainActor.run {
                     pane.activeTab.files = files
                     pane.cursorIndex = 0
@@ -900,61 +424,6 @@ struct MainView: View {
         }
     }
 
-    private func pasteFiles() async {
-        guard !appState.clipboard.isEmpty else { return }
-
-        do {
-            let destination = appState.currentPane.activeTab.currentPath
-
-            if appState.clipboardOperation == .copy {
-                try FileSystemService.shared.copyFiles(
-                    appState.clipboard,
-                    to: destination
-                )
-                appState.showToast("\(appState.clipboard.count) file(s) copied")
-            } else {
-                try FileSystemService.shared.moveFiles(
-                    appState.clipboard,
-                    to: destination
-                )
-                appState.showToast("\(appState.clipboard.count) file(s) moved")
-                appState.clipboard.removeAll()
-            }
-
-            await refreshCurrentPane()
-            // 如果是移动操作，还需要刷新另一个面板（源文件可能在那里）
-            if appState.clipboardOperation == .cut {
-                await refreshOtherPane()
-            }
-        } catch {
-            appState.showToast("Error: \(error.localizedDescription)")
-        }
-    }
-
-    private func refreshOtherPane() async {
-        let otherPane =
-        appState.activePane == .left
-        ? appState.rightPane : appState.leftPane
-        let files = await FileSystemService.shared.loadDirectory(
-            at: otherPane.activeTab.currentPath
-        )
-        await MainActor.run {
-            otherPane.activeTab.files = files
-            otherPane.objectWillChange.send()
-        }
-    }
-
-    private func selectDrive(_ drive: DriveInfo) async {
-        let pane = appState.currentPane
-        pane.activeTab.drive = drive
-        pane.activeTab.currentPath = drive.path
-        pane.cursorIndex = 0
-        pane.clearSelections()
-        await refreshCurrentPane()
-        appState.exitMode()
-        appState.showToast("Switched to \(drive.name)")
-    }
-
     private func executeCommand() async {
         let commandInput = appState.commandInput.trimmingCharacters(
             in: .whitespaces
@@ -977,7 +446,7 @@ struct MainView: View {
                     at: currentPath,
                     name: folderName
                 )
-                await refreshCurrentPane()
+                await appState.refreshCurrentPane()
                 appState.showToast(
                     "Created directory: \(newDir.lastPathComponent)"
                 )
@@ -995,7 +464,7 @@ struct MainView: View {
                     at: currentPath,
                     name: fileName
                 )
-                await refreshCurrentPane()
+                await appState.refreshCurrentPane()
                 appState.showToast("Created file: \(newFile.lastPathComponent)")
             } catch {
                 appState.showToast(
@@ -1023,7 +492,7 @@ struct MainView: View {
             )
             if result.valid, let targetPath = result.targetPath {
                 appState.currentPane.activeTab.currentPath = targetPath
-                await refreshCurrentPane()
+                await appState.refreshCurrentPane()
             } else if let error = result.error {
                 appState.showToast(error)
             }
@@ -1077,7 +546,7 @@ struct MainView: View {
             // move <src> <dest>
             do {
                 try FileManager.default.moveItem(at: srcPath, to: destPath)
-                await refreshCurrentPane()
+                await appState.refreshCurrentPane()
                 appState.showToast("Moved to: \(destPath.lastPathComponent)")
             } catch {
                 appState.showToast("Move failed: \(error.localizedDescription)")
@@ -1095,7 +564,7 @@ struct MainView: View {
                     selectedFiles,
                     to: destPath
                 )
-                await refreshCurrentPane()
+                await appState.refreshCurrentPane()
                 appState.showToast("Moved \(selectedFiles.count) item(s)")
             } catch {
                 appState.showToast("Move failed: \(error.localizedDescription)")
@@ -1121,7 +590,7 @@ struct MainView: View {
             // copy <src> <dest>
             do {
                 try FileManager.default.copyItem(at: srcPath, to: destPath)
-                await refreshCurrentPane()
+                await appState.refreshCurrentPane()
                 appState.showToast("Copied to: \(destPath.lastPathComponent)")
             } catch {
                 appState.showToast("Copy failed: \(error.localizedDescription)")
@@ -1139,7 +608,7 @@ struct MainView: View {
                     selectedFiles,
                     to: destPath
                 )
-                await refreshCurrentPane()
+                await appState.refreshCurrentPane()
                 appState.showToast("Copied \(selectedFiles.count) item(s)")
             } catch {
                 appState.showToast("Copy failed: \(error.localizedDescription)")
@@ -1161,7 +630,7 @@ struct MainView: View {
                     at: targetPath,
                     resultingItemURL: nil
                 )
-                await refreshCurrentPane()
+                await appState.refreshCurrentPane()
                 appState.showToast("Deleted: \(targetPath.lastPathComponent)")
             } catch {
                 appState.showToast(
@@ -1178,7 +647,7 @@ struct MainView: View {
 
             do {
                 try FileSystemService.shared.trashFiles(selectedFiles)
-                await refreshCurrentPane()
+                await appState.refreshCurrentPane()
                 appState.showToast("Deleted \(selectedFiles.count) item(s)")
             } catch {
                 appState.showToast(
@@ -1319,7 +788,7 @@ struct MainView: View {
         // 退出 Visual 模式并刷新
         appState.currentPane.clearSelections()
         appState.exitMode()
-        await refreshCurrentPane()
+        await appState.refreshCurrentPane()
 
         // 显示结果
         if errorMessages.isEmpty {
@@ -1409,12 +878,13 @@ struct MainView: View {
             try FileSystemService.shared.trashFiles(filesToDelete)
             appState.showToast("\(filesToDelete.count) file(s) moved to Trash")
             pane.clearSelections()
-            await refreshCurrentPane()
+            await appState.refreshCurrentPane()
         } catch {
             appState.showToast("Error: \(error.localizedDescription)")
         }
     }
 }
+
 
 #Preview {
     MainView()
