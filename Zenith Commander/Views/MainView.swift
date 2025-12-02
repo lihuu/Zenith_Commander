@@ -13,10 +13,22 @@ struct MainView: View {
     @StateObject private var appState = AppState()
     @StateObject private var bookmarkManager = BookmarkManager()
     @ObservedObject private var themeManager = ThemeManager.shared
-    @State private var showSettings = false
-    @State private var showHelp = false  // 帮助视图显示状态
+    private var showSettings: Binding<Bool> {
+        Binding<Bool>(
+            get: { appState.mode == .settings },
+            set: { newValue in }
+        )
+    }
+
+    private var showHelp: Binding<Bool> {
+        Binding<Bool>(
+            get: { appState.mode == .help },
+            set: { newValue in }
+        )
+    }  // 帮助视图显示状态
+
     @State private var showBookmarkBar = true  // 书签栏显示状态
-    @State private var gitHistoryPanelHeight: CGFloat = 250 // Git 历史面板高度（本地状态，避免触发全局刷新）
+    @State private var gitHistoryPanelHeight: CGFloat = 250  // Git 历史面板高度（本地状态，避免触发全局刷新）
 
     var body: some View {
         VStack(spacing: 0) {
@@ -55,10 +67,10 @@ struct MainView: View {
                         )
                         .frame(width: geometry.size.width / 2 - 1)
                     }
-                    
+
                     // Git History 底部面板
                     if appState.showGitHistory {
-                        
+
                         ResizableBottomPanel(
                             height: $gitHistoryPanelHeight,
                             isVisible: $appState.showGitHistory,
@@ -66,7 +78,10 @@ struct MainView: View {
                             maxHeight: geometry.size.height * 0.6
                         ) {
                             GitHistoryPanelView(
-                                fileName: appState.gitHistoryFile?.name ?? LocalizationManager.shared.localized(.gitRepoHistory),
+                                fileName: appState.gitHistoryFile?.name
+                                    ?? LocalizationManager.shared.localized(
+                                        .gitRepoHistory
+                                    ),
                                 commits: appState.gitHistoryCommits,
                                 isLoading: appState.gitHistoryLoading,
                                 onClose: {
@@ -75,7 +90,9 @@ struct MainView: View {
                                     }
                                 },
                                 onCommitSelected: { commit in
-                                    Logger.git.debug("Commit selected: \(commit.shortHash, privacy: .public)")
+                                    Logger.git.debug(
+                                        "Commit selected: \(commit.shortHash, privacy: .public)"
+                                    )
                                     // TODO: 显示 commit 详情或 diff
                                 }
                             )
@@ -146,7 +163,7 @@ struct MainView: View {
             }
         }
         .sheet(
-            isPresented: $showSettings,
+            isPresented: showSettings,
             onDismiss: {
                 // 关闭设置时退出 SETTINGS 模式
                 appState.exitMode()
@@ -155,7 +172,7 @@ struct MainView: View {
             SettingsView()
         }
         .sheet(
-            isPresented: $showHelp,
+            isPresented: showHelp,
             onDismiss: {
                 // 关闭帮助时退出 HELP 模式
                 appState.exitMode()
@@ -177,7 +194,6 @@ struct MainView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openSettings)) {
             _ in
             appState.enterMode(.settings)  // 进入 SETTINGS 模式
-            showSettings = true
         }
     }
 
@@ -194,11 +210,11 @@ struct MainView: View {
                 if appState.mode == .visual {
                     appState.currentPane.clearSelections()
                 }
-                if appState.mode == .rename{
+                if appState.mode == .rename {
                     // 关闭重命名模态窗口
                     appState.showRenameModal = false
                 }
-                
+
                 appState.exitMode()
             }
             return .handled
@@ -208,7 +224,6 @@ struct MainView: View {
         if key == KeyEquivalent(",") && modifiers.contains(.command) {
             Task { @MainActor in
                 appState.enterMode(.settings)  // 进入 SETTINGS 模式
-                showSettings = true
             }
             return .handled
         }
@@ -236,6 +251,85 @@ struct MainView: View {
         }
     }
 
+    @MainActor
+    private func apply(_ action: AppAction) async {
+        switch action {
+        case .none:
+            break
+        case .enterMode(let mode):
+            appState.enterMode(mode)
+
+        case .exitMode:
+            appState.exitMode()
+
+        case .moveCursor(let direction):
+            moveCursor(direction)
+        case .moveVisualCursor(let direction):
+            moveVisualCursor(direction)
+        case .enterDirectory:
+            await appState.enterDirectory()
+        case .leaveDirectory:
+            await appState.leaveDirectory()
+        case .toggleActivePane:
+            appState.toggleActivePane()
+        case .newTab:
+            await newTab()
+        case .previousTab:
+            appState.currentPane.previousTab()
+            await appState.refreshCurrentPane()
+        case .nextTab:
+            appState.currentPane.nextTab()
+            await appState.refreshCurrentPane()
+        case .openHelp:
+            appState.enterMode(.help)
+        case .openSettings:
+            appState.enterMode(.settings)
+        case .refreshCurrentPane:
+            await appState.refreshCurrentPane()
+        
+        case .yank:
+            appState.yankSelectedFiles()
+            
+        case .paste:
+            await pasteFiles()
+            
+        case .delete:
+            await deleteSelectedFiles()
+            
+        case .enterDriveSelection:
+            appState.enterMode(.driveSelect)
+        
+        case .moveDriveCursor(let direction):
+            if direction == .up {
+                if appState.driveSelectorCursor > 0 {
+                    appState.driveSelectorCursor -= 1
+                }
+            }
+            
+            if direction == .down {
+                if appState.driveSelectorCursor < appState.availableDrives.count - 1 {
+                    appState.driveSelectorCursor += 1
+                }
+            }
+            
+        case .selectDrive:
+            if let drive = appState.availableDrives[
+                safe: appState.driveSelectorCursor
+            ] {
+                await selectDrive(drive)
+            }
+        case .cycleTheme:
+            themeManager.cycleTheme()
+            appState.showToast(
+                "Theme: \(themeManager.mode.displayName)"
+            )
+            
+        default:
+            break
+        }
+
+    }
+
     // MARK: - Normal 模式
 
     private func handleNormalModeKey(
@@ -248,56 +342,56 @@ struct MainView: View {
         switch key {
         // 方向键导航
         case .upArrow:
-            moveCursor(direction: .up)
+            moveCursor(.up)
             return .handled
 
         case .downArrow:
-            moveCursor(direction: .down)
+            moveCursor(.down)
             return .handled
 
         case .leftArrow:
             if isGridView {
-                moveCursor(direction: .left)
+                moveCursor(.left)
             } else {
-                Task { @MainActor in await leaveDirectory() }
+                Task { @MainActor in await appState.leaveDirectory() }
             }
             return .handled
 
         case .rightArrow:
             if isGridView {
-                moveCursor(direction: .right)
+                moveCursor(.right)
             } else {
-                Task { @MainActor in await enterDirectory() }
+                Task { @MainActor in await appState.enterDirectory() }
             }
             return .handled
 
         // Vim 风格导航
         case KeyEquivalent("j"):
-            moveCursor(direction: .down)
+            moveCursor(.down)
             return .handled
 
         case KeyEquivalent("k"):
-            moveCursor(direction: .up)
+            moveCursor(.up)
             return .handled
 
         case KeyEquivalent("h"):
             if isGridView {
-                moveCursor(direction: .left)
+                moveCursor(.left)
             } else {
-                Task { @MainActor in await leaveDirectory() }
+                Task { @MainActor in await appState.leaveDirectory() }
             }
             return .handled
 
         case KeyEquivalent("l"):
             if isGridView {
-                moveCursor(direction: .right)
+                moveCursor(.right)
             } else {
-                Task { @MainActor in await enterDirectory() }
+                Task { @MainActor in await appState.enterDirectory() }
             }
             return .handled
 
         case .return:
-            Task { @MainActor in await enterDirectory() }
+            Task { @MainActor in await appState.enterDirectory() }
             return .handled
 
         // 切换面板
@@ -328,7 +422,6 @@ struct MainView: View {
         case KeyEquivalent("?"):
             Task { @MainActor in
                 appState.enterMode(.help)
-                showHelp = true
             }
             return .handled
 
@@ -461,43 +554,43 @@ struct MainView: View {
         switch key {
         // 方向键导航
         case .upArrow:
-            moveVisualCursor(direction: .up)
+            moveVisualCursor(.up)
             return .handled
 
         case .downArrow:
-            moveVisualCursor(direction: .down)
+            moveVisualCursor(.down)
             return .handled
 
         case .leftArrow:
             if isGridView {
-                moveVisualCursor(direction: .left)
+                moveVisualCursor(.left)
             }
             return .handled
 
         case .rightArrow:
             if isGridView {
-                moveVisualCursor(direction: .right)
+                moveVisualCursor(.right)
             }
             return .handled
 
         // Vim 风格导航
         case KeyEquivalent("j"):
-            moveVisualCursor(direction: .down)
+            moveVisualCursor(.down)
             return .handled
 
         case KeyEquivalent("k"):
-            moveVisualCursor(direction: .up)
+            moveVisualCursor(.up)
             return .handled
 
         case KeyEquivalent("h"):
             if isGridView {
-                moveVisualCursor(direction: .left)
+                moveVisualCursor(.left)
             }
             return .handled
 
         case KeyEquivalent("l"):
             if isGridView {
-                moveVisualCursor(direction: .right)
+                moveVisualCursor(.right)
             }
             return .handled
 
@@ -693,11 +786,7 @@ struct MainView: View {
 
     // MARK: - 辅助方法
 
-    enum CursorDirection {
-        case up, down, left, right
-    }
-
-    private func moveCursor(direction: CursorDirection) {
+    private func moveCursor(_ direction: CursorDirection) {
         let pane = appState.currentPane
         let fileCount = pane.activeTab.files.count
         guard fileCount > 0 else { return }
@@ -743,7 +832,7 @@ struct MainView: View {
         }
     }
 
-    private func moveVisualCursor(direction: CursorDirection) {
+    private func moveVisualCursor(_ direction: CursorDirection) {
         let pane = appState.currentPane
         let fileCount = pane.activeTab.files.count
         guard fileCount > 0 else { return }
@@ -785,57 +874,17 @@ struct MainView: View {
         }
     }
 
-    private func enterDirectory() async {
+
+
+    private func newTab() async {
         let pane = appState.currentPane
-        guard let file = pane.activeTab.files[safe: pane.cursorIndex] else {
-            return
-        }
-
-        if file.type == .folder {
-            pane.activeTab.currentPath = file.path
-            pane.cursorIndex = 0
-            pane.clearSelections()
-            await refreshCurrentPane()
-        } else {
-            FileSystemService.shared.openFile(file)
-        }
-    }
-
-    private func leaveDirectory() async {
-        let pane = appState.currentPane
-        let currentPath = pane.activeTab.currentPath
-        let parent = FileSystemService.shared.parentDirectory(of: currentPath)
-
-        // 检查是否已经在根目录
-        if parent.path != currentPath.path {
-            // 记住当前目录名，用于返回后定位
-            let currentDirName = currentPath.lastPathComponent
-
-            pane.activeTab.currentPath = parent
-            pane.clearSelections()
-            await refreshCurrentPane()
-
-            // 在上级目录中找到之前所在的目录并选中
-            if let index = pane.activeTab.files.firstIndex(where: {
-                $0.name == currentDirName
-            }) {
-                pane.activeTab.cursorFileId = pane.activeTab.files[index].id
-            } else {
-                pane.cursorIndex = 0
-            }
-        }
+        pane.addTab()
+        await appState.refreshCurrentPane()
+        appState.showToast("New tab created")
     }
 
     private func refreshCurrentPane() async {
-        let pane = appState.currentPane
-        let files = await FileSystemService.shared.loadDirectory(
-            at: pane.activeTab.currentPath
-        )
-        await MainActor.run {
-            pane.activeTab.files = files
-            // 手动触发 UI 刷新
-            pane.objectWillChange.send()
-        }
+        await appState.refreshCurrentPane()
     }
 
     // MARK: - 书签操作
@@ -844,14 +893,14 @@ struct MainView: View {
     private func navigateToBookmark(_ bookmark: BookmarkItem) {
         Task {
             let pane = appState.currentPane
-            
+
             if bookmark.type == .folder {
                 // 如果是文件夹，导航到该目录
                 pane.activeTab.currentPath = bookmark.path
                 let files = await FileSystemService.shared.loadDirectory(
                     at: bookmark.path
                 )
-                
+
                 await MainActor.run {
                     pane.activeTab.files = files
                     pane.cursorIndex = 0
@@ -926,7 +975,7 @@ struct MainView: View {
                 appState.clipboard.removeAll()
             }
 
-            await refreshCurrentPane()
+            await appState.refreshCurrentPane()
             // 如果是移动操作，还需要刷新另一个面板（源文件可能在那里）
             if appState.clipboardOperation == .cut {
                 await refreshOtherPane()
@@ -938,8 +987,8 @@ struct MainView: View {
 
     private func refreshOtherPane() async {
         let otherPane =
-        appState.activePane == .left
-        ? appState.rightPane : appState.leftPane
+            appState.activePane == .left
+            ? appState.rightPane : appState.leftPane
         let files = await FileSystemService.shared.loadDirectory(
             at: otherPane.activeTab.currentPath
         )
@@ -955,7 +1004,7 @@ struct MainView: View {
         pane.activeTab.currentPath = drive.path
         pane.cursorIndex = 0
         pane.clearSelections()
-        await refreshCurrentPane()
+        await appState.refreshCurrentPane()
         appState.exitMode()
         appState.showToast("Switched to \(drive.name)")
     }
@@ -982,7 +1031,7 @@ struct MainView: View {
                     at: currentPath,
                     name: folderName
                 )
-                await refreshCurrentPane()
+                await appState.refreshCurrentPane()
                 appState.showToast(
                     "Created directory: \(newDir.lastPathComponent)"
                 )
@@ -1000,7 +1049,7 @@ struct MainView: View {
                     at: currentPath,
                     name: fileName
                 )
-                await refreshCurrentPane()
+                await appState.refreshCurrentPane()
                 appState.showToast("Created file: \(newFile.lastPathComponent)")
             } catch {
                 appState.showToast(
@@ -1028,7 +1077,7 @@ struct MainView: View {
             )
             if result.valid, let targetPath = result.targetPath {
                 appState.currentPane.activeTab.currentPath = targetPath
-                await refreshCurrentPane()
+                await appState.refreshCurrentPane()
             } else if let error = result.error {
                 appState.showToast(error)
             }
@@ -1126,7 +1175,7 @@ struct MainView: View {
             // copy <src> <dest>
             do {
                 try FileManager.default.copyItem(at: srcPath, to: destPath)
-                await refreshCurrentPane()
+                await appState.refreshCurrentPane()
                 appState.showToast("Copied to: \(destPath.lastPathComponent)")
             } catch {
                 appState.showToast("Copy failed: \(error.localizedDescription)")
@@ -1324,7 +1373,7 @@ struct MainView: View {
         // 退出 Visual 模式并刷新
         appState.currentPane.clearSelections()
         appState.exitMode()
-        await refreshCurrentPane()
+        await appState.refreshCurrentPane()
 
         // 显示结果
         if errorMessages.isEmpty {
@@ -1414,7 +1463,7 @@ struct MainView: View {
             try FileSystemService.shared.trashFiles(filesToDelete)
             appState.showToast("\(filesToDelete.count) file(s) moved to Trash")
             pane.clearSelections()
-            await refreshCurrentPane()
+            await appState.refreshCurrentPane()
         } catch {
             appState.showToast("Error: \(error.localizedDescription)")
         }

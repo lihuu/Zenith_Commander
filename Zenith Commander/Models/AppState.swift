@@ -234,6 +234,7 @@ class PaneState: ObservableObject {
 }
 
 /// 全局应用状态
+@MainActor
 class AppState: ObservableObject {
     // MARK: - 面板状态
     @Published var leftPane: PaneState
@@ -388,6 +389,14 @@ class AppState: ObservableObject {
         default:
             break
         }
+    }
+    
+    func refreshCurrentPane() async {
+        let pane = currentPane
+        let files = await FileSystemService.shared.loadDirectory(
+            at: pane.activeTab.currentPath
+        )
+        pane.activeTab.files = files
     }
     
     /// 退出当前模式，返回 Normal
@@ -580,6 +589,48 @@ class AppState: ObservableObject {
         gitHistoryCommits = []
         Logger.git.debug("Git history panel closed and state cleared")
     }
+    
+    func enterDirectory() async {
+        let pane = currentPane
+        guard let file = pane.activeTab.files[safe: pane.cursorIndex] else {
+            return
+        }
+
+        if file.type == .folder {
+            pane.activeTab.currentPath = file.path
+            pane.cursorIndex = 0
+            pane.clearSelections()
+            await refreshCurrentPane()
+        } else {
+            FileSystemService.shared.openFile(file)
+        }
+    }
+    
+    func leaveDirectory() async {
+        let pane = currentPane
+        let currentPath = pane.activeTab.currentPath
+        let parent = FileSystemService.shared.parentDirectory(of: currentPath)
+
+        // 检查是否已经在根目录
+        if parent.path != currentPath.path {
+            // 记住当前目录名，用于返回后定位
+            let currentDirName = currentPath.lastPathComponent
+
+            pane.activeTab.currentPath = parent
+            pane.clearSelections()
+            await refreshCurrentPane()
+
+            // 在上级目录中找到之前所在的目录并选中
+            if let index = pane.activeTab.files.firstIndex(where: {
+                $0.name == currentDirName
+            }) {
+                pane.activeTab.cursorFileId = pane.activeTab.files[index].id
+            } else {
+                pane.cursorIndex = 0
+            }
+        }
+    }
+
 }
 
 /// 剪贴板操作类型
