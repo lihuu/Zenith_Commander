@@ -152,7 +152,7 @@ class GitService {
     ///   - file: 文件 URL
     ///   - limit: 最大返回数量，默认 50
     /// - Returns: Git 提交列表
-    func getFileHistory(for file: URL, limit: Int = 50) -> [GitCommit] {
+    func getFileHistory(for file: URL, limit: Int = 50) async -> [GitCommit] {
         Logger.git.info("getFileHistory called for: \(file.path, privacy: .public)")
         
         guard isGitAvailable else {
@@ -160,43 +160,50 @@ class GitService {
             return []
         }
         
-        // 获取仓库根目录
-        guard let rootPath = getRepositoryRoot(for: file) else {
-            Logger.git.warning("Could not find repository root for: \(file.path, privacy: .public)")
-            return []
+        // 在后台线程执行 Git 命令
+        return await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async { [self] in
+                // 获取仓库根目录
+                guard let rootPath = getRepositoryRoot(for: file) else {
+                    Logger.git.warning("Could not find repository root for: \(file.path, privacy: .public)")
+                    continuation.resume(returning: [])
+                    return
+                }
+                
+                Logger.git.debug("Repository root: \(rootPath.path, privacy: .public)")
+                
+                // 计算相对路径
+                let relativePath = file.path.replacingOccurrences(of: rootPath.path + "/", with: "")
+                Logger.git.debug("Relative path: \(relativePath, privacy: .public)")
+                
+                // 运行 git log 命令
+                // 格式: hash|short_hash|author|email|timestamp|subject|body|parent_hashes
+                let format = "%H|%h|%an|%ae|%at|%s|%b|%P"
+                let args = [
+                    "log",
+                    "--format=\(format)",
+                    "-n", "\(limit)",
+                    "--follow",  // 跟踪文件重命名
+                    "--",
+                    relativePath
+                ]
+                
+                Logger.git.debug("Running git command with args: \(args.joined(separator: " "), privacy: .public)")
+                
+                guard let output = runGitCommand(args, at: rootPath) else {
+                    Logger.git.error("git log command failed or returned nil")
+                    continuation.resume(returning: [])
+                    return
+                }
+                
+                Logger.git.debug("git log output length: \(output.count) characters")
+                
+                let commits = parseGitLogOutput(output)
+                Logger.git.info("Parsed \(commits.count) commits from git log output")
+                
+                continuation.resume(returning: commits)
+            }
         }
-        
-        Logger.git.debug("Repository root: \(rootPath.path, privacy: .public)")
-        
-        // 计算相对路径
-        let relativePath = file.path.replacingOccurrences(of: rootPath.path + "/", with: "")
-        Logger.git.debug("Relative path: \(relativePath, privacy: .public)")
-        
-        // 运行 git log 命令
-        // 格式: hash|short_hash|author|email|timestamp|subject|body|parent_hashes
-        let format = "%H|%h|%an|%ae|%at|%s|%b|%P"
-        let args = [
-            "log",
-            "--format=\(format)",
-            "-n", "\(limit)",
-            "--follow",  // 跟踪文件重命名
-            "--",
-            relativePath
-        ]
-        
-        Logger.git.debug("Running git command with args: \(args.joined(separator: " "), privacy: .public)")
-        
-        guard let output = runGitCommand(args, at: rootPath) else {
-            Logger.git.error("git log command failed or returned nil")
-            return []
-        }
-        
-        Logger.git.debug("git log output length: \(output.count) characters")
-        
-        let commits = parseGitLogOutput(output)
-        Logger.git.info("Parsed \(commits.count) commits from git log output")
-        
-        return commits
     }
     
     /// 获取整个仓库的 Git 历史记录
@@ -204,25 +211,32 @@ class GitService {
     ///   - directory: 仓库目录
     ///   - limit: 最大返回数量，默认 50
     /// - Returns: Git 提交列表
-    func getRepositoryHistory(at directory: URL, limit: Int = 50) -> [GitCommit] {
+    func getRepositoryHistory(at directory: URL, limit: Int = 50) async -> [GitCommit] {
         guard isGitAvailable else { return [] }
         
-        guard let rootPath = getRepositoryRoot(for: directory) else {
-            return []
+        return await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async { [self] in
+                guard let rootPath = getRepositoryRoot(for: directory) else {
+                    continuation.resume(returning: [])
+                    return
+                }
+                
+                let format = "%H|%h|%an|%ae|%at|%s|%b|%P"
+                let args = [
+                    "log",
+                    "--format=\(format)",
+                    "-n", "\(limit)"
+                ]
+                
+                guard let output = runGitCommand(args, at: rootPath) else {
+                    continuation.resume(returning: [])
+                    return
+                }
+                
+                let commits = parseGitLogOutput(output)
+                continuation.resume(returning: commits)
+            }
         }
-        
-        let format = "%H|%h|%an|%ae|%at|%s|%b|%P"
-        let args = [
-            "log",
-            "--format=\(format)",
-            "-n", "\(limit)"
-        ]
-        
-        guard let output = runGitCommand(args, at: rootPath) else {
-            return []
-        }
-        
-        return parseGitLogOutput(output)
     }
     
     /// 获取指定 commit 的变更文件列表

@@ -258,7 +258,6 @@ class AppState: ObservableObject {
 
         // 先在主线程复制需要的值，避免在后台线程访问可能触发 UI 更新的属性
         let filePath = file.path
-        let fileName = file.name
 
         gitHistoryFile = file
         gitHistoryLoading = true
@@ -269,90 +268,72 @@ class AppState: ObservableObject {
         )
 
         // 异步加载历史
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            Logger.git.debug(
-                "Background thread started for getFileHistory - file: \(fileName, privacy: .public)"
-            )
+        Task {
+            let commits = await GitService.shared.getFileHistory(for: filePath)
 
-            let commits = GitService.shared.getFileHistory(for: filePath)
-
-            Logger.git.info(
-                "getFileHistory returned \(commits.count) commits for \(fileName, privacy: .public)"
-            )
-
-            DispatchQueue.main.async {
-                guard let self = self else {
-                    Logger.git.warning("Self was deallocated before UI update")
-                    return
-                }
-                Logger.git.debug(
-                    "Main thread: updating UI with \(commits.count) commits"
-                )
-                self.gitHistoryCommits = commits
-                self.gitHistoryLoading = false
-                Logger.git.debug("State updated: gitHistoryLoading=false")
-            }
+            self.gitHistoryCommits = commits
+            self.gitHistoryLoading = false
+            Logger.git.debug("State updated: gitHistoryLoading=false, commits: \(commits.count)")
         }
     }
 
-    func moveCursor(_ direction: CursorDirection) {
+    func moveCursor(_ direction: CursorDirection) async {
         let pane = currentPane
-        let fileCount = pane.activeTab.files.count
+        let files = pane.activeTab.files
+        let fileCount = files.count
         guard fileCount > 0 else { return }
 
-        Task { @MainActor in
-            var currentIndex = pane.cursorIndex
+        var currentIndex = pane.cursorIndex
 
-            if pane.viewMode == .grid {
-                // Grid View 模式：支持四向导航
-                let columnCount = pane.gridColumnCount
-                switch direction {
-                case .up:
-                    // 向上移动一行
-                    currentIndex = max(0, currentIndex - columnCount)
-                case .down:
-                    // 向下移动一行
-                    currentIndex = min(
-                        fileCount - 1,
-                        currentIndex + columnCount
-                    )
-                case .left:
-                    // 向左移动一格
-                    currentIndex = max(0, currentIndex - 1)
-                case .right:
-                    // 向右移动一格
-                    currentIndex = min(fileCount - 1, currentIndex + 1)
-                }
-            } else {
-                // List View 模式：只支持上下导航
-                switch direction {
-                case .up:
-                    currentIndex = max(0, currentIndex - 1)
-                case .down:
-                    currentIndex = min(fileCount - 1, currentIndex + 1)
-                case .left:
-                    await leaveDirectory()
-                    return  // leaveDirectory 已经处理了光标，直接返回
-                case .right:
-                    await enterDirectory()
-                    return  // enterDirectory 已经处理了光标，直接返回
-                }
+        if pane.viewMode == .grid {
+            // Grid View 模式：支持四向导航
+            let columnCount = pane.gridColumnCount
+            switch direction {
+            case .up:
+                // 向上移动一行
+                currentIndex = max(0, currentIndex - columnCount)
+            case .down:
+                // 向下移动一行
+                currentIndex = min(
+                    fileCount - 1,
+                    currentIndex + columnCount
+                )
+            case .left:
+                // 向左移动一格
+                currentIndex = max(0, currentIndex - 1)
+            case .right:
+                // 向右移动一格
+                currentIndex = min(fileCount - 1, currentIndex + 1)
             }
-            
-            // 重新获取当前文件数量，防止在 Task 执行期间文件列表发生变化
-            let currentFiles = pane.activeTab.files
-            let actualFileCount = currentFiles.count
-            
-            guard actualFileCount > 0 else { return }
-            
-            // 确保索引在有效范围内
-            let safeIndex = min(max(0, currentIndex), actualFileCount - 1)
-            
-            Logger.app.info("Cursor moved to index: \(safeIndex)")
-            Logger.app.info("File count in current tab: \(actualFileCount)")
-
-            pane.activeTab.cursorFileId = currentFiles[safeIndex].id
+        } else {
+            // List View 模式：只支持上下导航
+            switch direction {
+            case .up:
+                currentIndex = max(0, currentIndex - 1)
+            case .down:
+                currentIndex = min(fileCount - 1, currentIndex + 1)
+            case .left:
+                await leaveDirectory()
+                return  // leaveDirectory 已经处理了光标，直接返回
+            case .right:
+                await enterDirectory()
+                return  // enterDirectory 已经处理了光标，直接返回
+            }
         }
+        
+        // 重新获取当前文件数量，防止执行期间文件列表发生变化
+        let currentFiles = pane.activeTab.files
+        let actualFileCount = currentFiles.count
+        
+        guard actualFileCount > 0 else { return }
+        
+        // 确保索引在有效范围内
+        let safeIndex = min(max(0, currentIndex), actualFileCount - 1)
+        
+        Logger.app.info("Cursor moved to index: \(safeIndex)")
+        Logger.app.info("File count in current tab: \(actualFileCount)")
+
+        pane.activeTab.cursorFileId = currentFiles[safeIndex].id
     }
 
     func newTab() async {
@@ -362,55 +343,54 @@ class AppState: ObservableObject {
         showToast("New tab created")
     }
 
-    func moveVisualCursor(_ direction: CursorDirection) {
+    func moveVisualCursor(_ direction: CursorDirection) async {
         let pane = currentPane
-        let fileCount = pane.activeTab.files.count
+        let files = pane.activeTab.files
+        let fileCount = files.count
         guard fileCount > 0 else { return }
 
-        Task { @MainActor in
-            var currentIndex = pane.cursorIndex
+        var currentIndex = pane.cursorIndex
 
-            if pane.viewMode == .grid {
-                // Grid View 模式：支持四向导航
-                let columnCount = pane.gridColumnCount
-                switch direction {
-                case .up:
-                    currentIndex = max(0, currentIndex - columnCount)
-                case .down:
-                    currentIndex = min(
-                        fileCount - 1,
-                        currentIndex + columnCount
-                    )
-                case .left:
-                    currentIndex = max(0, currentIndex - 1)
-                case .right:
-                    currentIndex = min(fileCount - 1, currentIndex + 1)
-                }
-            } else {
-                // List View 模式：只支持上下导航
-                switch direction {
-                case .up:
-                    currentIndex = max(0, currentIndex - 1)
-                case .down:
-                    currentIndex = min(fileCount - 1, currentIndex + 1)
-                case .left, .right:
-                    return
-                }
+        if pane.viewMode == .grid {
+            // Grid View 模式：支持四向导航
+            let columnCount = pane.gridColumnCount
+            switch direction {
+            case .up:
+                currentIndex = max(0, currentIndex - columnCount)
+            case .down:
+                currentIndex = min(
+                    fileCount - 1,
+                    currentIndex + columnCount
+                )
+            case .left:
+                currentIndex = max(0, currentIndex - 1)
+            case .right:
+                currentIndex = min(fileCount - 1, currentIndex + 1)
             }
-
-            // 重新获取当前文件数量，防止在 Task 执行期间文件列表发生变化
-            let currentFiles = pane.activeTab.files
-            let actualFileCount = currentFiles.count
-            
-            guard actualFileCount > 0 else { return }
-            
-            // 确保索引在有效范围内
-            let safeIndex = min(max(0, currentIndex), actualFileCount - 1)
-            
-            pane.activeTab.cursorFileId = currentFiles[safeIndex].id
-            pane.updateVisualSelection()
-            pane.objectWillChange.send()
+        } else {
+            // List View 模式：只支持上下导航
+            switch direction {
+            case .up:
+                currentIndex = max(0, currentIndex - 1)
+            case .down:
+                currentIndex = min(fileCount - 1, currentIndex + 1)
+            case .left, .right:
+                return
+            }
         }
+
+        // 重新获取当前文件数量，防止执行期间文件列表发生变化
+        let currentFiles = pane.activeTab.files
+        let actualFileCount = currentFiles.count
+        
+        guard actualFileCount > 0 else { return }
+        
+        // 确保索引在有效范围内
+        let safeIndex = min(max(0, currentIndex), actualFileCount - 1)
+        
+        pane.activeTab.cursorFileId = currentFiles[safeIndex].id
+        pane.updateVisualSelection()
+        pane.objectWillChange.send()
     }
 
     /// 显示当前选中文件的 Git 历史
@@ -464,29 +444,12 @@ class AppState: ObservableObject {
         )
 
         // 异步加载历史
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            Logger.git.debug(
-                "Background thread started for getRepositoryHistory - path: \(path.path, privacy: .public)"
-            )
+        Task {
+            let commits = await GitService.shared.getRepositoryHistory(at: path)
 
-            let commits = GitService.shared.getRepositoryHistory(at: path)
-
-            Logger.git.info(
-                "getRepositoryHistory returned \(commits.count) commits"
-            )
-
-            DispatchQueue.main.async {
-                guard let self = self else {
-                    Logger.git.warning("Self was deallocated before UI update")
-                    return
-                }
-                Logger.git.debug(
-                    "Main thread: updating UI with \(commits.count) commits"
-                )
-                self.gitHistoryCommits = commits
-                self.gitHistoryLoading = false
-                Logger.git.debug("State updated: gitHistoryLoading=false")
-            }
+            self.gitHistoryCommits = commits
+            self.gitHistoryLoading = false
+            Logger.git.debug("State updated: gitHistoryLoading=false, commits: \(commits.count)")
         }
     }
 

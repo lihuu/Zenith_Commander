@@ -112,7 +112,7 @@ struct FileItem: Identifiable, Hashable {
     }
     
     /// 从 URL 创建 FileItem
-    static func fromURL(_ url: URL) -> FileItem? {
+    nonisolated static func fromURL(_ url: URL) -> FileItem? {
         let fileManager = FileManager.default
         
         // Start accessing security scoped resource if needed
@@ -169,7 +169,7 @@ struct FileItem: Identifiable, Hashable {
     /// 创建父目录项（..）
     /// - Parameter parentPath: 父目录的 URL
     /// - Returns: 代表父目录的 FileItem
-    static func parentDirectoryItem(for parentPath: URL) -> FileItem {
+    nonisolated static func parentDirectoryItem(for parentPath: URL) -> FileItem {
         return FileItem(
             id: "..",
             name: "..",

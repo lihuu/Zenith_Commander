@@ -221,9 +221,9 @@ struct MainView: View {
         case .exitMode:
             appState.exitMode()
         case .moveCursor(let direction):
-            appState.moveCursor(direction)
+            await appState.moveCursor(direction)
         case .moveVisualCursor(let direction):
-            appState.moveVisualCursor(direction)
+            await appState.moveVisualCursor(direction)
         case .jumpToTop:
             appState.jumpToTop()
         case .jumpToBottom:
