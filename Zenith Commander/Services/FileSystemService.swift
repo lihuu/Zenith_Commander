@@ -133,7 +133,6 @@ class FileSystemService {
                    (error.code == NSFileReadNoPermissionError || error.code == 257) {
                     return .permissionDenied(path)
                 }
-                Logger.fileSystem.error("Error loading directory: \(error.localizedDescription)")
                 return .error(error)
             }
         }.value
