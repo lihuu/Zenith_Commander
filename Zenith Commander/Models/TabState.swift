@@ -1,3 +1,12 @@
+//
+//  TabState.swift
+//  Zenith Commander
+//
+//  Created by Hu Li on 12/2/25.
+//
+import Combine
+import SwiftUI
+
 class TabState: Identifiable, ObservableObject {
     let id: UUID
     var drive: DriveInfo

@@ -3,6 +3,7 @@
 //  Zenith Commander
 //
 //  应用模式定义
+//  定义了各种应用模式（类似 Vim 风格的 NORMAL, VISUAL, COMMAND 等）及其相关属性和行为
 //
 
 import SwiftUI
@@ -153,13 +154,15 @@ enum AppAction {
     case previousTab
     case nextTab
     case toggleBookmarkBar
+    case addBookmark
     case openSettings
     case openHelp
 
     /// 文件操作
     case yank
+    case visualModeYank
     case paste
-    case delete
+    case deleteSelectedFiles
     case batchRename
     case refreshCurrentPane
 
@@ -167,58 +170,187 @@ enum AppAction {
     case enterDriveSelection
     case moveDriveCursor(CursorDirection)
     case selectDrive
+    
+    /// 命令操作
+    case deleteCommand
+    case executeCommand
+    case insertCommand(Character)
+    
+    /// 过滤操作
+    case deleteFilterCharacter
+    case inputFilterCharacter(Character)
+    case doFilter
 
     case cycleTheme
 
 }
 
+/// 按键映射表，把按键和动作关联起来，方便支持不同模式的快捷键
+/// 动作的处理逻辑，暂时在 MainView 和 AppState 里面
+/// 后面如果，再添加新的按键映射，可以不用修改MainView和AppState的代码，只需要在这里添加新的映射即可，后面可能会在设置里面添加自定义按键映射的功能
 enum AppModeKeyMaps {
-    static let normal: [KeyChord: AppAction] = [
-        /// Vim 风格导航
-        KeyChord("k"): .moveCursor(.up),
-        KeyChord("j"): .moveCursor(.down),
-        KeyChord("h"): .leaveDirectory,
-        KeyChord("l"): .enterDirectory,
 
-        /// 方向键导航
-        KeyChord(.upArrow): .moveCursor(.up),
-        KeyChord(.downArrow): .moveCursor(.down),
-        KeyChord(.leftArrow): .leaveDirectory,
-        KeyChord(.rightArrow): .enterDirectory,
-
-        /// 模式切换
-        KeyChord("v"): .enterMode(.visual),
-        KeyChord(":"): .enterMode(.command),
-        KeyChord("/"): .enterMode(.filter),
-
-        /// Pane / Tab
-        KeyChord(.tab): .toggleActivePane,
-        KeyChord("H", [.shift]): .previousTab,
-        KeyChord("L", [.shift]): .nextTab,
-        KeyChord("t"): .newTab,
-        KeyChord("w"): .closeTab,
-
-        /// Theme
-        KeyChord("t", [.control]): .cycleTheme,
-
-        KeyChord("?"): .openHelp,
-
-        KeyChord("b"): .toggleBookmarkBar,
-        KeyChord("r"): .refreshCurrentPane,
-
-        KeyChord("y"): .yank,
-        KeyChord("p"): .paste,
-
-        KeyChord("g"): .jumpToTop,
-        KeyChord("G", [.shift]): .jumpToBottom,
-
+    static let defaultMap: [KeyChord: AppAction] = [
+        KeyChord(.escape): .exitMode,
+        KeyChord(",", [.command]): .enterMode(.settings),
     ]
 
-    static let visual: [KeyChord: AppAction] = [
-        KeyChord("y"): .yank
+    static let normal: [KeyChord: AppAction] = {
+        let normelOverrides: [KeyChord: AppAction] = [
+            /// Vim 风格导航
+            KeyChord("k"): .moveCursor(.up),
+            KeyChord("j"): .moveCursor(.down),
+            KeyChord("h"): .moveCursor(.left),
+            KeyChord("l"): .moveCursor(.right),
+
+            /// 方向键导航
+            KeyChord(.upArrow): .moveCursor(.up),
+            KeyChord(.downArrow): .moveCursor(.down),
+            KeyChord(.leftArrow): .moveCursor(.left),
+            KeyChord(.rightArrow): .moveCursor(.right),
+            
+            KeyChord(.return): .enterDirectory,
+
+            /// 模式切换
+            KeyChord("v"): .enterMode(.visual),
+            KeyChord(":"): .enterMode(.command),
+            KeyChord("/"): .enterMode(.filter),
+
+            /// Pane / Tab
+            KeyChord(.tab): .toggleActivePane,
+            KeyChord("H", [.shift]): .previousTab,
+            KeyChord("L", [.shift]): .nextTab,
+            KeyChord("t"): .newTab,
+            KeyChord("w"): .closeTab,
+
+            /// Theme
+            KeyChord("t", [.control]): .cycleTheme,
+
+            KeyChord("?"): .openHelp,
+
+            KeyChord("b"): .toggleBookmarkBar,
+            KeyChord("b",[.command]): .addBookmark,
+            KeyChord("r"): .refreshCurrentPane,
+
+            KeyChord("y"): .yank,
+            KeyChord("p"): .paste,
+
+            KeyChord("g"): .jumpToTop,
+            KeyChord("G", [.shift]): .jumpToBottom,
+        ]
+
+        return normelOverrides.merging(defaultMap) { current, _ in
+            return current
+        }
+
+    }()
+
+    static let visual: [KeyChord: AppAction] = {
+        let visualOverrides: [KeyChord: AppAction] = [
+            KeyChord("j"): .moveVisualCursor(.down),
+            KeyChord("k"): .moveVisualCursor(.up),
+            // Grid 模式的特殊处理
+            KeyChord("h"): .moveVisualCursor(.left),
+            KeyChord("l"): .moveVisualCursor(.right),
+            KeyChord(.downArrow): .moveVisualCursor(.down),
+            KeyChord(.upArrow): .moveVisualCursor(.up),
+            KeyChord(.leftArrow): .moveVisualCursor(.left),
+            KeyChord(.rightArrow): .moveVisualCursor(.right),
+            KeyChord("y"): .visualModeYank,
+            KeyChord("d"): .deleteSelectedFiles,
+            KeyChord("r"): .enterMode(.rename),
+            KeyChord("v"): .exitMode,
+        ]
+
+        return visualOverrides.merging(defaultMap) { current, _ in
+            return current
+        }
+
+    }()
+
+    static let command: [KeyChord: AppAction] = {
+        let commandOverrides: [KeyChord: AppAction] = [
+            KeyChord(.delete): .deleteCommand,
+            KeyChord(.deleteForward): .deleteCommand,
+            KeyChord(.return): .executeCommand,
+        ]
+
+        return commandOverrides.merging(defaultMap) { current, _ in return current}
+    }()
+
+    static let filter: [KeyChord: AppAction] = {
+        let filterOverrides: [KeyChord: AppAction] = [
+            KeyChord(.delete): .deleteFilterCharacter,
+            KeyChord(.deleteForward): .deleteFilterCharacter,
+            // 这里的输入字符，交给默认处理，然后通过绑定更新过滤字符串
+            KeyChord(.return): .doFilter,
+        ]
+        
+        return filterOverrides.merging(defaultMap){
+            current, _ in return current
+        }
+    }()
+
+    static let driver: [KeyChord: AppAction] = {
+        let driverOverrides: [KeyChord: AppAction] = [
+            KeyChord("j"): .moveDriveCursor(.down),
+            KeyChord("k"): .moveDriveCursor(.up),
+            KeyChord(.downArrow): .moveDriveCursor(.down),
+            KeyChord(.upArrow): .moveDriveCursor(.up),
+            KeyChord(.return): .selectDrive,
+        ]
+
+        return driverOverrides.merging(defaultMap) { current, _ in
+            return current
+        }
+    }()
+
+    static let rename: [KeyChord: AppAction] = defaultMap
+
+    static let settings: [KeyChord: AppAction] = [
+        KeyChord(.escape): .exitMode
     ]
+
+    static let help: [KeyChord: AppAction] = defaultMap
+
 }
 
+/// 不同模式下的键盘映射扩展
 extension AppMode {
+    var keyMaps: [KeyChord: AppAction] {
+        switch self {
+        case .normal:
+            return AppModeKeyMaps.normal
+        case .visual:
+            return AppModeKeyMaps.visual
+        case .command:
+            return AppModeKeyMaps.command
+        case .filter:
+            return AppModeKeyMaps.filter
+        case .driveSelect:
+            return AppModeKeyMaps.driver
+        case .rename:
+            return AppModeKeyMaps.rename
+        case .settings:
+            return AppModeKeyMaps.settings
+        case .help:
+            return AppModeKeyMaps.help
+        default:
+            return [:]
+        }
+    }
 
+    func action(for keyPress: KeyPress) -> AppAction? {
+        let chord = KeyChord(from: keyPress)
+        let action: AppAction? = keyMaps[chord]
+        if self == .command && action == nil{
+            return .insertCommand(keyPress.key.character)
+        }
+        
+        if self == .filter && action == nil{
+            return .inputFilterCharacter(keyPress.key.character)
+        }
+        
+        return action
+    }
 }

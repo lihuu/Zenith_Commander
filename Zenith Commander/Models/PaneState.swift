@@ -1,3 +1,14 @@
+//
+//  PaneState.swift
+//  Zenith Commander
+//
+//  Created by Hu Li on 12/2/25.
+//
+
+import Combine
+import Foundation
+import SwiftUI
+
 class PaneState: ObservableObject {
     var side: PaneSide
     @Published var tabs: [TabState]
@@ -176,6 +187,5 @@ class PaneState: ObservableObject {
             }
         }
     }
-    
     
 }
