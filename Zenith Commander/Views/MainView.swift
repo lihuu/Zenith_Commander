@@ -16,14 +16,22 @@ struct MainView: View {
     private var showSettings: Binding<Bool> {
         Binding<Bool>(
             get: { appState.mode == .settings },
-            set: { newValue in }
+            set: { newValue in
+                if !newValue {
+                    appState.exitMode()
+                }
+            }
         )
     }
 
     private var showHelp: Binding<Bool> {
         Binding<Bool>(
             get: { appState.mode == .help },
-            set: { newValue in }
+            set: { newValue in
+                if !newValue {
+                    appState.exitMode()
+                }
+            }
         )
     }  // 帮助视图显示状态
 
