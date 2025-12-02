@@ -199,15 +199,12 @@ struct MainView: View {
 
 
     private func handleKeyPress(_ keyPress: KeyPress) -> KeyPress.Result {
-        let key = keyPress.key
-        let modifiers = keyPress.modifiers
-
         guard let action = appState.mode.action(for: keyPress) else {
             return .ignored
         }
 
-        Task {
-            @MainActor in await apply(action)
+        Task{ @MainActor in
+            await apply(action)
         }
 
         return .handled
@@ -215,7 +212,7 @@ struct MainView: View {
     }
 
     @MainActor
-    private func apply(_ action: AppAction) async {
+    private func apply(_ action: AppAction) async{
         switch action {
         case .none:
             break

@@ -331,14 +331,27 @@ class AppState: ObservableObject {
                 case .down:
                     currentIndex = min(fileCount - 1, currentIndex + 1)
                 case .left:
-                    await enterDirectory()
-                case .right:
                     await leaveDirectory()
+                    return  // leaveDirectory 已经处理了光标，直接返回
+                case .right:
+                    await enterDirectory()
+                    return  // enterDirectory 已经处理了光标，直接返回
                 }
-            
             }
+            
+            // 重新获取当前文件数量，防止在 Task 执行期间文件列表发生变化
+            let currentFiles = pane.activeTab.files
+            let actualFileCount = currentFiles.count
+            
+            guard actualFileCount > 0 else { return }
+            
+            // 确保索引在有效范围内
+            let safeIndex = min(max(0, currentIndex), actualFileCount - 1)
+            
+            Logger.app.info("Cursor moved to index: \(safeIndex)")
+            Logger.app.info("File count in current tab: \(actualFileCount)")
 
-            pane.activeTab.cursorFileId = pane.activeTab.files[currentIndex].id
+            pane.activeTab.cursorFileId = currentFiles[safeIndex].id
         }
     }
 
@@ -385,7 +398,16 @@ class AppState: ObservableObject {
                 }
             }
 
-            pane.activeTab.cursorFileId = pane.activeTab.files[currentIndex].id
+            // 重新获取当前文件数量，防止在 Task 执行期间文件列表发生变化
+            let currentFiles = pane.activeTab.files
+            let actualFileCount = currentFiles.count
+            
+            guard actualFileCount > 0 else { return }
+            
+            // 确保索引在有效范围内
+            let safeIndex = min(max(0, currentIndex), actualFileCount - 1)
+            
+            pane.activeTab.cursorFileId = currentFiles[safeIndex].id
             pane.updateVisualSelection()
             pane.objectWillChange.send()
         }
