@@ -164,11 +164,7 @@ class AppState: ObservableObject {
     }
 
     func refreshCurrentPane() async {
-        let pane = currentPane
-        let files = await FileSystemService.shared.loadDirectory(
-            at: pane.activeTab.currentPath
-        )
-        pane.activeTab.files = files
+        await currentPane.refreshActiveTab()
     }
 
     /// 恢复未过滤的文件列表

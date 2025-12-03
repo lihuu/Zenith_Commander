@@ -424,7 +424,17 @@ struct PaneView: View {
     private func handleFileDoubleClick(file: FileItem) {
         if file.type == .folder {
             // 进入目录
-            navigateTo(file.path)
+            let path = file.path
+            if file.name == ".." {
+                // TODO: 如果是 .. 回到上一级，也要记住当前目录名用于返回定位
+                pane.activeTab.currentPath = path
+                loadCurrentDirectoryWithPermissionCheck(restoreSelection:path.lastPathComponent){
+                    pane.cursorIndex = 0
+                    pane.clearSelections()
+                }
+            }else{
+                navigateTo(path)
+            }
         } else {
             // 打开文件
             FileSystemService.shared.openFile(file)
@@ -565,12 +575,13 @@ struct PaneView: View {
     
     func navigateTo(_ path: URL) {
         pane.activeTab.currentPath = path
-        pane.cursorIndex = 0
-        pane.clearSelections()
-        loadCurrentDirectoryWithPermissionCheck()
+        loadCurrentDirectoryWithPermissionCheck(){
+            pane.cursorIndex = 0
+            pane.clearSelections()
+        }
     }
     
-    func loadCurrentDirectoryWithPermissionCheck(restoreSelection: String? = nil) {
+    func loadCurrentDirectoryWithPermissionCheck(restoreSelection: String? = nil, successCallBack: @escaping ()->Void = {}) {
         Task {
             let result = await FileSystemService.shared.loadDirectoryWithPermissionCheck(at: pane.activeTab.currentPath)
             
@@ -579,6 +590,7 @@ struct PaneView: View {
                 switch result {
                 case .success(var files):
                     // 获取 Git 状态（如果启用）
+                    successCallBack()
                     if settingsManager.settings.git.enabled {
                         let gitSettings = settingsManager.settings.git
                         applyGitStatus(to: &files, settings: gitSettings)
@@ -598,8 +610,6 @@ struct PaneView: View {
                             pane.cursorIndex = 0
                         }
                     }
-                    
-                 
                     
                 case .permissionDenied(let path):
                     pane.activeTab.files = []
