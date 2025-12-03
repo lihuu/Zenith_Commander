@@ -16,14 +16,22 @@ struct MainView: View {
     private var showSettings: Binding<Bool> {
         Binding<Bool>(
             get: { appState.mode == .settings },
-            set: { newValue in }
+            set: { newValue in
+                if !newValue {
+                    appState.exitMode()
+                }
+            }
         )
     }
 
     private var showHelp: Binding<Bool> {
         Binding<Bool>(
             get: { appState.mode == .help },
-            set: { newValue in }
+            set: { newValue in
+                if !newValue {
+                    appState.exitMode()
+                }
+            }
         )
     }  // 帮助视图显示状态
 
@@ -211,6 +219,7 @@ struct MainView: View {
 
     }
 
+    
     @MainActor
     private func apply(_ action: AppAction) async{
         switch action {
@@ -221,9 +230,9 @@ struct MainView: View {
         case .exitMode:
             appState.exitMode()
         case .moveCursor(let direction):
-            appState.moveCursor(direction)
+            await appState.moveCursor(direction)
         case .moveVisualCursor(let direction):
-            appState.moveVisualCursor(direction)
+            await appState.moveVisualCursor(direction)
         case .jumpToTop:
             appState.jumpToTop()
         case .jumpToBottom:
@@ -278,7 +287,6 @@ struct MainView: View {
 
         case .batchRename:
             break
-
         case .refreshCurrentPane:
             await appState.refreshCurrentPane()
 
@@ -349,11 +357,7 @@ struct MainView: View {
             }
 
         case .doFilter:
-            let pane = appState.currentPane
-            pane.activeTab.unfilteredFiles = []
-            appState.mode = .normal
-            appState.filterInput = ""
-            appState.filterUseRegex = false
+            appState.doFilter()
         }
 
     }

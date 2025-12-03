@@ -304,6 +304,20 @@ enum LocalizedStringKey: String, CaseIterable {
     case errorOperationFailed
     case errorInvalidPath
     case errorDirectoryNotEmpty
+    
+    // MARK: - Context Menu
+    case contextOpen
+    case contextOpenInTerminal
+    case contextRemoveFromBookmarks
+    case contextAddToBookmarks
+    case contextCopyYank
+    case contextPaste
+    case contextShowInFinder
+    case contextCopyFullPath
+    case contextMoveToTrash
+    case contextRefresh
+    case contextNewFile
+    case contextNewFolder
 }
 
 // MARK: - 本地化字符串存储
@@ -526,7 +540,21 @@ class LocalizedStrings {
             .errorPermissionDenied: "Permission denied",
             .errorOperationFailed: "Operation failed",
             .errorInvalidPath: "Invalid path",
-            .errorDirectoryNotEmpty: "Directory is not empty"
+            .errorDirectoryNotEmpty: "Directory is not empty",
+            
+            // Context Menu
+            .contextOpen: "Open",
+            .contextOpenInTerminal: "Open in Terminal",
+            .contextRemoveFromBookmarks: "Remove from Bookmarks",
+            .contextAddToBookmarks: "Add to Bookmarks (⌘B)",
+            .contextCopyYank: "Copy (y)",
+            .contextPaste: "Paste (p)",
+            .contextShowInFinder: "Show in Finder",
+            .contextCopyFullPath: "Copy Full Path",
+            .contextMoveToTrash: "Move to Trash",
+            .contextRefresh: "Refresh (R)",
+            .contextNewFile: "New File",
+            .contextNewFolder: "New Folder"
         ]
     }
     
@@ -732,7 +760,21 @@ class LocalizedStrings {
             .errorPermissionDenied: "权限被拒绝",
             .errorOperationFailed: "操作失败",
             .errorInvalidPath: "无效路径",
-            .errorDirectoryNotEmpty: "目录不为空"
+            .errorDirectoryNotEmpty: "目录不为空",
+            
+            // Context Menu
+            .contextOpen: "打开",
+            .contextOpenInTerminal: "在终端中打开",
+            .contextRemoveFromBookmarks: "从书签中移除",
+            .contextAddToBookmarks: "添加到书签 (⌘B)",
+            .contextCopyYank: "复制 (y)",
+            .contextPaste: "粘贴 (p)",
+            .contextShowInFinder: "在访达中显示",
+            .contextCopyFullPath: "复制完整路径",
+            .contextMoveToTrash: "移到废纸篓",
+            .contextRefresh: "刷新 (R)",
+            .contextNewFile: "新建文件",
+            .contextNewFolder: "新建文件夹"
         ]
     }
 }
