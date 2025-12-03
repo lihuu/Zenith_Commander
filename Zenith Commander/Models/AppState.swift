@@ -467,7 +467,7 @@ class AppState: ObservableObject {
         let parent = FileSystemService.shared.parentDirectory(of: currentPath)
 
         // 检查是否已经在根目录
-        if parent.path != currentPath.path {
+        if currentPath.path != "/" {
             // 记住当前目录名，用于返回后定位
             let currentDirName = currentPath.lastPathComponent
 
