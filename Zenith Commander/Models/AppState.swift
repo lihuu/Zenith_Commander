@@ -578,6 +578,16 @@ class AppState: ObservableObject {
             pane.closeTab(at: pane.activeTabIndex)
         }
     }
+    
+    
+     func doFilter() {
+        let pane = currentPane
+        pane.activeTab.unfilteredFiles = []
+        mode = .normal
+        filterInput = ""
+        filterUseRegex = false
+    }
+    
 
 }
 

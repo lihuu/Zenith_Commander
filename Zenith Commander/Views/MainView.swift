@@ -219,6 +219,7 @@ struct MainView: View {
 
     }
 
+    
     @MainActor
     private func apply(_ action: AppAction) async{
         switch action {
@@ -286,7 +287,6 @@ struct MainView: View {
 
         case .batchRename:
             break
-
         case .refreshCurrentPane:
             await appState.refreshCurrentPane()
 
@@ -357,11 +357,7 @@ struct MainView: View {
             }
 
         case .doFilter:
-            let pane = appState.currentPane
-            pane.activeTab.unfilteredFiles = []
-            appState.mode = .normal
-            appState.filterInput = ""
-            appState.filterUseRegex = false
+            appState.doFilter()
         }
 
     }

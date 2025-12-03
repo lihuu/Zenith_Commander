@@ -114,6 +114,22 @@ struct BatchRenameView: View {
                             .font(.system(size: 10, weight: .medium))
                     }
                     .buttonStyle(SmallButtonStyle())
+                    
+                    
+                    Button(action: { replaceText += "{name}" }) {
+                        Text("+ {name}")
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                    .buttonStyle(SmallButtonStyle())
+                    
+                    
+                    Button(action: { replaceText += "{ext}" }) {
+                        Text("+ {ext}")
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                    .buttonStyle(SmallButtonStyle())
+
+                    
                 }
             }
             .padding(16)
@@ -233,6 +249,8 @@ struct BatchRenameView: View {
         let processedReplace = replaceText
             .replacingOccurrences(of: "{n}", with: String(format: "%03d", index + 1))
             .replacingOccurrences(of: "{date}", with: dateString)
+            .replacingOccurrences(of: "{name}", with: file.name)
+            .replacingOccurrences(of: "{ext}", with: file.fileExtension)
         
         if useRegex {
             if let regex = try? NSRegularExpression(pattern: findText, options: []) {
