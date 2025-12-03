@@ -683,14 +683,7 @@ struct PaneView: View {
         }
     }
     
-    func enterDirectory() {
-        guard let file = pane.activeTab.files[safe: pane.cursorIndex] else { return }
-        if file.type == .folder {
-            navigateTo(file.path)
-        } else {
-            FileSystemService.shared.openFile(file)
-        }
-    }
+
     
     func leaveDirectory() {
         let currentPath = pane.activeTab.currentPath

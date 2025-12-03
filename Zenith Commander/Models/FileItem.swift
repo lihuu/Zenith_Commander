@@ -28,17 +28,17 @@ struct FileItem: Identifiable, Hashable {
     let isHidden: Bool
     let permissions: String
     let fileExtension: String
-    
+
     /// Git 状态（可选）
     var gitStatus: GitFileStatus = .clean
-    
+
     /// 创建带有 Git 状态的副本
     func withGitStatus(_ status: GitFileStatus?) -> FileItem {
         var copy = self
         copy.gitStatus = status ?? .clean
         return copy
     }
-    
+
     /// 格式化的文件大小
     var formattedSize: String {
         if type == .folder {
@@ -46,12 +46,12 @@ struct FileItem: Identifiable, Hashable {
         }
         return ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
     }
-    
+
     /// 格式化的修改日期
     var formattedDate: String {
         let formatter = DateFormatter()
         let calendar = Calendar.current
-        
+
         if calendar.isDateInToday(modifiedDate) {
             formatter.dateFormat = "HH:mm"
             return "Today, \(formatter.string(from: modifiedDate))"
@@ -63,14 +63,14 @@ struct FileItem: Identifiable, Hashable {
             return formatter.string(from: modifiedDate)
         }
     }
-    
+
     /// SF Symbol 图标名称
     var iconName: String {
         // 父目录项使用特殊图标
         if isParentDirectory {
             return "arrow.turn.up.left"
         }
-        
+
         switch type {
         case .folder:
             return "folder.fill"
@@ -82,11 +82,12 @@ struct FileItem: Identifiable, Hashable {
             return "doc"
         }
     }
-    
+
     /// 根据扩展名返回图标
     private func iconForExtension(_ ext: String) -> String {
         switch ext.lowercased() {
-        case "swift", "m", "h", "c", "cpp", "py", "js", "ts", "java", "rb", "go", "rs":
+        case "swift", "m", "h", "c", "cpp", "py", "js", "ts", "java", "rb",
+            "go", "rs":
             return "chevron.left.forwardslash.chevron.right"
         case "json", "xml", "yaml", "yml", "plist":
             return "curlybraces"
@@ -110,11 +111,11 @@ struct FileItem: Identifiable, Hashable {
             return "doc"
         }
     }
-    
+
     /// 从 URL 创建 FileItem
     nonisolated static func fromURL(_ url: URL) -> FileItem? {
         let fileManager = FileManager.default
-        
+
         // Start accessing security scoped resource if needed
         let isSecured = url.startAccessingSecurityScopedResource()
         defer {
@@ -122,11 +123,13 @@ struct FileItem: Identifiable, Hashable {
                 url.stopAccessingSecurityScopedResource()
             }
         }
-        
-        guard let attributes = try? fileManager.attributesOfItem(atPath: url.path) else {
+
+        guard
+            let attributes = try? fileManager.attributesOfItem(atPath: url.path)
+        else {
             return nil
         }
-        
+
         let fileType: FileType
         if let typeAttr = attributes[.type] as? FileAttributeType {
             switch typeAttr {
@@ -142,18 +145,18 @@ struct FileItem: Identifiable, Hashable {
         } else {
             fileType = .unknown
         }
-        
+
         let size = (attributes[.size] as? Int64) ?? 0
         let modifiedDate = (attributes[.modificationDate] as? Date) ?? Date()
         let createdDate = (attributes[.creationDate] as? Date) ?? Date()
         let posixPermissions = (attributes[.posixPermissions] as? Int) ?? 0
         let permissionsString = String(format: "%o", posixPermissions)
-        
+
         let name = url.lastPathComponent
         let isHidden = name.hasPrefix(".")
-        
+
         return FileItem(
-            id: url.path, // Ensure stable ID using path
+            id: url.path,  // Ensure stable ID using path
             name: name,
             path: url,
             type: fileType,
@@ -165,11 +168,12 @@ struct FileItem: Identifiable, Hashable {
             fileExtension: url.pathExtension
         )
     }
-    
+
     /// 创建父目录项（..）
     /// - Parameter parentPath: 父目录的 URL
     /// - Returns: 代表父目录的 FileItem
-    nonisolated static func parentDirectoryItem(for parentPath: URL) -> FileItem {
+    nonisolated static func parentDirectoryItem(for parentPath: URL) -> FileItem
+    {
         return FileItem(
             id: "..",
             name: "..",
@@ -183,11 +187,16 @@ struct FileItem: Identifiable, Hashable {
             fileExtension: ""
         )
     }
-    
+
     /// 是否是父目录项
     var isParentDirectory: Bool {
         return id == ".." && name == ".."
     }
+
+    var isFolder: Bool {
+        return type == .folder
+    }
+
 }
 
 /// 驱动器/卷信息
@@ -198,18 +207,25 @@ struct DriveInfo: Identifiable, Hashable {
     let type: DriveType
     let totalCapacity: Int64
     let availableCapacity: Int64
-    
+
     var usedPercentage: Double {
         guard totalCapacity > 0 else { return 0 }
-        return Double(totalCapacity - availableCapacity) / Double(totalCapacity) * 100
+        return Double(totalCapacity - availableCapacity) / Double(totalCapacity)
+            * 100
     }
-    
+
     var formattedCapacity: String {
-        let used = ByteCountFormatter.string(fromByteCount: totalCapacity - availableCapacity, countStyle: .file)
-        let total = ByteCountFormatter.string(fromByteCount: totalCapacity, countStyle: .file)
+        let used = ByteCountFormatter.string(
+            fromByteCount: totalCapacity - availableCapacity,
+            countStyle: .file
+        )
+        let total = ByteCountFormatter.string(
+            fromByteCount: totalCapacity,
+            countStyle: .file
+        )
         return "\(used) / \(total)"
     }
-    
+
     var iconName: String {
         switch type {
         case .system:
