@@ -248,13 +248,6 @@ class AppState: ObservableObject {
 
     /// 显示文件的 Git 历史
     func showGitHistoryForFile(_ file: FileItem) {
-        Logger.git.info(
-            "showGitHistoryForFile called for: \(file.name, privacy: .public)"
-        )
-        Logger.git.debug("File path: \(file.path.path, privacy: .public)")
-        Logger.git.debug(
-            "File type: \(String(describing: file.type), privacy: .public)"
-        )
 
         // 先在主线程复制需要的值，避免在后台线程访问可能触发 UI 更新的属性
         let filePath = file.path
@@ -263,17 +256,12 @@ class AppState: ObservableObject {
         gitHistoryLoading = true
         showGitHistory = true
 
-        Logger.git.debug(
-            "State updated: showGitHistory=true, gitHistoryLoading=true"
-        )
-
         // 异步加载历史
         Task {
             let commits = await GitService.shared.getFileHistory(for: filePath)
 
             self.gitHistoryCommits = commits
             self.gitHistoryLoading = false
-            Logger.git.debug("State updated: gitHistoryLoading=false, commits: \(commits.count)")
         }
     }
 
@@ -330,9 +318,6 @@ class AppState: ObservableObject {
         // 确保索引在有效范围内
         let safeIndex = min(max(0, currentIndex), actualFileCount - 1)
         
-        Logger.app.info("Cursor moved to index: \(safeIndex)")
-        Logger.app.info("File count in current tab: \(actualFileCount)")
-
         pane.activeTab.cursorFileId = currentFiles[safeIndex].id
     }
 

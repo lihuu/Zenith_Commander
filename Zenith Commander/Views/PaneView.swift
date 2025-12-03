@@ -296,11 +296,11 @@ struct PaneView: View {
     
     @ViewBuilder
     private func fileContextMenu(file: FileItem) -> some View {
-        Button("Open") {
+        Button(LocalizationManager.shared.localized(.contextOpen)) {
             handleFileDoubleClick(file: file)
         }
         
-        Button("Open in Terminal") {
+        Button(LocalizationManager.shared.localized(.contextOpenInTerminal)) {
             let path = file.type == .folder ? file.path : pane.activeTab.currentPath
             FileSystemService.shared.openInTerminal(path: path)
         }
@@ -309,14 +309,14 @@ struct PaneView: View {
         
         // 书签操作
         if bookmarkManager.contains(path: file.path) {
-            Button("Remove from Bookmarks") {
+            Button(LocalizationManager.shared.localized(.contextRemoveFromBookmarks)) {
                 if let bookmark = bookmarkManager.bookmarks.first(where: { $0.path == file.path }) {
                     bookmarkManager.remove(bookmark)
                     appState.showToast("Bookmark removed: \(file.name)")
                 }
             }
         } else {
-            Button("Add to Bookmarks (⌘B)") {
+            Button(LocalizationManager.shared.localized(.contextAddToBookmarks)) {
                 bookmarkManager.addBookmark(for: file)
                 appState.showToast("Bookmark added: \(file.name)")
             }
@@ -324,22 +324,22 @@ struct PaneView: View {
         
         Divider()
         
-        Button("Copy (y)") {
+        Button(LocalizationManager.shared.localized(.contextCopyYank)) {
             appState.yankSelectedFiles()
         }
         
-        Button("Paste (p)") {
+        Button(LocalizationManager.shared.localized(.contextPaste)) {
             pasteFiles()
         }
         .disabled(appState.clipboard.isEmpty)
         
         Divider()
         
-        Button("Show in Finder") {
+        Button(LocalizationManager.shared.localized(.contextShowInFinder)) {
             FileSystemService.shared.revealInFinder(file)
         }
         
-        Button("Copy Full Path") {
+        Button(LocalizationManager.shared.localized(.contextCopyFullPath)) {
             copyFullPath(file: file)
         }
         
@@ -356,14 +356,14 @@ struct PaneView: View {
         
         Divider()
         
-        Button("Move to Trash") {
+        Button(LocalizationManager.shared.localized(.contextMoveToTrash)) {
             deleteSelectedFiles()
         }
         .keyboardShortcut(.delete, modifiers: .command)
         
         Divider()
         
-        Button("Refresh (R)") {
+        Button(LocalizationManager.shared.localized(.contextRefresh)) {
             refreshDirectory()
         }
     }
@@ -371,30 +371,30 @@ struct PaneView: View {
     /// 目录级右键菜单（空白处右键）
     @ViewBuilder
     private var directoryContextMenu: some View {
-        Button("New File") {
+        Button(LocalizationManager.shared.localized(.contextNewFile)) {
             createNewFile()
         }
         
-        Button("New Folder") {
+        Button(LocalizationManager.shared.localized(.contextNewFolder)) {
             createNewFolder()
         }
         
         Divider()
         
-        Button("Paste (p)") {
+        Button(LocalizationManager.shared.localized(.contextPaste)) {
             pasteFiles()
         }
         .disabled(appState.clipboard.isEmpty)
         
         Divider()
         
-        Button("Open in Terminal") {
+        Button(LocalizationManager.shared.localized(.contextOpenInTerminal)) {
             FileSystemService.shared.openInTerminal(path: pane.activeTab.currentPath)
         }
         
         Divider()
         
-        Button("Refresh (R)") {
+        Button(LocalizationManager.shared.localized(.contextRefresh)) {
             refreshDirectory()
         }
         
@@ -599,15 +599,13 @@ struct PaneView: View {
                         }
                     }
                     
-                    // 手动触发 UI 刷新
-                    pane.objectWillChange.send()
+                 
                     
                 case .permissionDenied(let path):
                     pane.activeTab.files = []
                     permissionDeniedPath = path
                     showPermissionError = true
                     pane.gitInfo = nil
-                    pane.objectWillChange.send()
                     
                 case .notFound(let path):
                     pane.activeTab.files = []
@@ -615,7 +613,6 @@ struct PaneView: View {
                     permissionDeniedPath = nil
                     showPermissionError = false
                     pane.gitInfo = nil
-                    pane.objectWillChange.send()
                     // 尝试返回上级目录
                     leaveDirectory()
                     
@@ -625,7 +622,6 @@ struct PaneView: View {
                     permissionDeniedPath = nil
                     showPermissionError = false
                     pane.gitInfo = nil
-                    pane.objectWillChange.send()
                 }
             }
         }
