@@ -142,12 +142,12 @@ enum AppAction {
     case moveVisualCursor(CursorDirection)
     case jumpToTop
     case jumpToBottom
-    
+
     /// 鼠标操作 - 统一通过模式系统处理
-    case mouseClick(index: Int, paneSide: PaneSide)                    // 普通单击
-    case mouseCommandClick(index: Int, paneSide: PaneSide)             // Command+Click 切换选择
-    case mouseShiftClick(index: Int, paneSide: PaneSide)               // Shift+Click 范围选择
-    case mouseDoubleClick(fileId: String, paneSide: PaneSide)          // 双击
+    case mouseClick(index: Int, paneSide: PaneSide)  // 普通单击
+    case mouseCommandClick(index: Int, paneSide: PaneSide)  // Command+Click 切换选择
+    case mouseShiftClick(index: Int, paneSide: PaneSide)  // Shift+Click 范围选择
+    case mouseDoubleClick(fileId: String, paneSide: PaneSide)  // 双击
 
     /// 目录操作
     case enterDirectory
@@ -163,6 +163,7 @@ enum AppAction {
     case addBookmark
     case openSettings
     case openHelp
+    case closeHelp
 
     /// 文件操作
     case yank
@@ -176,12 +177,12 @@ enum AppAction {
     case enterDriveSelection
     case moveDriveCursor(CursorDirection)
     case selectDrive
-    
+
     /// 命令操作
     case deleteCommand
     case executeCommand
     case insertCommand(Character)
-    
+
     /// 过滤操作
     case deleteFilterCharacter
     case inputFilterCharacter(Character)
@@ -214,7 +215,7 @@ enum AppModeKeyMaps {
             KeyChord(.downArrow): .moveCursor(.down),
             KeyChord(.leftArrow): .moveCursor(.left),
             KeyChord(.rightArrow): .moveCursor(.right),
-            
+
             KeyChord(.return): .enterDirectory,
 
             /// 模式切换
@@ -232,10 +233,10 @@ enum AppModeKeyMaps {
             /// Theme
             KeyChord("t", [.control]): .cycleTheme,
 
-            KeyChord("?"): .openHelp,
+            KeyChord("?", [.shift]): .openHelp,
 
             KeyChord("b"): .toggleBookmarkBar,
-            KeyChord("b",[.command]): .addBookmark,
+            KeyChord("b", [.command]): .addBookmark,
             KeyChord("r"): .refreshCurrentPane,
 
             KeyChord("y"): .yank,
@@ -281,7 +282,9 @@ enum AppModeKeyMaps {
             KeyChord(.return): .executeCommand,
         ]
 
-        return commandOverrides.merging(defaultMap) { current, _ in return current}
+        return commandOverrides.merging(defaultMap) { current, _ in
+            return current
+        }
     }()
 
     static let filter: [KeyChord: AppAction] = {
@@ -291,9 +294,10 @@ enum AppModeKeyMaps {
             // 这里的输入字符，交给默认处理，然后通过绑定更新过滤字符串
             KeyChord(.return): .doFilter,
         ]
-        
-        return filterOverrides.merging(defaultMap){
-            current, _ in return current
+
+        return filterOverrides.merging(defaultMap) {
+            current,
+            _ in return current
         }
     }()
 
@@ -317,7 +321,15 @@ enum AppModeKeyMaps {
         KeyChord(.escape): .exitMode
     ]
 
-    static let help: [KeyChord: AppAction] = defaultMap
+    static let help: [KeyChord: AppAction] = {
+        let helpOverrides: [KeyChord: AppAction] = [
+            KeyChord(.escape): .closeHelp
+        ]
+
+        return helpOverrides.merging(defaultMap) { current, _ in
+            return current
+        }
+    }()
 
 }
 
@@ -349,14 +361,14 @@ extension AppMode {
     func action(for keyPress: KeyPress) -> AppAction? {
         let chord = KeyChord(from: keyPress)
         let action: AppAction? = keyMaps[chord]
-        if self == .command && action == nil{
+        if self == .command && action == nil {
             return .insertCommand(keyPress.key.character)
         }
-        
-        if self == .filter && action == nil{
+
+        if self == .filter && action == nil {
             return .inputFilterCharacter(keyPress.key.character)
         }
-        
+
         return action
     }
 }

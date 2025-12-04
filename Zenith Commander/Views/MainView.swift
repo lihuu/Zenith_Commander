@@ -278,6 +278,10 @@ struct MainView: View {
 
         case .openHelp:
             appState.enterMode(.help)
+        
+        case .closeHelp:
+            appState.exitMode()
+            
         case .openSettings:
             appState.enterMode(.settings)
 
