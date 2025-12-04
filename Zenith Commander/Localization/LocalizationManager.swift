@@ -90,13 +90,6 @@ class LocalizationManager: ObservableObject {
     }
     
     /// 刷新语言设置（当系统语言变化时调用）
-    func refreshLanguage() {
-        let newLanguage = Self.detectSystemLanguage()
-        if newLanguage != currentLanguage {
-            currentLanguage = newLanguage
-            objectWillChange.send()
-        }
-    }
     
     /// 获取本地化字符串
     func localized(_ key: LocalizedStringKey) -> String {
