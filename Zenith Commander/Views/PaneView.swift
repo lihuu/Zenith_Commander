@@ -427,8 +427,9 @@ struct PaneView: View {
             let path = file.path
             if file.name == ".." {
                 // TODO: 如果是 .. 回到上一级，也要记住当前目录名用于返回定位
+                let previousPath = pane.activeTab.currentPath
                 pane.activeTab.currentPath = path
-                loadCurrentDirectoryWithPermissionCheck(restoreSelection:path.lastPathComponent){
+                loadCurrentDirectoryWithPermissionCheck(restoreSelection:previousPath.lastPathComponent){
                     pane.cursorIndex = 0
                     pane.clearSelections()
                 }
