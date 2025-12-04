@@ -502,7 +502,7 @@ struct PaneView: View {
             ),
             isDirectory.boolValue
         else {
-            appState.showToast("Target is not a folder")
+            appState.showToast(LocalizationManager.shared.localized(.toastTargetNotFolder))
             return false
         }
 
@@ -522,7 +522,7 @@ struct PaneView: View {
         }
 
         guard !validURLs.isEmpty else {
-            appState.showToast("Cannot move to same location")
+            appState.showToast(LocalizationManager.shared.localized(.toastCannotMoveToSame))
             return false
         }
 
@@ -545,16 +545,13 @@ struct PaneView: View {
                 }
             }
 
-            let action = shouldCopy ? "Copied" : "Moved"
-            let count = validURLs.count
-            appState.showToast("\(action) \(count) item\(count > 1 ? "s" : "")")
 
             // 刷新目录
             loadCurrentDirectoryWithPermissionCheck()
 
             return true
         } catch {
-            appState.showToast("Error: \(error.localizedDescription)")
+            appState.showToast(LocalizationManager.shared.localized(.error) + ": \(error.localizedDescription)")
             return false
         }
     }
@@ -614,13 +611,13 @@ struct PaneView: View {
         pasteboard.setString(file.path.path, forType: .string)
 
         // 显示成功提示
-        appState.showToast("Path copied: \(file.name)")
+        appState.showToast(LocalizationManager.shared.localized(.toastPathCopied, file.name))
     }
 
     /// 刷新当前目录
     func refreshDirectory() {
         loadCurrentDirectoryWithPermissionCheck()
-        appState.showToast("Refreshed")
+        appState.showToast(LocalizationManager.shared.localized(.toastRefreshed))
     }
 
     // MARK: - 目录监控
@@ -816,7 +813,7 @@ struct PaneView: View {
                 case .notFound(let path):
                     pane.activeTab.files = []
                     appState.showToast(
-                        "Directory not found: \(path.lastPathComponent)"
+                        LocalizationManager.shared.localized(.toastDirectoryNotFound, path.lastPathComponent)
                     )
                     permissionDeniedPath = nil
                     showPermissionError = false
@@ -826,7 +823,7 @@ struct PaneView: View {
 
                 case .error(let message):
                     pane.activeTab.files = []
-                    appState.showToast("Error: \(message)")
+                    appState.showToast(LocalizationManager.shared.localized(.error) + ": \(message)")
                     permissionDeniedPath = nil
                     showPermissionError = false
                     pane.gitInfo = nil
@@ -925,19 +922,19 @@ struct PaneView: View {
                     appState.clipboard,
                     to: destination
                 )
-                appState.showToast("\(appState.clipboard.count) file(s) copied")
+                appState.showToast(LocalizationManager.shared.localized(.toastItemsCopied, appState.clipboard.count))
             } else {
                 try FileSystemService.shared.moveFiles(
                     appState.clipboard,
                     to: destination
                 )
-                appState.showToast("\(appState.clipboard.count) file(s) moved")
+                appState.showToast(LocalizationManager.shared.localized(.toastItemsMoved, appState.clipboard.count))
                 appState.clipboard.removeAll()
             }
 
             loadCurrentDirectoryWithPermissionCheck()
         } catch {
-            appState.showToast("Error: \(error.localizedDescription)")
+            appState.showToast(LocalizationManager.shared.localized(.error) + ": \(error.localizedDescription)")
         }
     }
 
@@ -951,7 +948,7 @@ struct PaneView: View {
             }
             // 父目录项 (..) 不能被删除
             guard !file.isParentDirectory else {
-                appState.showToast("Cannot delete parent directory item")
+                appState.showToast(LocalizationManager.shared.localized(.toastCannotDeleteParent))
                 return
             }
             filesToDelete = [file]
@@ -963,17 +960,17 @@ struct PaneView: View {
         }
 
         guard !filesToDelete.isEmpty else {
-            appState.showToast("No files to delete")
+            appState.showToast(LocalizationManager.shared.localized(.toastNoFilesToDelete))
             return
         }
 
         do {
             try FileSystemService.shared.trashFiles(filesToDelete)
-            appState.showToast("\(filesToDelete.count) file(s) moved to Trash")
+            appState.showToast(LocalizationManager.shared.localized(.toastFilesMovedToTrash, filesToDelete.count))
             pane.clearSelections()
             loadCurrentDirectoryWithPermissionCheck()
         } catch {
-            appState.showToast("Error: \(error.localizedDescription)")
+            appState.showToast(LocalizationManager.shared.localized(.error) + ": \(error.localizedDescription)")
         }
     }
 
@@ -991,11 +988,11 @@ struct PaneView: View {
                 at: pane.activeTab.currentPath,
                 name: uniqueName
             )
-            appState.showToast("Created file: \(uniqueName)")
+            appState.showToast(LocalizationManager.shared.localized(.toastCreatedFile, uniqueName))
             loadCurrentDirectoryWithPermissionCheck()
         } catch {
             appState.showToast(
-                "Error creating file: \(error.localizedDescription)"
+                LocalizationManager.shared.localized(.toastErrorCreatingFile, error.localizedDescription)
             )
         }
     }
@@ -1015,7 +1012,7 @@ struct PaneView: View {
             loadCurrentDirectoryWithPermissionCheck()
         } catch {
             appState.showToast(
-                "Error creating folder: \(error.localizedDescription)"
+                LocalizationManager.shared.localized(.toastErrorCreatingFolder, error.localizedDescription)
             )
         }
     }
