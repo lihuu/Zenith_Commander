@@ -205,13 +205,12 @@ struct MainView: View {
         }
     }
 
-
     private func handleKeyPress(_ keyPress: KeyPress) -> KeyPress.Result {
         guard let action = appState.mode.action(for: keyPress) else {
             return .ignored
         }
 
-        Task{ @MainActor in
+        Task { @MainActor in
             await apply(action)
         }
 
@@ -219,9 +218,8 @@ struct MainView: View {
 
     }
 
-    
     @MainActor
-    private func apply(_ action: AppAction) async{
+    private func apply(_ action: AppAction) async {
         switch action {
         case .none:
             break
@@ -237,7 +235,7 @@ struct MainView: View {
             appState.jumpToTop()
         case .jumpToBottom:
             appState.jumpToBottom()
-            
+
         // MARK: - 鼠标操作
         case .mouseClick(let index, let paneSide):
             appState.handleMouseClick(at: index, paneSide: paneSide)
@@ -246,8 +244,11 @@ struct MainView: View {
         case .mouseShiftClick(let index, let paneSide):
             appState.handleMouseShiftClick(at: index, paneSide: paneSide)
         case .mouseDoubleClick(let fileId, let paneSide):
-            await appState.handleMouseDoubleClick(fileId: fileId, paneSide: paneSide)
-            
+            await appState.handleMouseDoubleClick(
+                fileId: fileId,
+                paneSide: paneSide
+            )
+
         case .enterDirectory:
             await appState.enterDirectory()
         case .leaveDirectory:
@@ -278,10 +279,10 @@ struct MainView: View {
 
         case .openHelp:
             appState.enterMode(.help)
-        
+
         case .closeHelp:
             appState.exitMode()
-            
+
         case .openSettings:
             appState.enterMode(.settings)
 
@@ -377,7 +378,6 @@ struct MainView: View {
 
     }
 
-
     /// 导航到书签位置
     private func navigateToBookmark(_ bookmark: BookmarkItem) {
         Task {
@@ -394,13 +394,11 @@ struct MainView: View {
                     pane.activeTab.files = files
                     pane.cursorIndex = 0
                     pane.objectWillChange.send()
-                    appState.showToast("Navigated to \(bookmark.name)")
                 }
             } else {
                 // 如果是文件，直接使用默认应用打开
                 await MainActor.run {
                     NSWorkspace.shared.open(bookmark.path)
-                    appState.showToast("Opening \(bookmark.name)...")
                 }
             }
         }
@@ -423,9 +421,7 @@ struct MainView: View {
                     }
                 }
             }
-            if addedCount > 0 {
-                appState.showToast("\(addedCount) bookmark(s) added")
-            } else {
+            if addedCount <= 0 {
                 appState.showToast("Already bookmarked")
             }
         } else {
@@ -466,9 +462,6 @@ struct MainView: View {
                     name: folderName
                 )
                 await appState.refreshCurrentPane()
-                appState.showToast(
-                    "Created directory: \(newDir.lastPathComponent)"
-                )
             } catch {
                 appState.showToast(
                     "Failed to create directory: \(error.localizedDescription)"
@@ -484,7 +477,6 @@ struct MainView: View {
                     name: fileName
                 )
                 await appState.refreshCurrentPane()
-                appState.showToast("Created file: \(newFile.lastPathComponent)")
             } catch {
                 appState.showToast(
                     "Failed to create file: \(error.localizedDescription)"
@@ -566,7 +558,6 @@ struct MainView: View {
             do {
                 try FileManager.default.moveItem(at: srcPath, to: destPath)
                 await appState.refreshCurrentPane()
-                appState.showToast("Moved to: \(destPath.lastPathComponent)")
             } catch {
                 appState.showToast("Move failed: \(error.localizedDescription)")
             }
@@ -584,7 +575,6 @@ struct MainView: View {
                     to: destPath
                 )
                 await appState.refreshCurrentPane()
-                appState.showToast("Moved \(selectedFiles.count) item(s)")
             } catch {
                 appState.showToast("Move failed: \(error.localizedDescription)")
             }
@@ -610,7 +600,6 @@ struct MainView: View {
             do {
                 try FileManager.default.copyItem(at: srcPath, to: destPath)
                 await appState.refreshCurrentPane()
-                appState.showToast("Copied to: \(destPath.lastPathComponent)")
             } catch {
                 appState.showToast("Copy failed: \(error.localizedDescription)")
             }
@@ -628,7 +617,6 @@ struct MainView: View {
                     to: destPath
                 )
                 await appState.refreshCurrentPane()
-                appState.showToast("Copied \(selectedFiles.count) item(s)")
             } catch {
                 appState.showToast("Copy failed: \(error.localizedDescription)")
             }
@@ -903,7 +891,6 @@ struct MainView: View {
         }
     }
 }
-
 
 #Preview {
     MainView()
