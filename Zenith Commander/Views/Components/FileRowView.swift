@@ -117,6 +117,19 @@ struct FileRowView: View, Equatable {
             (isActive ? ", focused" : "") +
             (isSelected ? ", selected" : "")
         )
+        .draggable(file.path) {
+            // 拖动预览
+            HStack(spacing: 6) {
+                Image(systemName: file.type == .folder ? "folder.fill" : "doc.fill")
+                    .foregroundColor(file.type == .folder ? Theme.folder : Theme.file)
+                Text(file.name)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Theme.backgroundSecondary)
+            .cornerRadius(6)
+        }
     }
     
     // MARK: - 颜色计算
@@ -226,6 +239,19 @@ struct FileGridItemView: View {
             (isActive ? "focused" : "") +
             (isSelected ? ", selected" : "")
         )
+        .draggable(file.path) {
+            // 拖动预览
+            HStack(spacing: 6) {
+                Image(systemName: file.type == .folder ? "folder.fill" : "doc.fill")
+                    .foregroundColor(file.type == .folder ? Theme.folder : Theme.file)
+                Text(file.name)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Theme.backgroundSecondary)
+            .cornerRadius(6)
+        }
     }
     
     private var backgroundColor: Color {

@@ -163,6 +163,13 @@ struct PaneView: View {
                         .equatable() // 使用 Equatable 优化重绘
                         .id(file.id)
                         .contentShape(Rectangle())
+                        .dropDestination(for: URL.self) { urls, _ in
+                            // 只有文件夹才接受拖放
+                            guard file.type == .folder else { return false }
+                            return handleDroppedURLs(urls, to: file.path)
+                        } isTargeted: { isTargeted in
+                            // 可以在这里添加拖放目标高亮效果
+                        }
                         .simultaneousGesture(
                             TapGesture(count: 2)
                                 .onEnded { handleFileDoubleClick(file: file) }
@@ -193,6 +200,10 @@ struct PaneView: View {
                             directoryContextMenu
                         }
                 }
+            }
+            .dropDestination(for: URL.self) { urls, _ in
+                // 拖放到当前目录
+                return handleDroppedURLs(urls, to: pane.activeTab.currentPath)
             }
             .onChange(of: pane.activeTab.cursorFileId) { _, newValue in
                 withAnimation(.easeInOut(duration: 0.1)) {
@@ -228,6 +239,13 @@ struct PaneView: View {
                             )
                             .id(file.id)
                             .contentShape(Rectangle())
+                            .dropDestination(for: URL.self) { urls, _ in
+                                // 只有文件夹才接受拖放
+                                guard file.type == .folder else { return false }
+                                return handleDroppedURLs(urls, to: file.path)
+                            } isTargeted: { isTargeted in
+                                // 可以在这里添加拖放目标高亮效果
+                            }
                             .simultaneousGesture(
                                 TapGesture(count: 2)
                                     .onEnded { handleFileDoubleClick(file: file) }
@@ -258,6 +276,10 @@ struct PaneView: View {
                         .contextMenu {
                             directoryContextMenu
                         }
+                }
+                .dropDestination(for: URL.self) { urls, _ in
+                    // 拖放到当前目录
+                    return handleDroppedURLs(urls, to: pane.activeTab.currentPath)
                 }
                 .onChange(
                     of: pane.activeTab.cursorFileId
@@ -418,6 +440,87 @@ struct PaneView: View {
     }
     
     // MARK: - 事件处理（统一通过模式系统）
+    
+    /// 处理拖放的 URL - 移动文件到目标目录
+    /// - Parameters:
+    ///   - urls: 被拖放的文件 URL 列表
+    ///   - destination: 目标目录 URL
+    /// - Returns: 是否成功处理拖放
+    private func handleDroppedURLs(_ urls: [URL], to destination: URL) -> Bool {
+        guard !urls.isEmpty else { return false }
+        
+        // 检查目标是否为目录
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: destination.path, isDirectory: &isDirectory),
+              isDirectory.boolValue else {
+            appState.showToast("Target is not a folder")
+            return false
+        }
+        
+        // 过滤掉目标目录本身和其父目录（避免移动到自身）
+        let validURLs = urls.filter { url in
+            // 不能移动到自己
+            guard url != destination else { return false }
+            // 不能移动父目录到子目录
+            guard !destination.path.hasPrefix(url.path + "/") else { return false }
+            // 不能移动到同一个目录（源和目标相同）
+            guard url.deletingLastPathComponent() != destination else { return false }
+            return true
+        }
+        
+        guard !validURLs.isEmpty else {
+            appState.showToast("Cannot move to same location")
+            return false
+        }
+        
+        // 检查是否按住 Option 键来复制而不是移动
+        let shouldCopy = NSEvent.modifierFlags.contains(.option)
+        
+        do {
+            for url in validURLs {
+                let destURL = destination.appendingPathComponent(url.lastPathComponent)
+                
+                // 生成唯一文件名（如果目标已存在）
+                let uniqueDestURL = generateUniqueURL(for: destURL)
+                
+                if shouldCopy {
+                    try FileManager.default.copyItem(at: url, to: uniqueDestURL)
+                } else {
+                    try FileManager.default.moveItem(at: url, to: uniqueDestURL)
+                }
+            }
+            
+            let action = shouldCopy ? "Copied" : "Moved"
+            let count = validURLs.count
+            appState.showToast("\(action) \(count) item\(count > 1 ? "s" : "")")
+            
+            // 刷新目录
+            loadCurrentDirectoryWithPermissionCheck()
+            
+            return true
+        } catch {
+            appState.showToast("Error: \(error.localizedDescription)")
+            return false
+        }
+    }
+    
+    /// 生成唯一的目标 URL（如果已存在同名文件）
+    private func generateUniqueURL(for url: URL) -> URL {
+        var resultURL = url
+        var counter = 1
+        
+        let baseName = url.deletingPathExtension().lastPathComponent
+        let ext = url.pathExtension
+        let parentDir = url.deletingLastPathComponent()
+        
+        while FileManager.default.fileExists(atPath: resultURL.path) {
+            let newName = ext.isEmpty ? "\(baseName) \(counter)" : "\(baseName) \(counter).\(ext)"
+            resultURL = parentDir.appendingPathComponent(newName)
+            counter += 1
+        }
+        
+        return resultURL
+    }
     
     /// 处理文件单击 - 检测修饰键并分发到对应的 Action
     private func handleFileClick(index: Int, modifiers: EventModifiers = []) {

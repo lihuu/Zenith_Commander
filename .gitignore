@@ -14,7 +14,8 @@ build/
 !default.mode2v3
 *.pbxlazycontent
 DerivedData/
-
+dist/
+build/
 # 编译和归档产物
 *.app
 *.ipa
