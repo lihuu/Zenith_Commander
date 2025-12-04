@@ -203,7 +203,7 @@ enum AppModeKeyMaps {
     ]
 
     static let normal: [KeyChord: AppAction] = {
-        let normelOverrides: [KeyChord: AppAction] = [
+        let normalOverrides: [KeyChord: AppAction] = [
             /// Vim 风格导航
             KeyChord("k"): .moveCursor(.up),
             KeyChord("j"): .moveCursor(.down),
@@ -246,7 +246,7 @@ enum AppModeKeyMaps {
             KeyChord("G", [.shift]): .jumpToBottom,
         ]
 
-        return normelOverrides.merging(defaultMap) { current, _ in
+        return normalOverrides.merging(defaultMap) { current, _ in
             return current
         }
 

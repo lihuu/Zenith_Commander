@@ -87,6 +87,7 @@ struct BookmarkBarView: View {
         .frame(height: 28)
         .background(WindowDragHandle())
         .background(Theme.backgroundSecondary.opacity(0.5))
+        .accessibilityIdentifier("BookmarkBar")
     }
 }
 
