@@ -188,4 +188,11 @@ class PaneState: ObservableObject {
         }
     }
     
+    func refreshActiveTab() async{
+        let files = await FileSystemService.shared.loadDirectory(
+            at: activeTab.currentPath
+        )
+        activeTab.files = files
+    }
+    
 }

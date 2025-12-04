@@ -16,6 +16,15 @@ struct FileRowView: View, Equatable {
     let isActive: Bool       // 光标所在
     let isSelected: Bool     // 被选中
     let isPaneActive: Bool   // 面板是否激活
+    let rowIndex: Int        // 行索引，用于斑马条纹（可选）
+    
+    init(file: FileItem, isActive: Bool, isSelected: Bool, isPaneActive: Bool, rowIndex: Int = 0) {
+        self.file = file
+        self.isActive = isActive
+        self.isSelected = isSelected
+        self.isPaneActive = isPaneActive
+        self.rowIndex = rowIndex
+    }
     
     // 实现 Equatable 以优化重绘
     static func == (lhs: FileRowView, rhs: FileRowView) -> Bool {
@@ -24,7 +33,8 @@ struct FileRowView: View, Equatable {
         lhs.file.gitStatus == rhs.file.gitStatus &&
         lhs.isActive == rhs.isActive &&
         lhs.isSelected == rhs.isSelected &&
-        lhs.isPaneActive == rhs.isPaneActive
+        lhs.isPaneActive == rhs.isPaneActive &&
+        lhs.rowIndex == rhs.rowIndex
     }
     
     // 基于设置的字体大小计算

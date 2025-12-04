@@ -30,7 +30,10 @@ extension Logger {
     static let app = Logger(subsystem: subsystem, category: "app")
     
     /// 文件系统操作日志
-    static let fileSystem = Logger(subsystem: subsystem, category: "filesystem")
+    static nonisolated let fileSystem = Logger(
+        subsystem: subsystem,
+        category: "filesystem"
+    )
     
     /// 目录监控日志
     static let monitor = Logger(subsystem: subsystem, category: "monitor")

@@ -4,6 +4,7 @@
 //
 //  用于窗口拖动的视图组件
 //  替代 isMovableByWindowBackground = true，仅在特定区域允许拖动窗口
+//  支持双击最大化/还原窗口（macOS 标准行为）
 //
 
 import SwiftUI
@@ -23,10 +24,18 @@ struct WindowDragHandle: NSViewRepresentable {
         
         override func hitTest(_ point: NSPoint) -> NSView? {
             // 只有当鼠标点击在这个视图范围内时，才允许拖动
-            // 如果上层有其他交互元素（如按钮），它们会优先捕获事件（如果它们在层级上更高）
-            // 但在这里，我们通常作为背景使用，所以只需确保我们能接收到事件
             let view = super.hitTest(point)
             return view == self ? self : nil
+        }
+        
+        override func mouseDown(with event: NSEvent) {
+            // 检测双击
+            if event.clickCount == 2 {
+                // 双击标题栏区域时，执行 zoom（最大化/还原）
+                self.window?.zoom(nil)
+            } else {
+                super.mouseDown(with: event)
+            }
         }
     }
 }

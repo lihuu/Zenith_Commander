@@ -237,6 +237,17 @@ struct MainView: View {
             appState.jumpToTop()
         case .jumpToBottom:
             appState.jumpToBottom()
+            
+        // MARK: - 鼠标操作
+        case .mouseClick(let index, let paneSide):
+            appState.handleMouseClick(at: index, paneSide: paneSide)
+        case .mouseCommandClick(let index, let paneSide):
+            appState.handleMouseCommandClick(at: index, paneSide: paneSide)
+        case .mouseShiftClick(let index, let paneSide):
+            appState.handleMouseShiftClick(at: index, paneSide: paneSide)
+        case .mouseDoubleClick(let fileId, let paneSide):
+            await appState.handleMouseDoubleClick(fileId: fileId, paneSide: paneSide)
+            
         case .enterDirectory:
             await appState.enterDirectory()
         case .leaveDirectory:
@@ -267,6 +278,10 @@ struct MainView: View {
 
         case .openHelp:
             appState.enterMode(.help)
+        
+        case .closeHelp:
+            appState.exitMode()
+            
         case .openSettings:
             appState.enterMode(.settings)
 

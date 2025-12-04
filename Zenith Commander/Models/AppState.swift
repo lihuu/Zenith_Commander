@@ -164,11 +164,7 @@ class AppState: ObservableObject {
     }
 
     func refreshCurrentPane() async {
-        let pane = currentPane
-        let files = await FileSystemService.shared.loadDirectory(
-            at: pane.activeTab.currentPath
-        )
-        pane.activeTab.files = files
+        await currentPane.refreshActiveTab()
     }
 
     /// 恢复未过滤的文件列表
@@ -199,6 +195,112 @@ class AppState: ObservableObject {
             if self?.toastMessage == message {
                 self?.toastMessage = nil
             }
+        }
+    }
+
+    // MARK: - 鼠标操作（统一通过模式系统处理）
+    
+    /// 处理普通单击
+    /// - 在 Normal 模式下：移动光标
+    /// - 在 Visual 模式下：移动光标并更新选择范围
+    func handleMouseClick(at index: Int, paneSide: PaneSide) {
+        // 切换活动面板
+        setActivePane(paneSide)
+        let pane = paneSide == .left ? leftPane : rightPane
+        
+        // 移动光标
+        pane.cursorIndex = index
+        
+        // 如果在 Visual 模式下，更新选择范围
+        if mode == .visual {
+            pane.updateVisualSelection()
+        }
+    }
+    
+    /// 处理 Command+Click（切换选择）
+    /// - 自动进入 Visual 模式
+    /// - 切换点击项的选择状态
+    func handleMouseCommandClick(at index: Int, paneSide: PaneSide) {
+        setActivePane(paneSide)
+        let pane = paneSide == .left ? leftPane : rightPane
+        
+        // 获取目标文件
+        guard let file = pane.activeTab.files[safe: index] else { return }
+        
+        // 父目录项不能被选中
+        guard !file.isParentDirectory else { return }
+        
+        // 如果不在 Visual 模式，先进入 Visual 模式
+        if mode != .visual {
+            // 进入 Visual 模式但不设置锚点（因为我们要做切换选择）
+            mode = .visual
+            pane.visualAnchor = nil  // 清除锚点，因为 Command+Click 是独立选择
+        }
+        
+        // 移动光标到点击位置
+        pane.cursorIndex = index
+        
+        // 切换选择状态
+        pane.toggleSelection(for: file.id)
+        
+        // 如果没有选中项了，退出 Visual 模式
+        if pane.selections.isEmpty {
+            exitMode()
+        }
+    }
+    
+    /// 处理 Shift+Click（范围选择）
+    /// - 自动进入 Visual 模式
+    /// - 从锚点（或当前光标）到点击位置进行范围选择
+    func handleMouseShiftClick(at index: Int, paneSide: PaneSide) {
+        setActivePane(paneSide)
+        let pane = paneSide == .left ? leftPane : rightPane
+        
+        // 如果不在 Visual 模式，先进入 Visual 模式
+        if mode != .visual {
+            // 设置当前光标位置为锚点
+            pane.visualAnchor = pane.cursorIndex
+            mode = .visual
+        }
+        
+        // 如果没有锚点，以当前光标为锚点
+        if pane.visualAnchor == nil {
+            pane.visualAnchor = pane.cursorIndex
+        }
+        
+        // 移动光标到点击位置
+        pane.cursorIndex = index
+        
+        // 更新范围选择
+        pane.updateVisualSelection()
+    }
+    
+    /// 处理双击
+    /// - 文件夹：进入目录
+    /// - 文件：使用默认应用打开
+    func handleMouseDoubleClick(fileId: String, paneSide: PaneSide) async {
+        setActivePane(paneSide)
+        let pane = paneSide == .left ? leftPane : rightPane
+        
+        guard let file = pane.activeTab.files.first(where: { $0.id == fileId }) else { return }
+        
+        if file.isFolder {
+            // 进入目录
+            let newPath = file.path
+            let files = await FileSystemService.shared.loadDirectory(at: newPath)
+            
+            pane.activeTab.currentPath = newPath
+            pane.activeTab.files = files
+            pane.cursorIndex = 0
+            pane.clearSelections()
+            
+            // 如果在 Visual 模式，退出
+            if mode == .visual {
+                exitMode()
+            }
+        } else {
+            // 打开文件
+            FileSystemService.shared.openFile(file)
         }
     }
 
@@ -471,7 +573,7 @@ class AppState: ObservableObject {
         let parent = FileSystemService.shared.parentDirectory(of: currentPath)
 
         // 检查是否已经在根目录
-        if parent.path != currentPath.path {
+        if currentPath.path != "/" {
             // 记住当前目录名，用于返回后定位
             let currentDirName = currentPath.lastPathComponent
 

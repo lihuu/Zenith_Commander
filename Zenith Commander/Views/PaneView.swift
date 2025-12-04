@@ -157,7 +157,8 @@ struct PaneView: View {
                             file: file,
                             isActive: index == pane.cursorIndex,
                             isSelected: pane.selections.contains(file.id),
-                            isPaneActive: isActivePane
+                            isPaneActive: isActivePane,
+                            rowIndex: index
                         )
                         .equatable() // 使用 Equatable 优化重绘
                         .id(file.id)
@@ -168,7 +169,11 @@ struct PaneView: View {
                         )
                         .simultaneousGesture(
                             TapGesture(count: 1)
-                                .onEnded { handleFileClick(index: index) }
+                                .onEnded {
+                                    // 获取当前修饰键状态
+                                    let modifiers = currentModifiers()
+                                    handleFileClick(index: index, modifiers: modifiers)
+                                }
                         )
                         .contextMenu {
                             fileContextMenu(file: file)
@@ -229,7 +234,10 @@ struct PaneView: View {
                             )
                             .simultaneousGesture(
                                 TapGesture(count: 1)
-                                    .onEnded { handleFileClick(index: index) }
+                                    .onEnded {
+                                        let modifiers = currentModifiers()
+                                        handleFileClick(index: index, modifiers: modifiers)
+                                    }
                             )
                             .contextMenu {
                                 fileContextMenu(file: file)
@@ -409,25 +417,30 @@ struct PaneView: View {
         }
     }
     
-    // MARK: - 事件处理
+    // MARK: - 事件处理（统一通过模式系统）
     
-    private func handleFileClick(index: Int) {
-        appState.setActivePane(side)
-        pane.cursorIndex = index
-        
-        // Visual 模式下自动选中
-        if appState.mode == .visual {
-            pane.selectCurrentFile()
+    /// 处理文件单击 - 检测修饰键并分发到对应的 Action
+    private func handleFileClick(index: Int, modifiers: EventModifiers = []) {
+        if modifiers.contains(.command) {
+            // Command+Click: 切换选择（自动进入 Visual 模式）
+            appState.handleMouseCommandClick(at: index, paneSide: side)
+        } else if modifiers.contains(.shift) {
+            // Shift+Click: 范围选择（自动进入 Visual 模式）
+            appState.handleMouseShiftClick(at: index, paneSide: side)
+        } else {
+            // 普通单击: 移动光标
+            appState.handleMouseClick(at: index, paneSide: side)
         }
     }
     
+    /// 处理文件双击
     private func handleFileDoubleClick(file: FileItem) {
-        if file.type == .folder {
-            // 进入目录
-            navigateTo(file.path)
-        } else {
-            // 打开文件
-            FileSystemService.shared.openFile(file)
+        Task {
+            await appState.handleMouseDoubleClick(fileId: file.id, paneSide: side)
+            // 双击后需要重新加载目录（处理权限检查等）
+            if file.isFolder {
+                loadCurrentDirectoryWithPermissionCheck()
+            }
         }
     }
     
@@ -565,12 +578,13 @@ struct PaneView: View {
     
     func navigateTo(_ path: URL) {
         pane.activeTab.currentPath = path
-        pane.cursorIndex = 0
-        pane.clearSelections()
-        loadCurrentDirectoryWithPermissionCheck()
+        loadCurrentDirectoryWithPermissionCheck(){
+            pane.cursorIndex = 0
+            pane.clearSelections()
+        }
     }
     
-    func loadCurrentDirectoryWithPermissionCheck(restoreSelection: String? = nil) {
+    func loadCurrentDirectoryWithPermissionCheck(restoreSelection: String? = nil, successCallBack: @escaping ()->Void = {}) {
         Task {
             let result = await FileSystemService.shared.loadDirectoryWithPermissionCheck(at: pane.activeTab.currentPath)
             
@@ -579,6 +593,7 @@ struct PaneView: View {
                 switch result {
                 case .success(var files):
                     // 获取 Git 状态（如果启用）
+                    successCallBack()
                     if settingsManager.settings.git.enabled {
                         let gitSettings = settingsManager.settings.git
                         applyGitStatus(to: &files, settings: gitSettings)
@@ -598,8 +613,6 @@ struct PaneView: View {
                             pane.cursorIndex = 0
                         }
                     }
-                    
-                 
                     
                 case .permissionDenied(let path):
                     pane.activeTab.files = []
@@ -787,6 +800,30 @@ struct PaneView: View {
         } catch {
             appState.showToast("Error creating folder: \(error.localizedDescription)")
         }
+    }
+    
+    // MARK: - 辅助函数
+    
+    /// 获取当前按下的修饰键
+    /// 通过 NSEvent 获取当前的修饰键状态，用于鼠标点击时判断 Command/Shift 等修饰键
+    private func currentModifiers() -> EventModifiers {
+        let flags = NSEvent.modifierFlags
+        var modifiers: EventModifiers = []
+        
+        if flags.contains(.command) {
+            modifiers.insert(.command)
+        }
+        if flags.contains(.shift) {
+            modifiers.insert(.shift)
+        }
+        if flags.contains(.option) {
+            modifiers.insert(.option)
+        }
+        if flags.contains(.control) {
+            modifiers.insert(.control)
+        }
+        
+        return modifiers
     }
 }
 
