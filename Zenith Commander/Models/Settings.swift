@@ -22,33 +22,27 @@ struct AppSettings: Codable, Equatable {
     /// Git 设置
     var git: GitSettings
     
-    /// 语言设置
-    var language: String
-    
     /// 默认设置
     static var `default`: AppSettings {
         AppSettings(
             appearance: .default,
             terminal: .default,
-            git: .default,
-            language: AppLanguage.english.rawValue
+            git: .default
         )
     }
     
-    // 自定义解码器，处理旧版设置文件缺少 git 字段的情况
+    // 自定义解码器，处理旧版设置文件缺少字段的情况
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         appearance = try container.decodeIfPresent(AppearanceSettings.self, forKey: .appearance) ?? .default
         terminal = try container.decodeIfPresent(TerminalSettings.self, forKey: .terminal) ?? .default
         git = try container.decodeIfPresent(GitSettings.self, forKey: .git) ?? .default
-        language = try container.decodeIfPresent(String.self, forKey: .language) ?? AppLanguage.english.rawValue
     }
     
-    init(appearance: AppearanceSettings, terminal: TerminalSettings, git: GitSettings, language: String) {
+    init(appearance: AppearanceSettings, terminal: TerminalSettings, git: GitSettings) {
         self.appearance = appearance
         self.terminal = terminal
         self.git = git
-        self.language = language
     }
 }
 
@@ -205,11 +199,6 @@ class SettingsManager: ObservableObject {
         // 应用主题 - 使用异步更新避免在视图更新期间修改 @Published 属性
         DispatchQueue.main.async {
             ThemeManager.shared.mode = self.settings.appearance.themeModeEnum
-            
-            // 应用语言设置
-            if let language = AppLanguage(rawValue: self.settings.language) {
-                LocalizationManager.shared.setLanguage(language)
-            }
         }
     }
     

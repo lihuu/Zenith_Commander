@@ -6,226 +6,123 @@
 //
 
 import XCTest
-import Combine
 @testable import Zenith_Commander
 
 class LocalizationTests: XCTestCase {
     
-    override func setUp() {
-        super.setUp()
-        // Reset to English before each test
-        LocalizationManager.shared.setLanguage(.english)
+    // MARK: - 系统语言检测测试
+    
+    func testCurrentLanguageIsValid() {
+        // 当前语言应该是支持的语言之一
+        let currentLanguage = LocalizationManager.shared.currentLanguage
+        XCTAssertTrue(AppLanguage.allCases.contains(currentLanguage))
     }
     
-    override func tearDown() {
-        // Reset to English after each test
-        LocalizationManager.shared.setLanguage(.english)
-        super.tearDown()
+    func testLocalizationReturnsNonEmptyString() {
+        // 本地化字符串不应为空
+        let okString = LocalizationManager.shared.localized(.ok)
+        let cancelString = LocalizationManager.shared.localized(.cancel)
+        
+        XCTAssertFalse(okString.isEmpty)
+        XCTAssertFalse(cancelString.isEmpty)
     }
     
-    // MARK: - 语言切换基础测试
+    // MARK: - 本地化字符串测试
     
-    func testLanguageSwitchToChineseThenBack() {
-        // Given - 初始为英文
-        LocalizationManager.shared.setLanguage(.english)
-        XCTAssertEqual(LocalizationManager.shared.currentLanguage, .english)
+    func testEnglishStringsExist() {
+        // 验证英文字符串存在
+        let strings = LocalizedStrings.shared
         
-        // When - 切换到中文
-        LocalizationManager.shared.setLanguage(.chinese)
-        
-        // Then - 应该是中文
-        XCTAssertEqual(LocalizationManager.shared.currentLanguage, .chinese)
-        XCTAssertEqual(LocalizationManager.shared.localized(.ok), "确定")
-        XCTAssertEqual(LocalizationManager.shared.localized(.cancel), "取消")
-        
-        // When - 切换回英文
-        LocalizationManager.shared.setLanguage(.english)
-        
-        // Then - 应该是英文
-        XCTAssertEqual(LocalizationManager.shared.currentLanguage, .english)
-        XCTAssertEqual(LocalizationManager.shared.localized(.ok), "OK")
-        XCTAssertEqual(LocalizationManager.shared.localized(.cancel), "Cancel")
+        XCTAssertEqual(strings.get(.ok, for: .english), "OK")
+        XCTAssertEqual(strings.get(.cancel, for: .english), "Cancel")
+        XCTAssertEqual(strings.get(.menuNavigation, for: .english), "Navigation")
+        XCTAssertEqual(strings.get(.menuView, for: .english), "View")
+        XCTAssertEqual(strings.get(.menuHelp, for: .english), "Help")
     }
     
-    func testLanguagePersistence() {
-        // Given
-        let languageKey = "app_language"
+    func testChineseStringsExist() {
+        // 验证中文字符串存在
+        let strings = LocalizedStrings.shared
         
-        // When - 设置中文
-        LocalizationManager.shared.setLanguage(.chinese)
-        
-        // Then - UserDefaults 应该保存了中文设置
-        let savedLanguage = UserDefaults.standard.string(forKey: languageKey)
-        XCTAssertEqual(savedLanguage, AppLanguage.chinese.rawValue)
-        
-        // When - 设置英文
-        LocalizationManager.shared.setLanguage(.english)
-        
-        // Then - UserDefaults 应该保存了英文设置
-        let savedEnglish = UserDefaults.standard.string(forKey: languageKey)
-        XCTAssertEqual(savedEnglish, AppLanguage.english.rawValue)
+        XCTAssertEqual(strings.get(.ok, for: .chinese), "确定")
+        XCTAssertEqual(strings.get(.cancel, for: .chinese), "取消")
+        XCTAssertEqual(strings.get(.menuNavigation, for: .chinese), "导航")
+        XCTAssertEqual(strings.get(.menuView, for: .chinese), "视图")
+        XCTAssertEqual(strings.get(.menuHelp, for: .chinese), "帮助")
     }
     
-    func testAppleLanguagesIsSyncedWithAppLanguage() {
-        // When - 设置中文
-        LocalizationManager.shared.setLanguage(.chinese)
+    // MARK: - 菜单本地化测试
+    
+    func testMenuStringsEnglish() {
+        let strings = LocalizedStrings.shared
         
-        // Then - AppleLanguages 应该同步更新
-        let appleLanguages = UserDefaults.standard.array(forKey: "AppleLanguages") as? [String]
-        XCTAssertNotNil(appleLanguages)
-        XCTAssertEqual(appleLanguages?.first, AppLanguage.chinese.rawValue)
-        
-        // When - 设置英文
-        LocalizationManager.shared.setLanguage(.english)
-        
-        // Then
-        let appleLanguagesEn = UserDefaults.standard.array(forKey: "AppleLanguages") as? [String]
-        XCTAssertEqual(appleLanguagesEn?.first, AppLanguage.english.rawValue)
+        XCTAssertEqual(strings.get(.menuSettings, for: .english), "Settings...")
+        XCTAssertEqual(strings.get(.menuShowHelp, for: .english), "Zenith Commander Help")
+        XCTAssertEqual(strings.get(.menuCut, for: .english), "Cut")
+        XCTAssertEqual(strings.get(.menuCopy, for: .english), "Copy")
+        XCTAssertEqual(strings.get(.menuPaste, for: .english), "Paste")
+        XCTAssertEqual(strings.get(.menuSelectAll, for: .english), "Select All")
+        XCTAssertEqual(strings.get(.menuUndo, for: .english), "Undo")
+        XCTAssertEqual(strings.get(.menuRedo, for: .english), "Redo")
     }
     
-    // MARK: - 菜单栏本地化测试
-    
-    func testMenuLocalizationEnglish() {
-        // Given
-        LocalizationManager.shared.setLanguage(.english)
+    func testMenuStringsChinese() {
+        let strings = LocalizedStrings.shared
         
-        // Then
-        XCTAssertEqual(LocalizationManager.shared.localized(.menuNavigation), "Navigation")
-        XCTAssertEqual(LocalizationManager.shared.localized(.menuView), "View")
-        XCTAssertEqual(LocalizationManager.shared.localized(.menuHelp), "Help")
-        XCTAssertEqual(LocalizationManager.shared.localized(.menuSettings), "Settings...")
-        XCTAssertEqual(LocalizationManager.shared.localized(.menuShowHelp), "Zenith Commander Help")
-        XCTAssertEqual(LocalizationManager.shared.localized(.menuCut), "Cut")
-        XCTAssertEqual(LocalizationManager.shared.localized(.menuCopy), "Copy")
-        XCTAssertEqual(LocalizationManager.shared.localized(.menuPaste), "Paste")
-        XCTAssertEqual(LocalizationManager.shared.localized(.menuSelectAll), "Select All")
-        XCTAssertEqual(LocalizationManager.shared.localized(.menuUndo), "Undo")
-        XCTAssertEqual(LocalizationManager.shared.localized(.menuRedo), "Redo")
-    }
-    
-    func testMenuLocalizationChinese() {
-        // Given
-        LocalizationManager.shared.setLanguage(.chinese)
-        
-        // Then
-        XCTAssertEqual(LocalizationManager.shared.localized(.menuNavigation), "导航")
-        XCTAssertEqual(LocalizationManager.shared.localized(.menuView), "视图")
-        XCTAssertEqual(LocalizationManager.shared.localized(.menuHelp), "帮助")
-        XCTAssertEqual(LocalizationManager.shared.localized(.menuSettings), "设置...")
-        XCTAssertEqual(LocalizationManager.shared.localized(.menuShowHelp), "Zenith Commander 帮助")
-        XCTAssertEqual(LocalizationManager.shared.localized(.menuCut), "剪切")
-        XCTAssertEqual(LocalizationManager.shared.localized(.menuCopy), "拷贝")
-        XCTAssertEqual(LocalizationManager.shared.localized(.menuPaste), "粘贴")
-        XCTAssertEqual(LocalizationManager.shared.localized(.menuSelectAll), "全选")
-        XCTAssertEqual(LocalizationManager.shared.localized(.menuUndo), "撤销")
-        XCTAssertEqual(LocalizationManager.shared.localized(.menuRedo), "重做")
+        XCTAssertEqual(strings.get(.menuSettings, for: .chinese), "设置...")
+        XCTAssertEqual(strings.get(.menuShowHelp, for: .chinese), "Zenith Commander 帮助")
+        XCTAssertEqual(strings.get(.menuCut, for: .chinese), "剪切")
+        XCTAssertEqual(strings.get(.menuCopy, for: .chinese), "拷贝")
+        XCTAssertEqual(strings.get(.menuPaste, for: .chinese), "粘贴")
+        XCTAssertEqual(strings.get(.menuSelectAll, for: .chinese), "全选")
+        XCTAssertEqual(strings.get(.menuUndo, for: .chinese), "撤销")
+        XCTAssertEqual(strings.get(.menuRedo, for: .chinese), "重做")
     }
     
     // MARK: - 上下文菜单本地化测试
     
-    func testContextMenuLocalizationEnglish() {
-        // Given
-        LocalizationManager.shared.setLanguage(.english)
+    func testContextMenuStringsEnglish() {
+        let strings = LocalizedStrings.shared
         
-        // When & Then
-        XCTAssertEqual(LocalizationManager.shared.localized(.contextOpen), "Open")
-        XCTAssertEqual(LocalizationManager.shared.localized(.contextOpenInTerminal), "Open in Terminal")
-        XCTAssertEqual(LocalizationManager.shared.localized(.contextRemoveFromBookmarks), "Remove from Bookmarks")
-        XCTAssertEqual(LocalizationManager.shared.localized(.contextAddToBookmarks), "Add to Bookmarks (⌘B)")
-        XCTAssertEqual(LocalizationManager.shared.localized(.contextCopyYank), "Copy (y)")
-        XCTAssertEqual(LocalizationManager.shared.localized(.contextPaste), "Paste (p)")
-        XCTAssertEqual(LocalizationManager.shared.localized(.contextShowInFinder), "Show in Finder")
-        XCTAssertEqual(LocalizationManager.shared.localized(.contextCopyFullPath), "Copy Full Path")
-        XCTAssertEqual(LocalizationManager.shared.localized(.contextMoveToTrash), "Move to Trash")
-        XCTAssertEqual(LocalizationManager.shared.localized(.contextRefresh), "Refresh (R)")
-        XCTAssertEqual(LocalizationManager.shared.localized(.contextNewFile), "New File")
-        XCTAssertEqual(LocalizationManager.shared.localized(.contextNewFolder), "New Folder")
+        XCTAssertEqual(strings.get(.contextOpen, for: .english), "Open")
+        XCTAssertEqual(strings.get(.contextOpenInTerminal, for: .english), "Open in Terminal")
+        XCTAssertEqual(strings.get(.contextShowInFinder, for: .english), "Show in Finder")
+        XCTAssertEqual(strings.get(.contextCopyFullPath, for: .english), "Copy Full Path")
+        XCTAssertEqual(strings.get(.contextMoveToTrash, for: .english), "Move to Trash")
+        XCTAssertEqual(strings.get(.contextNewFile, for: .english), "New File")
+        XCTAssertEqual(strings.get(.contextNewFolder, for: .english), "New Folder")
     }
     
-    func testContextMenuLocalizationChinese() {
-        // Given
-        LocalizationManager.shared.setLanguage(.chinese)
+    func testContextMenuStringsChinese() {
+        let strings = LocalizedStrings.shared
         
-        // When & Then
-        XCTAssertEqual(LocalizationManager.shared.localized(.contextOpen), "打开")
-        XCTAssertEqual(LocalizationManager.shared.localized(.contextOpenInTerminal), "在终端中打开")
-        XCTAssertEqual(LocalizationManager.shared.localized(.contextRemoveFromBookmarks), "从书签中移除")
-        XCTAssertEqual(LocalizationManager.shared.localized(.contextAddToBookmarks), "添加到书签 (⌘B)")
-        XCTAssertEqual(LocalizationManager.shared.localized(.contextCopyYank), "复制 (y)")
-        XCTAssertEqual(LocalizationManager.shared.localized(.contextPaste), "粘贴 (p)")
-        XCTAssertEqual(LocalizationManager.shared.localized(.contextShowInFinder), "在访达中显示")
-        XCTAssertEqual(LocalizationManager.shared.localized(.contextCopyFullPath), "复制完整路径")
-        XCTAssertEqual(LocalizationManager.shared.localized(.contextMoveToTrash), "移到废纸篓")
-        XCTAssertEqual(LocalizationManager.shared.localized(.contextRefresh), "刷新 (R)")
-        XCTAssertEqual(LocalizationManager.shared.localized(.contextNewFile), "新建文件")
-        XCTAssertEqual(LocalizationManager.shared.localized(.contextNewFolder), "新建文件夹")
+        XCTAssertEqual(strings.get(.contextOpen, for: .chinese), "打开")
+        XCTAssertEqual(strings.get(.contextOpenInTerminal, for: .chinese), "在终端中打开")
+        XCTAssertEqual(strings.get(.contextShowInFinder, for: .chinese), "在访达中显示")
+        XCTAssertEqual(strings.get(.contextCopyFullPath, for: .chinese), "复制完整路径")
+        XCTAssertEqual(strings.get(.contextMoveToTrash, for: .chinese), "移到废纸篓")
+        XCTAssertEqual(strings.get(.contextNewFile, for: .chinese), "新建文件")
+        XCTAssertEqual(strings.get(.contextNewFolder, for: .chinese), "新建文件夹")
     }
     
-    // MARK: - 设置页面本地化测试
+    // MARK: - AppLanguage 测试
     
-    func testSettingsLocalizationEnglish() {
-        // Given
-        LocalizationManager.shared.setLanguage(.english)
+    func testAppLanguageProperties() {
+        // 测试英文属性
+        XCTAssertEqual(AppLanguage.english.rawValue, "en")
+        XCTAssertEqual(AppLanguage.english.nativeName, "English")
+        XCTAssertEqual(AppLanguage.english.icon, "🇺🇸")
         
-        // Then
-        XCTAssertEqual(LocalizationManager.shared.localized(.settingsLanguage), "Language")
-        XCTAssertEqual(LocalizationManager.shared.localized(.settingsRestartRequired), "Restart required for menu language to take effect")
-        XCTAssertEqual(LocalizationManager.shared.localized(.settingsRestartTitle), "Restart Required")
-        XCTAssertEqual(LocalizationManager.shared.localized(.settingsRestartNow), "Restart Now")
-        XCTAssertEqual(LocalizationManager.shared.localized(.settingsRestartLater), "Restart Later")
+        // 测试中文属性
+        XCTAssertEqual(AppLanguage.chinese.rawValue, "zh-Hans")
+        XCTAssertEqual(AppLanguage.chinese.nativeName, "简体中文")
+        XCTAssertEqual(AppLanguage.chinese.icon, "🇨🇳")
     }
     
-    func testSettingsLocalizationChinese() {
-        // Given
-        LocalizationManager.shared.setLanguage(.chinese)
-        
-        // Then
-        XCTAssertEqual(LocalizationManager.shared.localized(.settingsLanguage), "语言")
-        XCTAssertEqual(LocalizationManager.shared.localized(.settingsRestartRequired), "需要重启应用以使菜单语言生效")
-        XCTAssertEqual(LocalizationManager.shared.localized(.settingsRestartTitle), "需要重启")
-        XCTAssertEqual(LocalizationManager.shared.localized(.settingsRestartNow), "立即重启")
-        XCTAssertEqual(LocalizationManager.shared.localized(.settingsRestartLater), "稍后重启")
-    }
-    
-    // MARK: - 调试测试：检查当前语言状态
-    
-    func testDebugPrintLanguageState() {
-        // 打印当前 UserDefaults 中的语言设置
-        let appLanguage = UserDefaults.standard.string(forKey: "app_language")
-        let appleLanguages = UserDefaults.standard.array(forKey: "AppleLanguages") as? [String]
-        
-        print("=== 语言设置调试信息 ===")
-        print("app_language (UserDefaults): \(appLanguage ?? "nil")")
-        print("AppleLanguages (UserDefaults): \(appleLanguages ?? [])")
-        print("LocalizationManager.currentLanguage: \(LocalizationManager.shared.currentLanguage.rawValue)")
-        print("LocalizationManager.currentLanguage.nativeName: \(LocalizationManager.shared.currentLanguage.nativeName)")
-        print("===========================")
-        
-        // 验证一致性
-        XCTAssertEqual(appLanguage, LocalizationManager.shared.currentLanguage.rawValue,
-                       "app_language 应该和 LocalizationManager.currentLanguage 一致")
-    }
-    
-    func testLanguageChangeNotification() {
-        // Given
-        var notificationReceived = false
-        let expectation = XCTestExpectation(description: "Language change notification")
-        
-        // 订阅变更
-        let cancellable = LocalizationManager.shared.$currentLanguage
-            .dropFirst() // 跳过初始值
-            .sink { language in
-                notificationReceived = true
-                expectation.fulfill()
-            }
-        
-        // When
-        LocalizationManager.shared.setLanguage(.chinese)
-        
-        // Then
-        wait(for: [expectation], timeout: 1.0)
-        XCTAssertTrue(notificationReceived)
-        
-        cancellable.cancel()
+    func testAppLanguageAllCases() {
+        // 确保只有两种语言
+        XCTAssertEqual(AppLanguage.allCases.count, 2)
+        XCTAssertTrue(AppLanguage.allCases.contains(.english))
+        XCTAssertTrue(AppLanguage.allCases.contains(.chinese))
     }
 }

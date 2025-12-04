@@ -8,10 +8,6 @@
 import SwiftUI
 import AppKit
 
-// MARK: - 应用启动前的语言设置
-/// 在应用启动前设置语言，确保系统菜单等也使用应用语言
-
-
 @main
 struct Zenith_CommanderApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
@@ -118,38 +114,6 @@ struct Zenith_CommanderApp: App {
                 }
                 .keyboardShortcut("z", modifiers: [.command, .shift])
             }
-            
-            CommandMenu(L(.menuNavigation)) {
-                Button(L(.goToParent)) {
-                    NotificationCenter.default.post(name: .goToParent, object: nil)
-                }
-                .keyboardShortcut("h", modifiers: [])
-                
-                Button(L(.enterDirectory)) {
-                    NotificationCenter.default.post(name: .enterDirectory, object: nil)
-                }
-                .keyboardShortcut("l", modifiers: [])
-                
-                Divider()
-                
-                Button(L(.switchPanes)) {
-                    NotificationCenter.default.post(name: .switchPane, object: nil)
-                }
-                .keyboardShortcut(.tab, modifiers: [])
-            }
-            
-            CommandMenu(L(.menuView)) {
-                Button(L(.newTab)) {
-                    NotificationCenter.default.post(name: .newTab, object: nil)
-                }
-                .keyboardShortcut("t", modifiers: [])
-                
-                Button(L(.closeTab)) {
-                    NotificationCenter.default.post(name: .closeTab, object: nil)
-                }
-                .keyboardShortcut("w", modifiers: [])
-            }
-
         }
     }
 }
