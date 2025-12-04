@@ -199,9 +199,32 @@ struct MainView: View {
                     .getMountedVolumes()
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .openSettings)) {
-            _ in
-            appState.enterMode(.settings)  // 进入 SETTINGS 模式
+        .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
+            appState.enterMode(.settings)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .showHelp)) { _ in
+            appState.enterMode(.help)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .goToParent)) { _ in
+            Task { @MainActor in
+                await appState.leaveDirectory()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .enterDirectory)) { _ in
+            Task { @MainActor in
+                await appState.enterDirectory()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .switchPane)) { _ in
+            appState.toggleActivePane()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .newTab)) { _ in
+            Task { @MainActor in
+                await appState.newTab()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .closeTab)) { _ in
+            appState.closeTab()
         }
     }
 

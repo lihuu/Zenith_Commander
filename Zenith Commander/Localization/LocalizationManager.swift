@@ -65,6 +65,7 @@ class LocalizationManager: ObservableObject {
         didSet {
             if oldValue != currentLanguage {
                 saveLanguagePreference()
+                applyLanguageToSystem()
                 objectWillChange.send()
             }
         }
@@ -82,11 +83,20 @@ class LocalizationManager: ObservableObject {
             // 默认使用英语
             self.currentLanguage = .english
         }
+        // 应用语言设置到系统
+        applyLanguageToSystem()
     }
     
     /// 保存语言偏好
     private func saveLanguagePreference() {
         UserDefaults.standard.set(currentLanguage.rawValue, forKey: languageKey)
+    }
+    
+    /// 将语言设置应用到系统（使系统菜单等也使用应用语言）
+    private func applyLanguageToSystem() {
+        // 设置 AppleLanguages 使系统 UI 元素使用应用的语言
+        UserDefaults.standard.set([currentLanguage.rawValue], forKey: "AppleLanguages")
+        UserDefaults.standard.synchronize()
     }
     
     /// 设置语言
@@ -157,6 +167,11 @@ enum LocalizedStringKey: String, CaseIterable {
     case settingsResetConfirmMessage
     case settingsLanguage
     case settingsLanguageDescription
+    case settingsRestartRequired
+    case settingsRestartTitle
+    case settingsRestartMessage
+    case settingsRestartNow
+    case settingsRestartLater
     
     // MARK: - Git 设置
     case settingsGit
@@ -370,6 +385,21 @@ enum LocalizedStringKey: String, CaseIterable {
     case toastCannotCopyParent
     case toastSelectFileForGitHistory
     case toastNewTabCreated
+    
+    // MARK: - 菜单栏
+    case menuNavigation
+    case menuView
+    case menuHelp
+    case menuAbout
+    case menuShowHelp
+    case menuSettings
+    case menuEdit
+    case menuCut
+    case menuCopy
+    case menuPaste
+    case menuSelectAll
+    case menuUndo
+    case menuRedo
 }
 
 // MARK: - 本地化字符串存储
@@ -440,6 +470,11 @@ class LocalizedStrings {
             .settingsResetConfirmMessage: "Are you sure you want to reset all settings to their default values?",
             .settingsLanguage: "Language",
             .settingsLanguageDescription: "Select your preferred language",
+            .settingsRestartRequired: "Restart required for menu language to take effect",
+            .settingsRestartTitle: "Restart Required",
+            .settingsRestartMessage: "The app needs to restart for the language change to fully take effect on system menus.",
+            .settingsRestartNow: "Restart Now",
+            .settingsRestartLater: "Restart Later",
             
             // Git 设置
             .settingsGit: "Git Integration",
@@ -652,7 +687,22 @@ class LocalizedStrings {
             .toastOpening: "Opening %@...",
             .toastCannotCopyParent: "Cannot copy parent directory item",
             .toastSelectFileForGitHistory: "Select a file to view Git history",
-            .toastNewTabCreated: "New tab created"
+            .toastNewTabCreated: "New tab created",
+            
+            // Menu Bar
+            .menuNavigation: "Navigation",
+            .menuView: "View",
+            .menuHelp: "Help",
+            .menuAbout: "About Zenith Commander",
+            .menuShowHelp: "Zenith Commander Help",
+            .menuSettings: "Settings...",
+            .menuEdit: "Edit",
+            .menuCut: "Cut",
+            .menuCopy: "Copy",
+            .menuPaste: "Paste",
+            .menuSelectAll: "Select All",
+            .menuUndo: "Undo",
+            .menuRedo: "Redo"
         ]
     }
     
@@ -706,6 +756,11 @@ class LocalizedStrings {
             .settingsResetConfirmMessage: "确定要将所有设置恢复为默认值吗？",
             .settingsLanguage: "语言",
             .settingsLanguageDescription: "选择界面显示语言",
+            .settingsRestartRequired: "需要重启应用以使菜单语言生效",
+            .settingsRestartTitle: "需要重启",
+            .settingsRestartMessage: "需要重启应用才能使系统菜单的语言更改完全生效。",
+            .settingsRestartNow: "立即重启",
+            .settingsRestartLater: "稍后重启",
             
             // Git 设置
             .settingsGit: "Git 集成",
@@ -918,7 +973,22 @@ class LocalizedStrings {
             .toastOpening: "正在打开 %@...",
             .toastCannotCopyParent: "无法复制上级目录",
             .toastSelectFileForGitHistory: "选择一个文件查看 Git 历史",
-            .toastNewTabCreated: "已创建新标签页"
+            .toastNewTabCreated: "已创建新标签页",
+            
+            // 菜单栏
+            .menuNavigation: "导航",
+            .menuView: "视图",
+            .menuHelp: "帮助",
+            .menuAbout: "关于 Zenith Commander",
+            .menuShowHelp: "Zenith Commander 帮助",
+            .menuSettings: "设置...",
+            .menuEdit: "编辑",
+            .menuCut: "剪切",
+            .menuCopy: "拷贝",
+            .menuPaste: "粘贴",
+            .menuSelectAll: "全选",
+            .menuUndo: "撤销",
+            .menuRedo: "重做"
         ]
     }
 }

@@ -514,10 +514,6 @@ struct PaneView: View {
             guard !destination.path.hasPrefix(url.path + "/") else {
                 return false
             }
-            // 不能移动到同一个目录（源和目标相同）
-            guard url.deletingLastPathComponent() != destination else {
-                return false
-            }
             return true
         }
 
@@ -527,7 +523,7 @@ struct PaneView: View {
         }
 
         // 检查是否按住 Option 键来复制而不是移动
-        let shouldCopy = NSEvent.modifierFlags.contains(.option)
+        let optionPressed = NSEvent.modifierFlags.contains(.option)
 
         do {
             for url in validURLs {
@@ -537,6 +533,10 @@ struct PaneView: View {
 
                 // 生成唯一文件名（如果目标已存在）
                 let uniqueDestURL = generateUniqueURL(for: destURL)
+                
+                // 如果源和目标在同一个目录，强制复制（因为移动没有意义）
+                let isSameDirectory = url.deletingLastPathComponent() == destination
+                let shouldCopy = optionPressed || isSameDirectory
 
                 if shouldCopy {
                     try FileManager.default.copyItem(at: url, to: uniqueDestURL)
