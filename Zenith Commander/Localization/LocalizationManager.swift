@@ -400,6 +400,10 @@ enum LocalizedStringKey: String, CaseIterable {
     case menuSelectAll
     case menuUndo
     case menuRedo
+    case menuHide
+    case menuHideOthers
+    case menuShowAll
+    case menuQuit
 }
 
 // MARK: - 本地化字符串存储
@@ -702,7 +706,11 @@ class LocalizedStrings {
             .menuPaste: "Paste",
             .menuSelectAll: "Select All",
             .menuUndo: "Undo",
-            .menuRedo: "Redo"
+            .menuRedo: "Redo",
+            .menuHide: "Hide Zenith Commander",
+            .menuHideOthers: "Hide Others",
+            .menuShowAll: "Show All",
+            .menuQuit: "Quit Zenith Commander"
         ]
     }
     
@@ -988,7 +996,11 @@ class LocalizedStrings {
             .menuPaste: "粘贴",
             .menuSelectAll: "全选",
             .menuUndo: "撤销",
-            .menuRedo: "重做"
+            .menuRedo: "重做",
+            .menuHide: "隐藏 Zenith Commander",
+            .menuHideOthers: "隐藏其他",
+            .menuShowAll: "显示全部",
+            .menuQuit: "退出 Zenith Commander"
         ]
     }
 }

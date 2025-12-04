@@ -10,25 +10,15 @@ import AppKit
 
 // MARK: - 应用启动前的语言设置
 /// 在应用启动前设置语言，确保系统菜单等也使用应用语言
-private enum AppLanguageBootstrap {
-    static func configure() {
-        let languageKey = "app_language"
-        if let savedLanguage = UserDefaults.standard.string(forKey: languageKey) {
-            UserDefaults.standard.set([savedLanguage], forKey: "AppleLanguages")
-            UserDefaults.standard.synchronize()
-        }
-    }
-}
+
 
 @main
 struct Zenith_CommanderApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var appState: AppState
+    @ObservedObject private var localizationManager = LocalizationManager.shared
 
     init() {
-        // 在应用初始化时设置语言
-        AppLanguageBootstrap.configure()
-        
         var testDirectory: URL? = nil
         let arguments = ProcessInfo.processInfo.arguments
         if let index = arguments.firstIndex(of: "-testDirectory") {
@@ -49,11 +39,49 @@ struct Zenith_CommanderApp: App {
                 .frame(minWidth: 900, minHeight: 600)
                 .background(Theme.background)
                 .environmentObject(appState)
+                .id(localizationManager.currentLanguage.id)
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1200, height: 800)
         .commands {
             CommandGroup(replacing: .newItem) { }
+            
+            // 应用菜单（About/Settings/Hide/Quit）使用应用内语言
+            CommandGroup(replacing: .appInfo) {
+                Button(L(.menuAbout)) {
+                    NSApp.orderFrontStandardAboutPanel(nil)
+                }
+            }
+            
+            CommandGroup(replacing: .appSettings) {
+                Button(L(.menuSettings)) {
+                    NotificationCenter.default.post(name: .openSettings, object: nil)
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
+            
+            CommandGroup(replacing: .appVisibility) {
+                Button(L(.menuHide)) {
+                    NSApp.hide(nil)
+                }
+                .keyboardShortcut("h", modifiers: .command)
+                
+                Button(L(.menuHideOthers)) {
+                    NSApp.hideOtherApplications(nil)
+                }
+                .keyboardShortcut("h", modifiers: [.command, .option])
+                
+                Button(L(.menuShowAll)) {
+                    NSApp.unhideAllApplications(nil)
+                }
+            }
+            
+            CommandGroup(replacing: .appTermination) {
+                Button(L(.menuQuit)) {
+                    NSApp.terminate(nil)
+                }
+                .keyboardShortcut("q", modifiers: .command)
+            }
             
             // 替换系统默认的 Edit 菜单（使用应用内语言设置）
             CommandGroup(replacing: .textEditing) { }
@@ -91,13 +119,6 @@ struct Zenith_CommanderApp: App {
                 .keyboardShortcut("z", modifiers: [.command, .shift])
             }
             
-            CommandGroup(after: .appInfo) {
-                Button(L(.menuSettings)) {
-                    NotificationCenter.default.post(name: .openSettings, object: nil)
-                }
-                .keyboardShortcut(",", modifiers: .command)
-            }
-            
             CommandMenu(L(.menuNavigation)) {
                 Button(L(.goToParent)) {
                     NotificationCenter.default.post(name: .goToParent, object: nil)
@@ -128,13 +149,7 @@ struct Zenith_CommanderApp: App {
                 }
                 .keyboardShortcut("w", modifiers: [])
             }
-            
-            CommandGroup(replacing: .help) {
-                Button(L(.menuShowHelp)) {
-                    NotificationCenter.default.post(name: .showHelp, object: nil)
-                }
-                .keyboardShortcut("?", modifiers: [.shift])
-            }
+
         }
     }
 }
