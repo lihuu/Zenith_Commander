@@ -57,51 +57,45 @@ enum AppLanguage: String, CaseIterable, Codable, Identifiable {
 // MARK: - 本地化管理器
 
 /// 本地化管理器 - 单例模式
+/// 语言设置跟随系统语言，只支持中文和英文，其他语言默认使用英文
 class LocalizationManager: ObservableObject {
     static let shared = LocalizationManager()
     
-    /// 当前语言
-    @Published var currentLanguage: AppLanguage {
-        didSet {
-            if oldValue != currentLanguage {
-                saveLanguagePreference()
-                applyLanguageToSystem()
-                objectWillChange.send()
-            }
-        }
-    }
-    
-    /// UserDefaults key
-    private let languageKey = "app_language"
+    /// 当前语言（只读，跟随系统语言）
+    @Published private(set) var currentLanguage: AppLanguage
     
     private init() {
-        // 从 UserDefaults 加载保存的语言设置
-        if let savedLanguage = UserDefaults.standard.string(forKey: languageKey),
-           let language = AppLanguage(rawValue: savedLanguage) {
-            self.currentLanguage = language
-        } else {
-            // 默认使用英语
-            self.currentLanguage = .english
+        // 读取系统语言设置
+        self.currentLanguage = Self.detectSystemLanguage()
+    }
+    
+    /// 检测系统语言，只支持中文和英文，其他语言默认使用英文
+    private static func detectSystemLanguage() -> AppLanguage {
+        // 获取系统首选语言列表
+        let preferredLanguages = Locale.preferredLanguages
+        
+        for languageCode in preferredLanguages {
+            // 检查是否是中文（简体或繁体都算中文）
+            if languageCode.hasPrefix("zh") {
+                return .chinese
+            }
+            // 检查是否是英文
+            if languageCode.hasPrefix("en") {
+                return .english
+            }
         }
-        // 应用语言设置到系统
-        applyLanguageToSystem()
+        
+        // 默认使用英文
+        return .english
     }
     
-    /// 保存语言偏好
-    private func saveLanguagePreference() {
-        UserDefaults.standard.set(currentLanguage.rawValue, forKey: languageKey)
-    }
-    
-    /// 将语言设置应用到系统（使系统菜单等也使用应用语言）
-    private func applyLanguageToSystem() {
-        // 设置 AppleLanguages 使系统 UI 元素使用应用的语言
-        UserDefaults.standard.set([currentLanguage.rawValue], forKey: "AppleLanguages")
-        UserDefaults.standard.synchronize()
-    }
-    
-    /// 设置语言
-    func setLanguage(_ language: AppLanguage) {
-        currentLanguage = language
+    /// 刷新语言设置（当系统语言变化时调用）
+    func refreshLanguage() {
+        let newLanguage = Self.detectSystemLanguage()
+        if newLanguage != currentLanguage {
+            currentLanguage = newLanguage
+            objectWillChange.send()
+        }
     }
     
     /// 获取本地化字符串
@@ -536,8 +530,8 @@ class LocalizedStrings {
             // 导航
             .moveCursorUp: "Move cursor up",
             .moveCursorDown: "Move cursor down",
-            .goToParent: "Go to parent directory / Move left in grid",
-            .enterDirectory: "Enter directory / Move right in grid",
+            .goToParent: "Go to parent directory",
+            .enterDirectory: "Enter directory",
             .jumpToFirst: "Jump to first item",
             .jumpToLast: "Jump to last item",
             .switchPanes: "Switch between panes",
@@ -826,8 +820,8 @@ class LocalizedStrings {
             // 导航
             .moveCursorUp: "向上移动光标",
             .moveCursorDown: "向下移动光标",
-            .goToParent: "返回上级目录 / 网格模式左移",
-            .enterDirectory: "进入目录 / 网格模式右移",
+            .goToParent: "返回上级目录",
+            .enterDirectory: "进入目录",
             .jumpToFirst: "跳转到第一项",
             .jumpToLast: "跳转到最后一项",
             .switchPanes: "切换面板",

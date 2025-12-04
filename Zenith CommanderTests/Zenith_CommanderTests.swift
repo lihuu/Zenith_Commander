@@ -4263,8 +4263,7 @@ struct AppSettingsGitTests {
         let settings = AppSettings(
             appearance: .default,
             terminal: .default,
-            git: GitSettings(enabled: false, showUntrackedFiles: false, showIgnoredFiles: true),
-            language: "en"
+            git: GitSettings(enabled: false, showUntrackedFiles: false, showIgnoredFiles: true)
         )
         
         // 编码
