@@ -65,6 +65,7 @@ class LocalizationManager: ObservableObject {
         didSet {
             if oldValue != currentLanguage {
                 saveLanguagePreference()
+                applyLanguageToSystem()
                 objectWillChange.send()
             }
         }
@@ -82,11 +83,20 @@ class LocalizationManager: ObservableObject {
             // 默认使用英语
             self.currentLanguage = .english
         }
+        // 应用语言设置到系统
+        applyLanguageToSystem()
     }
     
     /// 保存语言偏好
     private func saveLanguagePreference() {
         UserDefaults.standard.set(currentLanguage.rawValue, forKey: languageKey)
+    }
+    
+    /// 将语言设置应用到系统（使系统菜单等也使用应用语言）
+    private func applyLanguageToSystem() {
+        // 设置 AppleLanguages 使系统 UI 元素使用应用的语言
+        UserDefaults.standard.set([currentLanguage.rawValue], forKey: "AppleLanguages")
+        UserDefaults.standard.synchronize()
     }
     
     /// 设置语言
@@ -97,6 +107,12 @@ class LocalizationManager: ObservableObject {
     /// 获取本地化字符串
     func localized(_ key: LocalizedStringKey) -> String {
         return LocalizedStrings.shared.get(key, for: currentLanguage)
+    }
+    
+    /// 获取带参数的本地化字符串
+    func localized(_ key: LocalizedStringKey, _ args: CVarArg...) -> String {
+        let format = LocalizedStrings.shared.get(key, for: currentLanguage)
+        return String(format: format, arguments: args)
     }
 }
 
@@ -151,6 +167,11 @@ enum LocalizedStringKey: String, CaseIterable {
     case settingsResetConfirmMessage
     case settingsLanguage
     case settingsLanguageDescription
+    case settingsRestartRequired
+    case settingsRestartTitle
+    case settingsRestartMessage
+    case settingsRestartNow
+    case settingsRestartLater
     
     // MARK: - Git 设置
     case settingsGit
@@ -318,6 +339,71 @@ enum LocalizedStringKey: String, CaseIterable {
     case contextRefresh
     case contextNewFile
     case contextNewFolder
+    
+    // MARK: - Bookmark Bar
+    case bookmarkBarEmpty
+    case bookmarkBarEditDone
+    case bookmarkBarEdit
+    
+    // MARK: - Toast Messages (Detailed)
+    case toastBookmarkBarShown
+    case toastBookmarkBarHidden
+    case toastAlreadyBookmarked
+    case toastBookmarksAdded
+    case toastTheme
+    case toastSwitchedToDrive
+    case toastFailedToCreateDirectory
+    case toastFailedToCreateFile
+    case toastMoveFailed
+    case toastCopyFailed
+    case toastDeleteFailed
+    case toastNoFileSelected
+    case toastUnknownCommand
+    case toastNoFilesForRename
+    case toastFindTextEmpty
+    case toastFilesRenamed
+    case toastRenamedWithErrors
+    case toastCannotDeleteParent
+    case toastNoFilesToDelete
+    case toastFilesMovedToTrash
+    case toastTargetNotFolder
+    case toastCannotMoveToSame
+    case toastItemsMoved
+    case toastItemsCopied
+    case toastPathCopied
+    case toastRefreshed
+    case toastDirectoryNotFound
+    case toastCreatedFile
+    case toastCreatedFolder
+    case toastErrorCreatingFile
+    case toastErrorCreatingFolder
+    case toastFilesYanked
+    case toastNoFilesToYank
+    case toastFilesCut
+    case toastNavigatedTo
+    case toastOpening
+    case toastCannotCopyParent
+    case toastSelectFileForGitHistory
+    case toastNewTabCreated
+    
+    // MARK: - 菜单栏
+    case menuNavigation
+    case menuView
+    case menuHelp
+    case menuAbout
+    case menuShowHelp
+    case menuSettings
+    case menuEdit
+    case menuCut
+    case menuCopy
+    case menuPaste
+    case menuSelectAll
+    case menuUndo
+    case menuRedo
+    case menuHide
+    case menuHideOthers
+    case menuShowAll
+    case menuQuit
 }
 
 // MARK: - 本地化字符串存储
@@ -388,6 +474,11 @@ class LocalizedStrings {
             .settingsResetConfirmMessage: "Are you sure you want to reset all settings to their default values?",
             .settingsLanguage: "Language",
             .settingsLanguageDescription: "Select your preferred language",
+            .settingsRestartRequired: "Restart required for menu language to take effect",
+            .settingsRestartTitle: "Restart Required",
+            .settingsRestartMessage: "The app needs to restart for the language change to fully take effect on system menus.",
+            .settingsRestartNow: "Restart Now",
+            .settingsRestartLater: "Restart Later",
             
             // Git 设置
             .settingsGit: "Git Integration",
@@ -554,7 +645,72 @@ class LocalizedStrings {
             .contextMoveToTrash: "Move to Trash",
             .contextRefresh: "Refresh (R)",
             .contextNewFile: "New File",
-            .contextNewFolder: "New Folder"
+            .contextNewFolder: "New Folder",
+            
+            // Bookmark Bar
+            .bookmarkBarEmpty: "No bookmarks - Right-click to add",
+            .bookmarkBarEditDone: "Done",
+            .bookmarkBarEdit: "Edit",
+            
+            // Toast Messages (Detailed)
+            .toastBookmarkBarShown: "Bookmark bar shown",
+            .toastBookmarkBarHidden: "Bookmark bar hidden",
+            .toastAlreadyBookmarked: "Already bookmarked",
+            .toastBookmarksAdded: "%d bookmark(s) added",
+            .toastTheme: "Theme: %@",
+            .toastSwitchedToDrive: "Switched to %@",
+            .toastFailedToCreateDirectory: "Failed to create directory: %@",
+            .toastFailedToCreateFile: "Failed to create file: %@",
+            .toastMoveFailed: "Move failed: %@",
+            .toastCopyFailed: "Copy failed: %@",
+            .toastDeleteFailed: "Delete failed: %@",
+            .toastNoFileSelected: "No file selected",
+            .toastUnknownCommand: "Unknown command: %@",
+            .toastNoFilesForRename: "No files selected for rename",
+            .toastFindTextEmpty: "Find text cannot be empty",
+            .toastFilesRenamed: "%d file(s) renamed successfully",
+            .toastRenamedWithErrors: "%d renamed, %d failed",
+            .toastCannotDeleteParent: "Cannot delete parent directory item",
+            .toastNoFilesToDelete: "No files to delete",
+            .toastFilesMovedToTrash: "%d file(s) moved to Trash",
+            .toastTargetNotFolder: "Target is not a folder",
+            .toastCannotMoveToSame: "Cannot move to same location",
+            .toastItemsMoved: "Moved %d item(s)",
+            .toastItemsCopied: "Copied %d item(s)",
+            .toastPathCopied: "Path copied: %@",
+            .toastRefreshed: "Refreshed",
+            .toastDirectoryNotFound: "Directory not found: %@",
+            .toastCreatedFile: "Created file: %@",
+            .toastCreatedFolder: "Created folder: %@",
+            .toastErrorCreatingFile: "Error creating file: %@",
+            .toastErrorCreatingFolder: "Error creating folder: %@",
+            .toastFilesYanked: "%d file(s) yanked",
+            .toastNoFilesToYank: "No files to yank",
+            .toastFilesCut: "%d file(s) cut",
+            .toastNavigatedTo: "Navigated to %@",
+            .toastOpening: "Opening %@...",
+            .toastCannotCopyParent: "Cannot copy parent directory item",
+            .toastSelectFileForGitHistory: "Select a file to view Git history",
+            .toastNewTabCreated: "New tab created",
+            
+            // Menu Bar
+            .menuNavigation: "Navigation",
+            .menuView: "View",
+            .menuHelp: "Help",
+            .menuAbout: "About Zenith Commander",
+            .menuShowHelp: "Zenith Commander Help",
+            .menuSettings: "Settings...",
+            .menuEdit: "Edit",
+            .menuCut: "Cut",
+            .menuCopy: "Copy",
+            .menuPaste: "Paste",
+            .menuSelectAll: "Select All",
+            .menuUndo: "Undo",
+            .menuRedo: "Redo",
+            .menuHide: "Hide Zenith Commander",
+            .menuHideOthers: "Hide Others",
+            .menuShowAll: "Show All",
+            .menuQuit: "Quit Zenith Commander"
         ]
     }
     
@@ -608,6 +764,11 @@ class LocalizedStrings {
             .settingsResetConfirmMessage: "确定要将所有设置恢复为默认值吗？",
             .settingsLanguage: "语言",
             .settingsLanguageDescription: "选择界面显示语言",
+            .settingsRestartRequired: "需要重启应用以使菜单语言生效",
+            .settingsRestartTitle: "需要重启",
+            .settingsRestartMessage: "需要重启应用才能使系统菜单的语言更改完全生效。",
+            .settingsRestartNow: "立即重启",
+            .settingsRestartLater: "稍后重启",
             
             // Git 设置
             .settingsGit: "Git 集成",
@@ -774,7 +935,72 @@ class LocalizedStrings {
             .contextMoveToTrash: "移到废纸篓",
             .contextRefresh: "刷新 (R)",
             .contextNewFile: "新建文件",
-            .contextNewFolder: "新建文件夹"
+            .contextNewFolder: "新建文件夹",
+            
+            // Bookmark Bar
+            .bookmarkBarEmpty: "无书签 - 右键文件添加",
+            .bookmarkBarEditDone: "完成编辑",
+            .bookmarkBarEdit: "编辑书签",
+            
+            // Toast Messages (Detailed)
+            .toastBookmarkBarShown: "已显示书签栏",
+            .toastBookmarkBarHidden: "已隐藏书签栏",
+            .toastAlreadyBookmarked: "已收藏",
+            .toastBookmarksAdded: "已添加 %d 个书签",
+            .toastTheme: "主题：%@",
+            .toastSwitchedToDrive: "已切换到 %@",
+            .toastFailedToCreateDirectory: "创建目录失败：%@",
+            .toastFailedToCreateFile: "创建文件失败：%@",
+            .toastMoveFailed: "移动失败：%@",
+            .toastCopyFailed: "复制失败：%@",
+            .toastDeleteFailed: "删除失败：%@",
+            .toastNoFileSelected: "未选择文件",
+            .toastUnknownCommand: "未知命令：%@",
+            .toastNoFilesForRename: "没有选择要重命名的文件",
+            .toastFindTextEmpty: "查找文本不能为空",
+            .toastFilesRenamed: "%d 个文件重命名成功",
+            .toastRenamedWithErrors: "%d 个成功，%d 个失败",
+            .toastCannotDeleteParent: "无法删除上级目录",
+            .toastNoFilesToDelete: "没有要删除的文件",
+            .toastFilesMovedToTrash: "%d 个文件已移到废纸篓",
+            .toastTargetNotFolder: "目标不是文件夹",
+            .toastCannotMoveToSame: "无法移动到相同位置",
+            .toastItemsMoved: "已移动 %d 个项目",
+            .toastItemsCopied: "已复制 %d 个项目",
+            .toastPathCopied: "已复制路径：%@",
+            .toastRefreshed: "已刷新",
+            .toastDirectoryNotFound: "目录未找到：%@",
+            .toastCreatedFile: "已创建文件：%@",
+            .toastCreatedFolder: "已创建文件夹：%@",
+            .toastErrorCreatingFile: "创建文件出错：%@",
+            .toastErrorCreatingFolder: "创建文件夹出错：%@",
+            .toastFilesYanked: "已复制 %d 个文件",
+            .toastNoFilesToYank: "没有可复制的文件",
+            .toastFilesCut: "已剪切 %d 个文件",
+            .toastNavigatedTo: "已导航到 %@",
+            .toastOpening: "正在打开 %@...",
+            .toastCannotCopyParent: "无法复制上级目录",
+            .toastSelectFileForGitHistory: "选择一个文件查看 Git 历史",
+            .toastNewTabCreated: "已创建新标签页",
+            
+            // 菜单栏
+            .menuNavigation: "导航",
+            .menuView: "视图",
+            .menuHelp: "帮助",
+            .menuAbout: "关于 Zenith Commander",
+            .menuShowHelp: "Zenith Commander 帮助",
+            .menuSettings: "设置...",
+            .menuEdit: "编辑",
+            .menuCut: "剪切",
+            .menuCopy: "拷贝",
+            .menuPaste: "粘贴",
+            .menuSelectAll: "全选",
+            .menuUndo: "撤销",
+            .menuRedo: "重做",
+            .menuHide: "隐藏 Zenith Commander",
+            .menuHideOthers: "隐藏其他",
+            .menuShowAll: "显示全部",
+            .menuQuit: "退出 Zenith Commander"
         ]
     }
 }

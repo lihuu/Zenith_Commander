@@ -59,7 +59,7 @@ struct BookmarkBarView: View {
                     
                     // 空状态提示
                     if bookmarkManager.bookmarks.isEmpty {
-                        Text("无书签 - 右键文件添加")
+                        Text(LocalizationManager.shared.localized(.bookmarkBarEmpty))
                             .font(.system(size: 11))
                             .foregroundColor(Theme.textSecondary)
                             .padding(.horizontal, 8)
@@ -82,7 +82,7 @@ struct BookmarkBarView: View {
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 8)
-            .help(isEditing ? "完成编辑" : "编辑书签")
+            .help(isEditing ? LocalizationManager.shared.localized(.bookmarkBarEditDone) : LocalizationManager.shared.localized(.bookmarkBarEdit))
         }
         .frame(height: 28)
         .background(WindowDragHandle())
@@ -138,18 +138,18 @@ struct BookmarkItemView: View {
             }
         }
         .contextMenu {
-            Button("在 Finder 中显示") {
+            Button(LocalizationManager.shared.localized(.contextShowInFinder)) {
                 NSWorkspace.shared.selectFile(bookmark.path.path, inFileViewerRootedAtPath: bookmark.path.deletingLastPathComponent().path)
             }
             
-            Button("复制路径") {
+            Button(LocalizationManager.shared.localized(.contextCopyFullPath)) {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(bookmark.path.path, forType: .string)
             }
             
             Divider()
             
-            Button("删除书签", role: .destructive) {
+            Button(LocalizationManager.shared.localized(.contextRemoveFromBookmarks), role: .destructive) {
                 onRemove()
             }
         }

@@ -199,19 +199,41 @@ struct MainView: View {
                     .getMountedVolumes()
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .openSettings)) {
-            _ in
-            appState.enterMode(.settings)  // 进入 SETTINGS 模式
+        .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
+            appState.enterMode(.settings)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .showHelp)) { _ in
+            appState.enterMode(.help)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .goToParent)) { _ in
+            Task { @MainActor in
+                await appState.leaveDirectory()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .enterDirectory)) { _ in
+            Task { @MainActor in
+                await appState.enterDirectory()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .switchPane)) { _ in
+            appState.toggleActivePane()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .newTab)) { _ in
+            Task { @MainActor in
+                await appState.newTab()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .closeTab)) { _ in
+            appState.closeTab()
         }
     }
-
 
     private func handleKeyPress(_ keyPress: KeyPress) -> KeyPress.Result {
         guard let action = appState.mode.action(for: keyPress) else {
             return .ignored
         }
 
-        Task{ @MainActor in
+        Task { @MainActor in
             await apply(action)
         }
 
@@ -219,9 +241,8 @@ struct MainView: View {
 
     }
 
-    
     @MainActor
-    private func apply(_ action: AppAction) async{
+    private func apply(_ action: AppAction) async {
         switch action {
         case .none:
             break
@@ -237,7 +258,7 @@ struct MainView: View {
             appState.jumpToTop()
         case .jumpToBottom:
             appState.jumpToBottom()
-            
+
         // MARK: - 鼠标操作
         case .mouseClick(let index, let paneSide):
             appState.handleMouseClick(at: index, paneSide: paneSide)
@@ -246,8 +267,11 @@ struct MainView: View {
         case .mouseShiftClick(let index, let paneSide):
             appState.handleMouseShiftClick(at: index, paneSide: paneSide)
         case .mouseDoubleClick(let fileId, let paneSide):
-            await appState.handleMouseDoubleClick(fileId: fileId, paneSide: paneSide)
-            
+            await appState.handleMouseDoubleClick(
+                fileId: fileId,
+                paneSide: paneSide
+            )
+
         case .enterDirectory:
             await appState.enterDirectory()
         case .leaveDirectory:
@@ -271,17 +295,18 @@ struct MainView: View {
             }
             appState.showToast(
                 showBookmarkBar
-                    ? "Bookmark bar shown" : "Bookmark bar hidden"
+                    ? LocalizationManager.shared.localized(.toastBookmarkBarShown) 
+                    : LocalizationManager.shared.localized(.toastBookmarkBarHidden)
             )
         case .addBookmark:
             addCurrentToBookmark()
 
         case .openHelp:
             appState.enterMode(.help)
-        
+
         case .closeHelp:
             appState.exitMode()
-            
+
         case .openSettings:
             appState.enterMode(.settings)
 
@@ -331,7 +356,7 @@ struct MainView: View {
         case .cycleTheme:
             themeManager.cycleTheme()
             appState.showToast(
-                "Theme: \(themeManager.mode.displayName)"
+                LocalizationManager.shared.localized(.toastTheme, themeManager.mode.displayName)
             )
         case .deleteCommand:
             if !appState.commandInput.isEmpty {
@@ -377,7 +402,6 @@ struct MainView: View {
 
     }
 
-
     /// 导航到书签位置
     private func navigateToBookmark(_ bookmark: BookmarkItem) {
         Task {
@@ -394,13 +418,11 @@ struct MainView: View {
                     pane.activeTab.files = files
                     pane.cursorIndex = 0
                     pane.objectWillChange.send()
-                    appState.showToast("Navigated to \(bookmark.name)")
                 }
             } else {
                 // 如果是文件，直接使用默认应用打开
                 await MainActor.run {
                     NSWorkspace.shared.open(bookmark.path)
-                    appState.showToast("Opening \(bookmark.name)...")
                 }
             }
         }
@@ -423,10 +445,8 @@ struct MainView: View {
                     }
                 }
             }
-            if addedCount > 0 {
-                appState.showToast("\(addedCount) bookmark(s) added")
-            } else {
-                appState.showToast("Already bookmarked")
+            if addedCount <= 0 {
+                appState.showToast(LocalizationManager.shared.localized(.toastAlreadyBookmarked))
             }
         } else {
             // 否则添加当前光标所在的文件
@@ -435,10 +455,10 @@ struct MainView: View {
 
             let file = files[pane.cursorIndex]
             if bookmarkManager.contains(path: file.path) {
-                appState.showToast("Already bookmarked")
+                appState.showToast(LocalizationManager.shared.localized(.toastAlreadyBookmarked))
             } else {
                 bookmarkManager.addBookmark(for: file)
-                appState.showToast("Bookmark added: \(file.name)")
+                appState.showToast(LocalizationManager.shared.localized(.toastBookmarkAdded))
             }
         }
     }
@@ -466,12 +486,9 @@ struct MainView: View {
                     name: folderName
                 )
                 await appState.refreshCurrentPane()
-                appState.showToast(
-                    "Created directory: \(newDir.lastPathComponent)"
-                )
             } catch {
                 appState.showToast(
-                    "Failed to create directory: \(error.localizedDescription)"
+                    LocalizationManager.shared.localized(.toastFailedToCreateDirectory, error.localizedDescription)
                 )
             }
 
@@ -484,10 +501,9 @@ struct MainView: View {
                     name: fileName
                 )
                 await appState.refreshCurrentPane()
-                appState.showToast("Created file: \(newFile.lastPathComponent)")
             } catch {
                 appState.showToast(
-                    "Failed to create file: \(error.localizedDescription)"
+                    LocalizationManager.shared.localized(.toastFailedToCreateFile, error.localizedDescription)
                 )
             }
 
@@ -530,7 +546,7 @@ struct MainView: View {
             NSApp.terminate(nil)
 
         case .unknown:
-            appState.showToast("Unknown command: \(command.rawInput)")
+            appState.showToast(LocalizationManager.shared.localized(.toastUnknownCommand, command.rawInput))
         }
 
         appState.exitMode()
@@ -566,15 +582,14 @@ struct MainView: View {
             do {
                 try FileManager.default.moveItem(at: srcPath, to: destPath)
                 await appState.refreshCurrentPane()
-                appState.showToast("Moved to: \(destPath.lastPathComponent)")
             } catch {
-                appState.showToast("Move failed: \(error.localizedDescription)")
+                appState.showToast(LocalizationManager.shared.localized(.toastMoveFailed, error.localizedDescription))
             }
         } else if let destPath = result.destination {
             // move <dest> - 移动当前选中文件
             let selectedFiles = getSelectedFiles()
             guard !selectedFiles.isEmpty else {
-                appState.showToast("No file selected")
+                appState.showToast(LocalizationManager.shared.localized(.toastNoFileSelected))
                 return
             }
 
@@ -584,9 +599,8 @@ struct MainView: View {
                     to: destPath
                 )
                 await appState.refreshCurrentPane()
-                appState.showToast("Moved \(selectedFiles.count) item(s)")
             } catch {
-                appState.showToast("Move failed: \(error.localizedDescription)")
+                appState.showToast(LocalizationManager.shared.localized(.toastMoveFailed, error.localizedDescription))
             }
         }
     }
@@ -610,15 +624,14 @@ struct MainView: View {
             do {
                 try FileManager.default.copyItem(at: srcPath, to: destPath)
                 await appState.refreshCurrentPane()
-                appState.showToast("Copied to: \(destPath.lastPathComponent)")
             } catch {
-                appState.showToast("Copy failed: \(error.localizedDescription)")
+                appState.showToast(LocalizationManager.shared.localized(.toastCopyFailed, error.localizedDescription))
             }
         } else if let destPath = result.destination {
             // copy <dest> - 复制当前选中文件
             let selectedFiles = getSelectedFiles()
             guard !selectedFiles.isEmpty else {
-                appState.showToast("No file selected")
+                appState.showToast(LocalizationManager.shared.localized(.toastNoFileSelected))
                 return
             }
 
@@ -628,9 +641,8 @@ struct MainView: View {
                     to: destPath
                 )
                 await appState.refreshCurrentPane()
-                appState.showToast("Copied \(selectedFiles.count) item(s)")
             } catch {
-                appState.showToast("Copy failed: \(error.localizedDescription)")
+                appState.showToast(LocalizationManager.shared.localized(.toastCopyFailed, error.localizedDescription))
             }
         }
     }
@@ -650,27 +662,27 @@ struct MainView: View {
                     resultingItemURL: nil
                 )
                 await appState.refreshCurrentPane()
-                appState.showToast("Deleted: \(targetPath.lastPathComponent)")
+                appState.showToast(LocalizationManager.shared.localized(.toastDeleted) + ": \(targetPath.lastPathComponent)")
             } catch {
                 appState.showToast(
-                    "Delete failed: \(error.localizedDescription)"
+                    LocalizationManager.shared.localized(.toastDeleteFailed, error.localizedDescription)
                 )
             }
         } else {
             // delete - 删除当前选中文件
             let selectedFiles = getSelectedFiles()
             guard !selectedFiles.isEmpty else {
-                appState.showToast("No file selected")
+                appState.showToast(LocalizationManager.shared.localized(.toastNoFileSelected))
                 return
             }
 
             do {
                 try FileSystemService.shared.trashFiles(selectedFiles)
                 await appState.refreshCurrentPane()
-                appState.showToast("Deleted \(selectedFiles.count) item(s)")
+                appState.showToast(LocalizationManager.shared.localized(.toastFilesMovedToTrash, selectedFiles.count))
             } catch {
                 appState.showToast(
-                    "Delete failed: \(error.localizedDescription)"
+                    LocalizationManager.shared.localized(.toastDeleteFailed, error.localizedDescription)
                 )
             }
         }
@@ -756,7 +768,7 @@ struct MainView: View {
     private func performBatchRename() async {
         let selectedFiles = getSelectedFiles()
         guard !selectedFiles.isEmpty else {
-            appState.showToast("No files selected for rename")
+            appState.showToast(LocalizationManager.shared.localized(.toastNoFilesForRename))
             return
         }
 
@@ -765,7 +777,7 @@ struct MainView: View {
         let useRegex = appState.renameUseRegex
 
         guard !findText.isEmpty else {
-            appState.showToast("Find text cannot be empty")
+            appState.showToast(LocalizationManager.shared.localized(.toastFindTextEmpty))
             return
         }
 
@@ -811,10 +823,10 @@ struct MainView: View {
 
         // 显示结果
         if errorMessages.isEmpty {
-            appState.showToast("\(successCount) file(s) renamed successfully")
+            appState.showToast(LocalizationManager.shared.localized(.toastFilesRenamed, successCount))
         } else {
             appState.showToast(
-                "\(successCount) renamed, \(errorMessages.count) failed"
+                LocalizationManager.shared.localized(.toastRenamedWithErrors, successCount, errorMessages.count)
             )
         }
     }
@@ -877,7 +889,7 @@ struct MainView: View {
             }
             // 父目录项 (..) 不能被删除
             guard !file.isParentDirectory else {
-                appState.showToast("Cannot delete parent directory item")
+                appState.showToast(LocalizationManager.shared.localized(.toastCannotDeleteParent))
                 return
             }
             filesToDelete = [file]
@@ -889,21 +901,20 @@ struct MainView: View {
         }
 
         guard !filesToDelete.isEmpty else {
-            appState.showToast("No files to delete")
+            appState.showToast(LocalizationManager.shared.localized(.toastNoFilesToDelete))
             return
         }
 
         do {
             try FileSystemService.shared.trashFiles(filesToDelete)
-            appState.showToast("\(filesToDelete.count) file(s) moved to Trash")
+            appState.showToast(LocalizationManager.shared.localized(.toastFilesMovedToTrash, filesToDelete.count))
             pane.clearSelections()
             await appState.refreshCurrentPane()
         } catch {
-            appState.showToast("Error: \(error.localizedDescription)")
+            appState.showToast(LocalizationManager.shared.localized(.error) + ": \(error.localizedDescription)")
         }
     }
 }
-
 
 #Preview {
     MainView()

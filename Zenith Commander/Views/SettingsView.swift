@@ -96,6 +96,8 @@ struct LanguageSection: View {
     @Binding var settings: AppSettings
     @ObservedObject private var themeManager = ThemeManager.shared
     @ObservedObject private var localizationManager = LocalizationManager.shared
+    @State private var showRestartAlert = false
+    @State private var pendingLanguage: AppLanguage? = nil
     
     var body: some View {
         SettingsSection(title: L(.settingsLanguage), icon: "globe") {
@@ -113,13 +115,58 @@ struct LanguageSection: View {
                             language: language,
                             isSelected: settings.language == language.rawValue
                         ) {
-                            settings.language = language.rawValue
-                            localizationManager.setLanguage(language)
+                            if settings.language != language.rawValue {
+                                pendingLanguage = language
+                                showRestartAlert = true
+                            }
                         }
                     }
                 }
+                
+                // 语言更改提示
+                if localizationManager.currentLanguage.rawValue != settings.language {
+                    Text(L(.settingsRestartRequired))
+                        .font(.system(size: 11))
+                        .foregroundColor(themeManager.current.warning)
+                        .padding(.top, 4)
+                }
             }
         }
+        .alert(L(.settingsRestartTitle), isPresented: $showRestartAlert) {
+            Button(L(.settingsRestartNow)) {
+                if let language = pendingLanguage {
+                    settings.language = language.rawValue
+                    localizationManager.setLanguage(language)
+                    // 重启应用
+                    restartApplication()
+                }
+            }
+            Button(L(.settingsRestartLater)) {
+                if let language = pendingLanguage {
+                    settings.language = language.rawValue
+                    localizationManager.setLanguage(language)
+                }
+            }
+            Button(L(.cancel), role: .cancel) {
+                pendingLanguage = nil
+            }
+        } message: {
+            Text(L(.settingsRestartMessage))
+        }
+    }
+    
+    private func restartApplication() {
+        // 获取应用程序的 .app 路径
+        let bundlePath = Bundle.main.bundlePath
+        
+        // 使用 shell 脚本延迟启动应用，确保当前应用先退出
+        let task = Process()
+        task.launchPath = "/bin/sh"
+        task.arguments = ["-c", "sleep 0.5 && open \"\(bundlePath)\""]
+        try? task.run()
+        
+        // 退出当前应用
+        NSApp.terminate(nil)
     }
     
     private func L(_ key: LocalizedStringKey) -> String {
