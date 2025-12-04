@@ -196,6 +196,10 @@ struct FileItem: Identifiable, Hashable {
     var isFolder: Bool {
         return type == .folder
     }
+    
+    var isSymlink: Bool{
+        return type == .symlink
+    }
 
 }
 

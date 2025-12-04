@@ -142,6 +142,12 @@ enum AppAction {
     case moveVisualCursor(CursorDirection)
     case jumpToTop
     case jumpToBottom
+    
+    /// 鼠标操作 - 统一通过模式系统处理
+    case mouseClick(index: Int, paneSide: PaneSide)                    // 普通单击
+    case mouseCommandClick(index: Int, paneSide: PaneSide)             // Command+Click 切换选择
+    case mouseShiftClick(index: Int, paneSide: PaneSide)               // Shift+Click 范围选择
+    case mouseDoubleClick(fileId: String, paneSide: PaneSide)          // 双击
 
     /// 目录操作
     case enterDirectory
