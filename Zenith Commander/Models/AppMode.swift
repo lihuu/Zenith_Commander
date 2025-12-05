@@ -249,6 +249,7 @@ enum AppModeKeyMaps {
 
             KeyChord("g"): .jumpToTop,
             KeyChord("G", [.shift]): .jumpToBottom,
+            KeyChord("D", [.shift]): .enterDriveSelection,
         ]
 
         return normalOverrides.merging(defaultMap) { current, _ in
@@ -335,6 +336,8 @@ enum AppModeKeyMaps {
             return current
         }
     }()
+    
+    static let modal: [KeyChord: AppAction] = defaultMap
 
 }
 
@@ -359,7 +362,7 @@ extension AppMode {
         case .help:
             return AppModeKeyMaps.help
         case .modal:
-            return [:] // No key maps for modal mode
+            return AppModeKeyMaps.modal // No key maps for modal mode
         default:
             return [:]
         }

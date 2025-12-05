@@ -38,6 +38,7 @@ struct Connection: Identifiable, Codable, Hashable {
     var host: String
     var port: String
     var username: String
+    var password: String = ""
     var path: String
     
     var url: URL? {
@@ -51,6 +52,10 @@ struct Connection: Identifiable, Codable, Hashable {
         
         if !username.isEmpty {
             components.user = username
+        }
+        
+        if !password.isEmpty {
+            components.password = password
         }
         
         if !path.isEmpty {
@@ -68,6 +73,7 @@ struct Connection: Identifiable, Codable, Hashable {
             host: "",
             port: "",
             username: "",
+            password: "",
             path: ""
         )
     }

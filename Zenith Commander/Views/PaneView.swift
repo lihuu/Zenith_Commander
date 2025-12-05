@@ -21,14 +21,13 @@ struct PaneView: View {
     @State private var permissionDeniedPath: URL? = nil
     @State private var showPermissionError: Bool = false
     @State private var directoryMonitor: DispatchSourceDirectoryMonitor? = nil
-    @State private var showConnectionManager = false
 
     var isActivePane: Bool {
         appState.activePane == side
     }
 
     var body: some View {
-        ZStack {
+
             VStack(spacing: 0) {
                 // 标签栏
             TabBarView(
@@ -88,7 +87,8 @@ struct PaneView: View {
 
                     // Network Connection Button
                     Button(action: {
-                        showConnectionManager = true
+                        appState.enterMode(.modal)
+                        appState.showConnectionManager = true
                     }) {
                         Image(systemName: "network")
                             .font(.system(size: 12))
@@ -153,12 +153,6 @@ struct PaneView: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(side == .left ? "left_pane" : "right_pane")
         .accessibilityLabel(side == .left ? "Left Pane" : "Right Pane")
-
-            // Modal Overlay
-            ModalView(isPresented: $showConnectionManager) {
-                ConnectionManagerView()
-            }
-        }
     }
 
     // MARK: - 文件列表视图
@@ -998,10 +992,9 @@ struct PaneView: View {
 
     private func createNewFile() {
         let baseName = "Untitled"
-        let uniqueName = FileSystemService.shared.generateUniqueFileName(
-            for: baseName,
-            in: pane.activeTab.currentPath
-        )
+        let potentialURL = pane.activeTab.currentPath.appendingPathComponent(baseName)
+        let uniqueURL = generateUniqueURL(for: potentialURL)
+        let uniqueName = uniqueURL.lastPathComponent
 
         do {
             _ = try FileSystemService.shared.createFile(
@@ -1019,10 +1012,9 @@ struct PaneView: View {
 
     private func createNewFolder() {
         let baseName = "New Folder"
-        let uniqueName = FileSystemService.shared.generateUniqueFileName(
-            for: baseName,
-            in: pane.activeTab.currentPath
-        )
+        let potentialURL = pane.activeTab.currentPath.appendingPathComponent(baseName)
+        let uniqueURL = generateUniqueURL(for: potentialURL)
+        let uniqueName = uniqueURL.lastPathComponent
 
         do {
             _ = try FileSystemService.shared.createDirectory(

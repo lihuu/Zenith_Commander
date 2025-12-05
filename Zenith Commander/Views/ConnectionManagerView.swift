@@ -6,8 +6,10 @@
 //
 
 import SwiftUI
+import Combine
 
 struct ConnectionManagerView: View {
+    @EnvironmentObject var appState: AppState
     @ObservedObject var connectionManager = ConnectionManager.shared
     @State private var showingAddSheet = false
     @State private var editingConnection: Connection?
@@ -33,7 +35,15 @@ struct ConnectionManagerView: View {
             List {
                 ForEach(connectionManager.connections) { connection in
                     ConnectionRow(connection: connection) {
-                        connectionManager.connect(connection)
+                        if let url = connectionManager.connect(connection) {
+                            // 先关闭模态窗口，再更新路径和刷新面板
+                            appState.showConnectionManager = false
+                            appState.exitMode()
+                            appState.currentPane.activeTab.currentPath = url
+                            Task { @MainActor in
+                                await appState.refreshCurrentPane()
+                            }
+                        }
                     } onEdit: {
                         editingConnection = connection
                     } onDelete: {
@@ -150,6 +160,7 @@ struct ConnectionEditView: View {
                     }
                 
                 TextField("Username", text: $connection.username)
+                SecureField("Password", text: $connection.password)
                 TextField("Path", text: $connection.path)
             }
             

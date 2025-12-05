@@ -3,3 +3,7 @@
 ** TODO 支持 sftp 
 ** TODO 支持 ftp
 ** TODO 支持第三方网盘
+1. Google drive
+2. OneDrive
+   
+* 多层级文件搜索

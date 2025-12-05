@@ -58,12 +58,13 @@ class ConnectionManager: ObservableObject {
     
     // MARK: - Connection Actions
     
-    func connect(_ connection: Connection) {
+    func connect(_ connection: Connection) -> URL? {
         switch connection.protocolType {
         case .ftp, .smb:
             connectViaFinder(connection)
+            return nil
         case .sftp:
-            connectViaTerminal(connection)
+            return connection.url
         }
     }
     
@@ -72,39 +73,5 @@ class ConnectionManager: ObservableObject {
         NSWorkspace.shared.open(url)
     }
     
-    private func connectViaTerminal(_ connection: Connection) {
-        // Construct SSH command
-        // ssh user@host -p port
-        var args = ["ssh"]
-        
-        if !connection.port.isEmpty {
-            args.append("-p")
-            args.append(connection.port)
-        }
-        
-        var destination = connection.host
-        if !connection.username.isEmpty {
-            destination = "\(connection.username)@\(connection.host)"
-        }
-        args.append(destination)
-        
-        let command = args.joined(separator: " ")
-        
-        // Use AppleScript to open Terminal and run command
-        // This is a simple way to launch a new terminal window with the command
-        let scriptSource = """
-        tell application "Terminal"
-            activate
-            do script "\(command)"
-        end tell
-        """
-        
-        if let script = NSAppleScript(source: scriptSource) {
-            var error: NSDictionary?
-            script.executeAndReturnError(&error)
-            if let error = error {
-                Logger.fileSystem.error("Failed to launch Terminal via AppleScript: \(error)")
-            }
-        }
-    }
+    // connectViaTerminal is removed as we now support native SFTP
 }
