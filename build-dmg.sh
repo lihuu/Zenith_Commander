@@ -35,6 +35,24 @@ if ! command -v create-dmg &>/dev/null; then
   exit 1
 fi
 
+# 准备一下来源文件
+
+# 删除旧的 APP_SOURCE_DIR 目录（如果存在的话）
+
+if [ -d "$APP_SOURCE_DIR" ]; then
+  echo "🗑️  清理旧的 App 源文件目录..."
+  rm -rf "$APP_SOURCE_DIR"
+fi
+
+# 将构建输出，重命名为Release目录（输出目录是：Zenith Commander 开头的一个目录）
+BUILT_APP_DIR=$(find ./build -type d -name "${APP_NAME}*" | head -n 1)
+if [ -z "$BUILT_APP_DIR" ]; then
+  echo "❌ 错误: 未找到构建输出目录。请确保 Xcode 构建已完成。"
+  exit 1
+fi
+mv "$BUILT_APP_DIR" "$APP_SOURCE_DIR"
+
+
 # 检查源文件是否存在
 APP_PATH="${APP_SOURCE_DIR}/${APP_NAME}.app"
 if [ ! -d "$APP_PATH" ]; then
