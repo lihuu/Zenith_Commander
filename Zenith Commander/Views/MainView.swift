@@ -108,7 +108,6 @@ struct MainView: View {
                     }
                 }
             }
-            .environmentObject(appState)
 
             // 状态栏
             StatusBarView(
@@ -122,7 +121,7 @@ struct MainView: View {
                     appState.enterMode(.driveSelect)
                 }
             )
-        }
+        }.environmentObject(appState)
         .background(Theme.background)
         .toast(message: appState.toastMessage)
         .overlay {
@@ -172,9 +171,7 @@ struct MainView: View {
 
             // Connection Manager Modal
             if appState.showConnectionManager {
-                ModalView(isPresented: $appState.showConnectionManager) {
-                    ConnectionManagerView()
-                }
+                ConnectionManagerView(isPresented: $appState.showConnectionManager,appState: appState)
             }
         }
         .sheet(

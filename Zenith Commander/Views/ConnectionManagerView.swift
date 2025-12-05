@@ -9,77 +9,118 @@ import SwiftUI
 import Combine
 
 struct ConnectionManagerView: View {
-    @EnvironmentObject var appState: AppState
+    @Binding var isPresented: Bool
+    @ObservedObject var appState: AppState
     @ObservedObject var connectionManager = ConnectionManager.shared
     @State private var showingAddSheet = false
     @State private var editingConnection: Connection?
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            HStack {
-                Text("Network Connections")
-                    .font(.headline)
-                Spacer()
-                Button(action: { showingAddSheet = true }) {
-                    Image(systemName: "plus")
+        ZStack {
+            // Background overlay
+            Color.black.opacity(0.4)
+                .edgesIgnoringSafeArea(.all)
+                .onTapGesture {
+                    closeModal()
                 }
-                .help("Add Connection")
-            }
-            .padding()
-            .background(Color(NSColor.controlBackgroundColor))
+                .transition(.opacity)
             
-            Divider()
-            
-            // List
-            List {
-                ForEach(connectionManager.connections) { connection in
-                    ConnectionRow(connection: connection) {
-                        if let url = connectionManager.connect(connection) {
-                            // 先关闭模态窗口，再更新路径和刷新面板
-                            appState.showConnectionManager = false
-                            appState.exitMode()
-                            appState.currentPane.activeTab.currentPath = url
-                            Task { @MainActor in
-                                await appState.refreshCurrentPane()
+            // Modal Content
+            VStack(spacing: 0) {
+                // Header
+                HStack {
+                    Text("Network Connections")
+                        .font(.headline)
+                    Spacer()
+                    Button(action: { showingAddSheet = true }) {
+                        Image(systemName: "plus")
+                    }
+                    .help("Add Connection")
+                    
+                    Button(action: { closeModal() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Close")
+                }
+                .padding()
+                .background(Color(NSColor.controlBackgroundColor))
+                
+                Divider()
+                
+                // List
+                List {
+                    ForEach(connectionManager.connections) { connection in
+                        ConnectionRow(connection: connection) {
+                            if let url = connectionManager.connect(connection) {
+                                closeModal()
+                                appState.currentPane.activeTab.currentPath = url
+                                Task { @MainActor in
+                                    await appState.refreshCurrentPane()
+                                }
                             }
+                        } onEdit: {
+                            editingConnection = connection
+                        } onDelete: {
+                            connectionManager.deleteConnection(connection)
                         }
-                    } onEdit: {
-                        editingConnection = connection
-                    } onDelete: {
-                        connectionManager.deleteConnection(connection)
                     }
                 }
-            }
-            .listStyle(PlainListStyle())
-            
-            if connectionManager.connections.isEmpty {
-                VStack(spacing: 10) {
-                    Image(systemName: "network")
-                        .font(.system(size: 40))
-                        .foregroundColor(.secondary)
-                    Text("No Saved Connections")
-                        .foregroundColor(.secondary)
-                    Button("Add Connection") {
-                        showingAddSheet = true
+                .listStyle(PlainListStyle())
+                
+                if connectionManager.connections.isEmpty {
+                    VStack(spacing: 10) {
+                        Image(systemName: "network")
+                            .font(.system(size: 40))
+                            .foregroundColor(.secondary)
+                        Text("No Saved Connections")
+                            .foregroundColor(.secondary)
+                        Button("Add Connection") {
+                            showingAddSheet = true
+                        }
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .frame(width: 400, height: 500)
+            .background(Color(NSColor.windowBackgroundColor))
+            .cornerRadius(12)
+            .shadow(radius: 20)
+            .transition(.scale(scale: 0.95).combined(with: .opacity))
+            .sheet(isPresented: $showingAddSheet) {
+                ConnectionEditView(connection: .empty, isNew: true) { newConnection in
+                    connectionManager.saveConnection(newConnection)
+                    showingAddSheet = false
+                }
+            }
+            .sheet(item: $editingConnection) { connection in
+                ConnectionEditView(connection: connection, isNew: false) { updatedConnection in
+                    connectionManager.saveConnection(updatedConnection)
+                    editingConnection = nil
+                }
             }
         }
-        .frame(width: 400, height: 500)
-        .sheet(isPresented: $showingAddSheet) {
-            ConnectionEditView(connection: .empty, isNew: true) { newConnection in
-                connectionManager.saveConnection(newConnection)
-                showingAddSheet = false
+        .animation(
+            .easeInOut(duration: 0.2),
+            value: isPresented
+        )
+        // Handle Esc key to close
+        .background(
+            Button("") {
+                closeModal()
             }
+            .keyboardShortcut(.cancelAction)
+            .opacity(0)
+        )
+        .onAppear {
+            appState.enterMode(.modal)
         }
-        .sheet(item: $editingConnection) { connection in
-            ConnectionEditView(connection: connection, isNew: false) { updatedConnection in
-                connectionManager.saveConnection(updatedConnection)
-                editingConnection = nil
-            }
-        }
+    }
+    
+    private func closeModal() {
+        isPresented = false
+        appState.exitMode()
     }
 }
 
