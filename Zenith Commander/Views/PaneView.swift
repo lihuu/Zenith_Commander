@@ -804,7 +804,7 @@ struct PaneView: View {
                 case .success(var files):
                     // 获取 Git 状态（如果启用）
                     successCallBack()
-                    if settingsManager.settings.git.enabled {
+                    if pane.activeTab.isLocalPath && settingsManager.settings.git.enabled {
                         let gitSettings = settingsManager.settings.git
                         applyGitStatus(to: &files, settings: gitSettings)
                     } else {

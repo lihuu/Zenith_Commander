@@ -14,6 +14,15 @@ class TabState: Identifiable, ObservableObject {
     @Published var files: [FileItem]
     @Published var cursorFileId: String
     @Published var scrollOffset: CGFloat
+    
+    var isRemotePath: Bool {
+        !currentPath.isFileURL
+    }
+    
+    var isLocalPath: Bool{
+        currentPath.isFileURL
+    }
+    
 
     /// 未过滤的原始文件列表（用于 Filter 模式恢复）
     var unfilteredFiles: [FileItem] = []
