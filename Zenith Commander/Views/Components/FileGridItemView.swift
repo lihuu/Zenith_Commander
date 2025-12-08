@@ -1,3 +1,11 @@
+//
+//  FileGridItemView.swift
+//  Zenith Commander
+//
+//  Created by Hu Li on 12/7/25.
+//
+
+
 import SwiftUI
 
 struct FileGridItemView: View {

@@ -642,6 +642,14 @@ struct PaneView: View {
         stopDirectoryMonitoring()
 
         let currentPath = pane.activeTab.currentPath
+        
+        // 只对本地文件系统启用目录监控
+        // SFTP 等远程文件系统不支持 DispatchSource 监控
+        guard currentPath.isFileURL else {
+            Logger.monitor.debug("Skipping directory monitoring for non-local URL: \(currentPath.absoluteString, privacy: .public)")
+            return
+        }
+        
         let paneRef = pane
         let settingsRef = settingsManager
 

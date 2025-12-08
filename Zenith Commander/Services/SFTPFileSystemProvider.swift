@@ -69,6 +69,7 @@ class SFTPFileSystemProvider: FileSystemProvider {
     // MARK: - FileSystemProvider Implementation
     
     func loadDirectory(at path: URL) async throws -> [FileItem] {
+        Logger.fileSystem.debug("Loading SFTP directory: \(path.path)")
         return try await Task.detached { [weak self] in
             guard let self = self else { return [] }
             let sftp = try self.getOrCreateConnection(for: path)

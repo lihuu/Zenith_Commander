@@ -381,4 +381,30 @@ extension AppMode {
 
         return action
     }
+    
+    func action(for pointer: PointerButton) -> AppAction? {
+        switch self{
+        case .normal:
+            switch pointer{
+            case .back:
+                // should return back action
+                return nil
+                
+            case .forward:
+                // should return forward action
+                return nil
+            }
+        default:
+            return nil
+        }
+    }
 }
+
+
+
+enum PointerButton{
+    case back
+    case forward
+}
+
+
