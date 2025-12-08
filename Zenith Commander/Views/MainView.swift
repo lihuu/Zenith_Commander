@@ -122,118 +122,127 @@ struct MainView: View {
                 }
             )
         }.environmentObject(appState)
-        .background(Theme.background)
-        .toast(message: appState.toastMessage)
-        .overlay {
-            // 驱动器选择器
-            if appState.showDriveSelector {
-                Color.black.opacity(0.4)
-                    .ignoresSafeArea()
-                    .onTapGesture {
-                        appState.exitMode()
-                    }
+            .background(Theme.background)
+            .toast(message: appState.toastMessage)
+            .overlay {
+                // 驱动器选择器
+                if appState.showDriveSelector {
+                    Color.black.opacity(0.4)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            appState.exitMode()
+                        }
 
-                DriveSelectorView(
-                    drives: appState.availableDrives,
-                    cursorIndex: appState.driveSelectorCursor,
-                    onSelect: { drive in
-                        Task { await appState.selectDrive(drive) }
-                    },
-                    onDismiss: {
-                        appState.exitMode()
-                    }
-                )
-            }
+                    DriveSelectorView(
+                        drives: appState.availableDrives,
+                        cursorIndex: appState.driveSelectorCursor,
+                        onSelect: { drive in
+                            Task { await appState.selectDrive(drive) }
+                        },
+                        onDismiss: {
+                            appState.exitMode()
+                        }
+                    )
+                }
 
-            // 批量重命名模态窗口
-            if appState.showRenameModal {
-                Color.black.opacity(0.4)
-                    .ignoresSafeArea()
-                    .onTapGesture {
-                        appState.showRenameModal = false
-                        appState.exitMode()  // 退出 RENAME 模式
-                    }
+                // 批量重命名模态窗口
+                if appState.showRenameModal {
+                    Color.black.opacity(0.4)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            appState.showRenameModal = false
+                            appState.exitMode()  // 退出 RENAME 模式
+                        }
 
-                BatchRenameView(
-                    isPresented: $appState.showRenameModal,
-                    findText: $appState.renameFindText,
-                    replaceText: $appState.renameReplaceText,
-                    useRegex: $appState.renameUseRegex,
-                    selectedFiles: getSelectedFiles(),
-                    onApply: {
-                        Task { await performBatchRename() }
-                    },
-                    onDismiss: {
-                        appState.exitMode()  // 退出 RENAME 模式
-                    }
-                )
-            }
+                    BatchRenameView(
+                        isPresented: $appState.showRenameModal,
+                        findText: $appState.renameFindText,
+                        replaceText: $appState.renameReplaceText,
+                        useRegex: $appState.renameUseRegex,
+                        selectedFiles: getSelectedFiles(),
+                        onApply: {
+                            Task { await performBatchRename() }
+                        },
+                        onDismiss: {
+                            appState.exitMode()  // 退出 RENAME 模式
+                        }
+                    )
+                }
 
-            // Connection Manager Modal
-            if appState.showConnectionManager {
-                ConnectionManagerView(isPresented: $appState.showConnectionManager,appState: appState)
+                // Connection Manager Modal
+                if appState.showConnectionManager {
+                    ConnectionManagerView(
+                        isPresented: $appState.showConnectionManager,
+                        appState: appState
+                    )
+                }
             }
-        }
-        .sheet(
-            isPresented: showSettings,
-            onDismiss: {
-                // 关闭设置时退出 SETTINGS 模式
-                appState.exitMode()
+            .sheet(
+                isPresented: showSettings,
+                onDismiss: {
+                    // 关闭设置时退出 SETTINGS 模式
+                    appState.exitMode()
+                }
+            ) {
+                SettingsView()
             }
-        ) {
-            SettingsView()
-        }
-        .sheet(
-            isPresented: showHelp,
-            onDismiss: {
-                // 关闭帮助时退出 HELP 模式
-                appState.exitMode()
+            .sheet(
+                isPresented: showHelp,
+                onDismiss: {
+                    // 关闭帮助时退出 HELP 模式
+                    appState.exitMode()
+                }
+            ) {
+                HelpView()
             }
-        ) {
-            HelpView()
-        }
-        .focusable()
-        .onKeyPress { keyPress in
-            handleKeyPress(keyPress)
-        }
-        .onAppear {
-            // 加载可用驱动器 - 使用异步更新避免在视图更新期间修改 @Published 属性
-            DispatchQueue.main.async {
-                appState.availableDrives = FileSystemService.shared
-                    .getMountedVolumes()
+            .focusable()
+            .onKeyPress { keyPress in
+                handleKeyPress(keyPress)
             }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .openSettings)) {
+            .onAppear {
+                // 加载可用驱动器 - 使用异步更新避免在视图更新期间修改 @Published 属性
+                DispatchQueue.main.async {
+                    appState.availableDrives = FileSystemService.shared
+                        .getMountedVolumes()
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openSettings))
+        {
             _ in
             appState.enterMode(.settings)
         }
-        .onReceive(NotificationCenter.default.publisher(for: .showHelp)) { _ in
-            appState.enterMode(.help)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .goToParent)) {
-            _ in
-            Task { @MainActor in
-                await appState.leaveDirectory()
+            .onReceive(NotificationCenter.default.publisher(for: .showHelp)) {
+                _ in
+                appState.enterMode(.help)
             }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .enterDirectory)) {
-            _ in
-            Task { @MainActor in
-                await appState.enterDirectory()
+            .onReceive(NotificationCenter.default.publisher(for: .goToParent)) {
+                _ in
+                Task { @MainActor in
+                    await appState.leaveDirectory()
+                }
             }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .switchPane)) {
-            _ in
-            appState.toggleActivePane()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .newTab)) { _ in
-            Task { @MainActor in
-                await appState.newTab()
+            .onReceive(
+                NotificationCenter.default.publisher(for: .enterDirectory)
+            ) {
+                _ in
+                Task { @MainActor in
+                    await appState.enterDirectory()
+                }
             }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .closeTab)) { _ in
-            appState.closeTab()
-        }
+            .onReceive(NotificationCenter.default.publisher(for: .switchPane)) {
+                _ in
+                appState.toggleActivePane()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .newTab)) {
+                _ in
+                Task { @MainActor in
+                    await appState.newTab()
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .closeTab)) {
+                _ in
+                appState.closeTab()
+            }
     }
 
     private func handleKeyPress(_ keyPress: KeyPress) -> KeyPress.Result {
@@ -348,6 +357,7 @@ struct MainView: View {
             if direction == .up {
                 if appState.driveSelectorCursor > 0 {
                     appState.driveSelectorCursor -= 1
+                    appState.objectWillChange.send()
                 }
             }
 
@@ -356,6 +366,7 @@ struct MainView: View {
                     - 1
                 {
                     appState.driveSelectorCursor += 1
+                    appState.objectWillChange.send()
                 }
             }
 

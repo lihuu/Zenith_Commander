@@ -38,7 +38,6 @@ class AppState: ObservableObject {
     // MARK: - UI 状态
     @Published var toastMessage: String?
     @Published var showDriveSelector: Bool = false
-    @Published var driveSelectorCursor: Int = 0
     @Published var availableDrives: [DriveInfo] = []
 
     // MARK: - AI 状态
@@ -50,7 +49,26 @@ class AppState: ObservableObject {
     @Published var renameFindText: String = ""
     @Published var renameReplaceText: String = ""
     @Published var renameUseRegex: Bool = false
-    
+
+    var driveSelectorCursor: Int {
+        get {
+            let index =  availableDrives.firstIndex(where: {
+                $0.id == currentPane.activeTab.drive.id
+            }) ?? 0
+            
+            Logger.app.debug("Current selected Index: \(index)")
+            
+            return index
+        }
+        set {
+            if newValue >= 0 && newValue < availableDrives.count {
+                Logger.app.debug("Current Selected newValue: \(newValue)")
+                let selectedDrive = availableDrives[newValue]
+                currentPane.activeTab.drive = selectedDrive
+            }
+        }
+    }
+
     // MARK: - Connection Manager 状态
     @Published var showConnectionManager: Bool = false
 
@@ -202,7 +220,7 @@ class AppState: ObservableObject {
     }
 
     // MARK: - 鼠标操作（统一通过模式系统处理）
-    
+
     /// 处理普通单击
     /// - 在 Normal 模式下：移动光标
     /// - 在 Visual 模式下：移动光标并更新选择范围
@@ -210,93 +228,96 @@ class AppState: ObservableObject {
         // 切换活动面板
         setActivePane(paneSide)
         let pane = paneSide == .left ? leftPane : rightPane
-        
+
         // 移动光标
         pane.cursorIndex = index
-        
+
         // 如果在 Visual 模式下，更新选择范围
         if mode == .visual {
             pane.updateVisualSelection()
         }
     }
-    
+
     /// 处理 Command+Click（切换选择）
     /// - 自动进入 Visual 模式
     /// - 切换点击项的选择状态
     func handleMouseCommandClick(at index: Int, paneSide: PaneSide) {
         setActivePane(paneSide)
         let pane = paneSide == .left ? leftPane : rightPane
-        
+
         // 获取目标文件
         guard let file = pane.activeTab.files[safe: index] else { return }
-        
+
         // 父目录项不能被选中
         guard !file.isParentDirectory else { return }
-        
+
         // 如果不在 Visual 模式，先进入 Visual 模式
         if mode != .visual {
             // 进入 Visual 模式但不设置锚点（因为我们要做切换选择）
             mode = .visual
             pane.visualAnchor = nil  // 清除锚点，因为 Command+Click 是独立选择
         }
-        
+
         // 移动光标到点击位置
         pane.cursorIndex = index
-        
+
         // 切换选择状态
         pane.toggleSelection(for: file.id)
-        
+
         // 如果没有选中项了，退出 Visual 模式
         if pane.selections.isEmpty {
             exitMode()
         }
     }
-    
+
     /// 处理 Shift+Click（范围选择）
     /// - 自动进入 Visual 模式
     /// - 从锚点（或当前光标）到点击位置进行范围选择
     func handleMouseShiftClick(at index: Int, paneSide: PaneSide) {
         setActivePane(paneSide)
         let pane = paneSide == .left ? leftPane : rightPane
-        
+
         // 如果不在 Visual 模式，先进入 Visual 模式
         if mode != .visual {
             // 设置当前光标位置为锚点
             pane.visualAnchor = pane.cursorIndex
             mode = .visual
         }
-        
+
         // 如果没有锚点，以当前光标为锚点
         if pane.visualAnchor == nil {
             pane.visualAnchor = pane.cursorIndex
         }
-        
+
         // 移动光标到点击位置
         pane.cursorIndex = index
-        
+
         // 更新范围选择
         pane.updateVisualSelection()
     }
-    
+
     /// 处理双击
     /// - 文件夹：进入目录
     /// - 文件：使用默认应用打开
     func handleMouseDoubleClick(fileId: String, paneSide: PaneSide) async {
         setActivePane(paneSide)
         let pane = paneSide == .left ? leftPane : rightPane
-        
-        guard let file = pane.activeTab.files.first(where: { $0.id == fileId }) else { return }
-        
+
+        guard let file = pane.activeTab.files.first(where: { $0.id == fileId })
+        else { return }
+
         if file.isFolder {
             // 进入目录
             let newPath = file.path
-            let files = await FileSystemService.shared.loadDirectory(at: newPath)
-            
+            let files = await FileSystemService.shared.loadDirectory(
+                at: newPath
+            )
+
             pane.activeTab.currentPath = newPath
             pane.activeTab.files = files
             pane.cursorIndex = 0
             pane.clearSelections()
-            
+
             // 如果在 Visual 模式，退出
             if mode == .visual {
                 exitMode()
@@ -584,7 +605,7 @@ class AppState: ObservableObject {
                 at: parent
             )
             pane.activeTab.files = files
-            
+
             pane.activeTab.currentPath = parent
             pane.clearSelections()
 
@@ -641,6 +662,9 @@ class AppState: ObservableObject {
     }
 
     func selectDrive(_ drive: DriveInfo) async {
+        self.driveSelectorCursor = availableDrives.firstIndex(of: drive) ?? 0
+        Logger.app.debug("Selected drive: \(drive.name, privacy: .public)")
+        Logger.app.debug("Delected drive index: \(self.driveSelectorCursor)")
         let pane = currentPane
         pane.activeTab.drive = drive
         pane.activeTab.currentPath = drive.path
@@ -648,7 +672,6 @@ class AppState: ObservableObject {
         pane.clearSelections()
         await refreshCurrentPane()
         exitMode()
-        showToast("Switched to \(drive.name)")
     }
 
     func jumpToTop() {
@@ -706,7 +729,6 @@ extension AppState {
             currentPane.startVisualSelection()
         case .driveSelect:
             showDriveSelector = true
-            driveSelectorCursor = 0
         default:
             break
         }
@@ -728,7 +750,7 @@ extension AppState {
             // 关闭重命名模态窗口
             showRenameModal = false
         }
-        
+
         if mode == .modal {
             showConnectionManager = false
         }
@@ -743,14 +765,14 @@ extension AppState {
         commandInput = ""
         filterInput = ""
         filterUseRegex = false
-        
+
     }
 }
 
 // MARK: - 过滤功能扩展
 
-extension AppState{
-     func applyFilter() {
+extension AppState {
+    func applyFilter() {
         let pane = currentPane
         let tab = pane.activeTab
         let filter = filterInput
@@ -818,7 +840,7 @@ extension Array {
 }
 
 // For command mode process
-extension AppState{
+extension AppState {
     func executeCommand() async {
         let commandInput = commandInput.trimmingCharacters(
             in: .whitespaces
@@ -918,7 +940,7 @@ extension AppState{
 
         exitMode()
     }
-    
+
     private func executeMove(command: ParsedCommand, currentPath: URL) async {
         let result = CommandParser.validateMoveOrCopy(
             command,
@@ -1082,7 +1104,7 @@ extension AppState{
             }
         }
     }
-    
+
     private func getSelectedFiles() -> [FileItem] {
         let pane = currentPane
         let selections = pane.selections
@@ -1102,7 +1124,7 @@ extension AppState{
             }
         }
     }
-    
+
     private func getCurrentFile() -> FileItem? {
         let pane = currentPane
         guard let file = pane.activeTab.files[safe: pane.cursorIndex],
