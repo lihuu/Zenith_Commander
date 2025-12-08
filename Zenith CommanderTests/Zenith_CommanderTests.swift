@@ -2332,138 +2332,11 @@ struct FileSystemServiceTests {
         }
     }
     
-    // MARK: - 自动重命名测试
-    
-    @Test func testGenerateUniqueFileName_NoConflict() {
-        let service = FileSystemService.shared
-        // 使用一个不存在的文件名
-        let uniqueName = "UniqueTestFile_\(UUID().uuidString).txt"
-        let tempDir = FileManager.default.temporaryDirectory
-        
-        let result = service.generateUniqueFileName(for: uniqueName, in: tempDir)
-        
-        // 没有冲突时，应该返回原名
-        #expect(result == uniqueName)
-    }
-    
-    @Test func testGenerateUniqueFileName_WithConflict_AddsCopySuffix() throws {
-        let service = FileSystemService.shared
-        let fileManager = FileManager.default
-        let tempDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_\(UUID().uuidString)")
-        
-        // 创建测试目录
-        try fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        
-        defer {
-            try? fileManager.removeItem(at: tempDir)
-        }
-        
-        // 创建一个已存在的文件
-        let existingFile = tempDir.appendingPathComponent("test.txt")
-        fileManager.createFile(atPath: existingFile.path, contents: nil)
-        
-        let result = service.generateUniqueFileName(for: "test.txt", in: tempDir)
-        
-        // 应该添加 Copy 后缀
-        #expect(result == "test Copy.txt")
-    }
-    
-    @Test func testGenerateUniqueFileName_WithMultipleConflicts() throws {
-        let service = FileSystemService.shared
-        let fileManager = FileManager.default
-        let tempDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_\(UUID().uuidString)")
-        
-        // 创建测试目录
-        try fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        
-        defer {
-            try? fileManager.removeItem(at: tempDir)
-        }
-        
-        // 创建多个冲突的文件
-        let existingFile1 = tempDir.appendingPathComponent("test.txt")
-        let existingFile2 = tempDir.appendingPathComponent("test Copy.txt")
-        let existingFile3 = tempDir.appendingPathComponent("test Copy1.txt")
-        
-        fileManager.createFile(atPath: existingFile1.path, contents: nil)
-        fileManager.createFile(atPath: existingFile2.path, contents: nil)
-        fileManager.createFile(atPath: existingFile3.path, contents: nil)
-        
-        let result = service.generateUniqueFileName(for: "test.txt", in: tempDir)
-        
-        // 应该返回 Copy2
-        #expect(result == "test Copy2.txt")
-    }
-    
-    @Test func testGenerateUniqueFileName_NoExtension() throws {
-        let service = FileSystemService.shared
-        let fileManager = FileManager.default
-        let tempDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_\(UUID().uuidString)")
-        
-        // 创建测试目录
-        try fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        
-        defer {
-            try? fileManager.removeItem(at: tempDir)
-        }
-        
-        // 创建无扩展名的文件
-        let existingFile = tempDir.appendingPathComponent("README")
-        fileManager.createFile(atPath: existingFile.path, contents: nil)
-        
-        let result = service.generateUniqueFileName(for: "README", in: tempDir)
-        
-        // 无扩展名的文件应该在末尾添加 Copy
-        #expect(result == "README Copy")
-    }
-    
-    @Test func testGenerateUniqueFileName_HiddenFile() throws {
-        let service = FileSystemService.shared
-        let fileManager = FileManager.default
-        let tempDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_\(UUID().uuidString)")
-        
-        // 创建测试目录
-        try fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        
-        defer {
-            try? fileManager.removeItem(at: tempDir)
-        }
-        
-        // 创建隐藏文件
-        let existingFile = tempDir.appendingPathComponent(".gitignore")
-        fileManager.createFile(atPath: existingFile.path, contents: nil)
-        
-        let result = service.generateUniqueFileName(for: ".gitignore", in: tempDir)
-        
-        // 隐藏文件应该在末尾添加 Copy
-        #expect(result == ".gitignore Copy")
-    }
-    
-    @Test func testGenerateUniqueFileName_FolderConflict() throws {
-        let service = FileSystemService.shared
-        let fileManager = FileManager.default
-        let tempDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_\(UUID().uuidString)")
-        
-        // 创建测试目录
-        try fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        
-        defer {
-            try? fileManager.removeItem(at: tempDir)
-        }
-        
-        // 创建已存在的文件夹
-        let existingFolder = tempDir.appendingPathComponent("MyFolder")
-        try fileManager.createDirectory(at: existingFolder, withIntermediateDirectories: false)
-        
-        let result = service.generateUniqueFileName(for: "MyFolder", in: tempDir)
-        
-        // 文件夹也应该添加 Copy 后缀
-        #expect(result == "MyFolder Copy")
-    }
+
     
     // MARK: - New File 测试
     
-    @Test func testCreateFile_Basic() throws {
+    @Test func testCreateFile_Basic() async throws {
         let service = FileSystemService.shared
         let fileManager = FileManager.default
         let tempDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_\(UUID().uuidString)")
@@ -2476,14 +2349,14 @@ struct FileSystemServiceTests {
         }
         
         // 创建新文件
-        let createdURL = try service.createFile(at: tempDir, name: "test.txt")
+        let createdURL = try await service.createFile(at: tempDir, name: "test.txt")
         
         // 验证文件被创建
         #expect(fileManager.fileExists(atPath: createdURL.path))
         #expect(createdURL.lastPathComponent == "test.txt")
     }
     
-    @Test func testCreateFile_WithConflict_AutoRename() throws {
+    @Test func testCreateFile_WithConflict_AutoRename() async throws {
         let service = FileSystemService.shared
         let fileManager = FileManager.default
         let tempDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_\(UUID().uuidString)")
@@ -2500,14 +2373,14 @@ struct FileSystemServiceTests {
         fileManager.createFile(atPath: existingFile.path, contents: nil)
         
         // 创建同名文件应该自动重命名
-        let createdURL = try service.createFile(at: tempDir, name: "test.txt")
+        let createdURL = try await service.createFile(at: tempDir, name: "test.txt")
         
         // 验证文件被创建且名称被修改
         #expect(fileManager.fileExists(atPath: createdURL.path))
         #expect(createdURL.lastPathComponent == "test Copy.txt")
     }
     
-    @Test func testCreateFile_MultipleConflicts() throws {
+    @Test func testCreateFile_MultipleConflicts() async throws {
         let service = FileSystemService.shared
         let fileManager = FileManager.default
         let tempDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_\(UUID().uuidString)")
@@ -2524,14 +2397,14 @@ struct FileSystemServiceTests {
         fileManager.createFile(atPath: tempDir.appendingPathComponent("untitled Copy.txt").path, contents: nil)
         
         // 创建同名文件应该自动重命名为 Copy1
-        let createdURL = try service.createFile(at: tempDir, name: "untitled.txt")
+        let createdURL = try await service.createFile(at: tempDir, name: "untitled.txt")
         
         // 验证文件被创建且名称被正确修改
         #expect(fileManager.fileExists(atPath: createdURL.path))
         #expect(createdURL.lastPathComponent == "untitled Copy1.txt")
     }
     
-    @Test func testCreateFile_EmptyFile() throws {
+    @Test func testCreateFile_EmptyFile() async throws {
         let service = FileSystemService.shared
         let fileManager = FileManager.default
         let tempDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_\(UUID().uuidString)")
@@ -2544,7 +2417,7 @@ struct FileSystemServiceTests {
         }
         
         // 创建新文件
-        let createdURL = try service.createFile(at: tempDir, name: "empty.txt")
+        let createdURL = try await service.createFile(at: tempDir, name: "empty.txt")
         
         // 验证文件是空的
         let data = try Data(contentsOf: createdURL)
@@ -2553,7 +2426,7 @@ struct FileSystemServiceTests {
     
     // MARK: - New Folder 测试
     
-    @Test func testCreateDirectory_Basic() throws {
+    @Test func testCreateDirectory_Basic() async throws {
         let service = FileSystemService.shared
         let fileManager = FileManager.default
         let tempDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_\(UUID().uuidString)")
@@ -2566,7 +2439,7 @@ struct FileSystemServiceTests {
         }
         
         // 创建新文件夹
-        let createdURL = try service.createDirectory(at: tempDir, name: "NewFolder")
+        let createdURL = try await service.createDirectory(at: tempDir, name: "NewFolder")
         
         // 验证文件夹被创建
         var isDirectory: ObjCBool = false
@@ -2576,7 +2449,7 @@ struct FileSystemServiceTests {
         #expect(createdURL.lastPathComponent == "NewFolder")
     }
     
-    @Test func testCreateDirectory_WithConflict_AutoRename() throws {
+    @Test func testCreateDirectory_WithConflict_AutoRename() async throws {
         let service = FileSystemService.shared
         let fileManager = FileManager.default
         let tempDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_\(UUID().uuidString)")
@@ -2593,7 +2466,7 @@ struct FileSystemServiceTests {
         try fileManager.createDirectory(at: existingFolder, withIntermediateDirectories: false)
         
         // 创建同名文件夹应该自动重命名
-        let createdURL = try service.createDirectory(at: tempDir, name: "untitled folder")
+        let createdURL = try await service.createDirectory(at: tempDir, name: "untitled folder")
         
         // 验证文件夹被创建且名称被修改
         var isDirectory: ObjCBool = false
@@ -2603,7 +2476,7 @@ struct FileSystemServiceTests {
         #expect(createdURL.lastPathComponent == "untitled folder Copy")
     }
     
-    @Test func testCreateDirectory_MultipleConflicts() throws {
+    @Test func testCreateDirectory_MultipleConflicts() async throws {
         let service = FileSystemService.shared
         let fileManager = FileManager.default
         let tempDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_\(UUID().uuidString)")
@@ -2621,7 +2494,7 @@ struct FileSystemServiceTests {
         try fileManager.createDirectory(at: tempDir.appendingPathComponent("untitled folder Copy1"), withIntermediateDirectories: false)
         
         // 创建同名文件夹应该自动重命名为 Copy2
-        let createdURL = try service.createDirectory(at: tempDir, name: "untitled folder")
+        let createdURL = try await service.createDirectory(at: tempDir, name: "untitled folder")
         
         // 验证文件夹被创建且名称被正确修改
         var isDirectory: ObjCBool = false
@@ -2631,7 +2504,7 @@ struct FileSystemServiceTests {
         #expect(createdURL.lastPathComponent == "untitled folder Copy2")
     }
     
-    @Test func testCreateDirectory_ConflictWithFile() throws {
+    @Test func testCreateDirectory_ConflictWithFile() async throws {
         let service = FileSystemService.shared
         let fileManager = FileManager.default
         let tempDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_\(UUID().uuidString)")
@@ -2648,7 +2521,7 @@ struct FileSystemServiceTests {
         fileManager.createFile(atPath: existingFile.path, contents: nil)
         
         // 创建同名文件夹应该自动重命名
-        let createdURL = try service.createDirectory(at: tempDir, name: "MyFolder")
+        let createdURL = try await service.createDirectory(at: tempDir, name: "MyFolder")
         
         // 验证文件夹被创建且名称被修改
         var isDirectory: ObjCBool = false

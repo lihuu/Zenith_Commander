@@ -230,6 +230,7 @@ struct GitBranchIndicator: View {
             itemCount: 42,
             selectedCount: 0
         )
+       
     }
     .background(Theme.background)
 }

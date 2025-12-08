@@ -21,6 +21,7 @@ struct PaneView: View {
     @State private var permissionDeniedPath: URL? = nil
     @State private var showPermissionError: Bool = false
     @State private var directoryMonitor: DispatchSourceDirectoryMonitor? = nil
+    @State private var textInput: String = ""
 
     var isActivePane: Bool {
         appState.activePane == side
@@ -408,7 +409,7 @@ struct PaneView: View {
         }
 
         Button(LocalizationManager.shared.localized(.contextPaste)) {
-            pasteFiles()
+            Task { await pasteFiles() }
         }
         .disabled(appState.clipboard.isEmpty)
 
@@ -442,7 +443,7 @@ struct PaneView: View {
         Divider()
 
         Button(LocalizationManager.shared.localized(.contextMoveToTrash)) {
-            deleteSelectedFiles()
+            Task { await deleteSelectedFiles() }
         }
         .keyboardShortcut(.delete, modifiers: .command)
 
@@ -467,7 +468,7 @@ struct PaneView: View {
         Divider()
 
         Button(LocalizationManager.shared.localized(.contextPaste)) {
-            pasteFiles()
+            Task { await pasteFiles() }
         }
         .disabled(appState.clipboard.isEmpty)
 
@@ -933,20 +934,20 @@ struct PaneView: View {
 
     // MARK: - 文件操作
 
-    func pasteFiles() {
+    func pasteFiles() async {
         guard !appState.clipboard.isEmpty else { return }
 
         do {
             let destination = pane.activeTab.currentPath
 
             if appState.clipboardOperation == .copy {
-                try FileSystemService.shared.copyFiles(
+                try await FileSystemService.shared.copyFiles(
                     appState.clipboard,
                     to: destination
                 )
                 appState.showToast(LocalizationManager.shared.localized(.toastItemsCopied, appState.clipboard.count))
             } else {
-                try FileSystemService.shared.moveFiles(
+                try await FileSystemService.shared.moveFiles(
                     appState.clipboard,
                     to: destination
                 )
@@ -960,7 +961,7 @@ struct PaneView: View {
         }
     }
 
-    func deleteSelectedFiles() {
+    func deleteSelectedFiles() async {
         let selections = pane.selections
         var filesToDelete: [FileItem]
 
@@ -987,7 +988,7 @@ struct PaneView: View {
         }
 
         do {
-            try FileSystemService.shared.trashFiles(filesToDelete)
+            try await FileSystemService.shared.trashFiles(filesToDelete)
             appState.showToast(LocalizationManager.shared.localized(.toastFilesMovedToTrash, filesToDelete.count))
             pane.clearSelections()
             loadCurrentDirectoryWithPermissionCheck()
@@ -999,22 +1000,23 @@ struct PaneView: View {
     // MARK: - 创建文件/文件夹
 
     private func createNewFile() {
-        let baseName = "Untitled"
-        let potentialURL = pane.activeTab.currentPath.appendingPathComponent(baseName)
-        let uniqueURL = generateUniqueURL(for: potentialURL)
-        let uniqueName = uniqueURL.lastPathComponent
+        let name = textInput
+        guard !name.isEmpty else {
+            return
+        }
 
-        do {
-            _ = try FileSystemService.shared.createFile(
-                at: pane.activeTab.currentPath,
-                name: uniqueName
-            )
-            appState.showToast(LocalizationManager.shared.localized(.toastCreatedFile, uniqueName))
-            loadCurrentDirectoryWithPermissionCheck()
-        } catch {
-            appState.showToast(
-                LocalizationManager.shared.localized(.toastErrorCreatingFile, error.localizedDescription)
-            )
+        Task { @MainActor in
+            do {
+                _ = try await FileSystemService.shared.createFile(
+                    at: self.appState.currentPane.activeTab.currentPath,
+                    name: name
+                )
+                self.textInput = ""
+                self.appState.exitMode()
+                await self.appState.refreshCurrentPane()
+            } catch {
+                self.appState.showToast("Error creating file: \(error.localizedDescription)")
+            }
         }
     }
 
@@ -1024,16 +1026,18 @@ struct PaneView: View {
         let uniqueURL = generateUniqueURL(for: potentialURL)
         let uniqueName = uniqueURL.lastPathComponent
 
-        do {
-            _ = try FileSystemService.shared.createDirectory(
-                at: pane.activeTab.currentPath,
-                name: uniqueName
-            )
-            loadCurrentDirectoryWithPermissionCheck()
-        } catch {
-            appState.showToast(
-                LocalizationManager.shared.localized(.toastErrorCreatingFolder, error.localizedDescription)
-            )
+        Task { @MainActor in
+            do {
+                _ = try await FileSystemService.shared.createDirectory(
+                    at: self.pane.activeTab.currentPath,
+                    name: uniqueName
+                )
+                self.loadCurrentDirectoryWithPermissionCheck()
+            } catch {
+                self.appState.showToast(
+                    LocalizationManager.shared.localized(.toastErrorCreatingFolder, error.localizedDescription)
+                )
+            }
         }
     }
 

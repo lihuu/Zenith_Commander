@@ -627,13 +627,13 @@ class AppState: ObservableObject {
             let destination = currentPane.activeTab.currentPath
 
             if clipboardOperation == .copy {
-                try FileSystemService.shared.copyFiles(
+                try await FileSystemService.shared.copyFiles(
                     clipboard,
                     to: destination
                 )
                 showToast("\(clipboard.count) file(s) copied")
             } else {
-                try FileSystemService.shared.moveFiles(
+                try await FileSystemService.shared.moveFiles(
                     clipboard,
                     to: destination
                 )
@@ -859,7 +859,7 @@ extension AppState {
             // mkdir <name> - 在当前目录创建文件夹
             let (_, folderName) = CommandParser.validateMkdir(command)
             do {
-                let _ = try FileSystemService.shared.createDirectory(
+                let _ = try await FileSystemService.shared.createDirectory(
                     at: currentPath,
                     name: folderName
                 )
@@ -877,7 +877,7 @@ extension AppState {
             // touch <name> - 在当前目录创建文件
             let (_, fileName) = CommandParser.validateTouch(command)
             do {
-                let _ = try FileSystemService.shared.createFile(
+                let _ = try await FileSystemService.shared.createFile(
                     at: currentPath,
                     name: fileName
                 )
@@ -978,7 +978,7 @@ extension AppState {
             }
 
             do {
-                try FileSystemService.shared.moveFiles(
+                try await FileSystemService.shared.moveFiles(
                     selectedFiles,
                     to: destPath
                 )
@@ -1032,7 +1032,7 @@ extension AppState {
             }
 
             do {
-                try FileSystemService.shared.copyFiles(
+                try await FileSystemService.shared.copyFiles(
                     selectedFiles,
                     to: destPath
                 )
@@ -1086,7 +1086,7 @@ extension AppState {
             }
 
             do {
-                try FileSystemService.shared.trashFiles(selectedFiles)
+                try await FileSystemService.shared.trashFiles(selectedFiles)
                 await refreshCurrentPane()
                 showToast(
                     LocalizationManager.shared.localized(

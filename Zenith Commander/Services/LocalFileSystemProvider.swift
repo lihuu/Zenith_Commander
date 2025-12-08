@@ -119,7 +119,7 @@ class LocalFileSystemProvider: FileSystemProvider {
     
     // MARK: - Helper Methods
     
-    private func generateUniqueFileName(for fileName: String, in directory: URL) -> String {
+    internal func generateUniqueFileName(for fileName: String, in directory: URL) -> String {
         let destURL = directory.appendingPathComponent(fileName)
         if !fileManager.fileExists(atPath: destURL.path) {
             return fileName

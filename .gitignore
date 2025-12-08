@@ -66,3 +66,5 @@ Carthage/Build
 # ---------------------
 .swiftlint.yml
 /.idea/
+
+GEMINI.md

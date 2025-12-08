@@ -265,7 +265,7 @@ class FileSystemService {
     // MARK: - 文件操作
 
     /// 复制文件
-    func copyFiles(_ files: [FileItem], to destination: URL) throws {
+    func copyFiles(_ files: [FileItem], to destination: URL) async throws {
         guard let firstFile = files.first else { return }
         // Assume all files are from the same provider
         let provider = getProvider(for: firstFile.path)
@@ -273,9 +273,7 @@ class FileSystemService {
         let destProvider = getProvider(for: destination)
         
         if provider.scheme == destProvider.scheme {
-             try Task {
-                 try await provider.copy(items: files, to: destination)
-             }
+            try await provider.copy(items: files, to: destination)
         } else {
             // TODO: Handle cross-provider copy (download then upload)
             throw NSError(domain: "FileSystemService", code: 2, userInfo: [NSLocalizedDescriptionKey: "Cross-provider copy not implemented yet"])
@@ -283,85 +281,43 @@ class FileSystemService {
     }
 
     /// 移动文件
-    func moveFiles(_ files: [FileItem], to destination: URL) throws {
+    func moveFiles(_ files: [FileItem], to destination: URL) async throws {
         guard let firstFile = files.first else { return }
         let provider = getProvider(for: firstFile.path)
         let destProvider = getProvider(for: destination)
         
         if provider.scheme == destProvider.scheme {
-             try Task {
-                 try await provider.move(items: files, to: destination)
-             }
+            try await provider.move(items: files, to: destination)
         } else {
              throw NSError(domain: "FileSystemService", code: 2, userInfo: [NSLocalizedDescriptionKey: "Cross-provider move not implemented yet"])
         }
     }
 
     /// 删除文件（移动到废纸篓）
-    func trashFiles(_ files: [FileItem]) throws {
+    func trashFiles(_ files: [FileItem]) async throws {
         guard let firstFile = files.first else { return }
         let provider = getProvider(for: firstFile.path)
-        try Task {
-            try await provider.delete(items: files)
-        }
+        try await provider.delete(items: files)
     }
 
     /// 永久删除文件
-    func deleteFiles(_ files: [FileItem]) throws {
+    func deleteFiles(_ files: [FileItem]) async throws {
         // Currently mapped to delete in provider
-        try trashFiles(files)
+        try await trashFiles(files)
     }
 
     /// 创建目录
-    func createDirectory(at path: URL, name: String) throws -> URL {
+    func createDirectory(at path: URL, name: String) async throws -> URL {
         let provider = getProvider(for: path)
-        var resultURL: URL?
-        var error: Error?
-        
-        let semaphore = DispatchSemaphore(value: 0)
-        
-        Task {
-            do {
-                let item = try await provider.createDirectory(at: path, name: name)
-                resultURL = item.path
-            } catch let e {
-                error = e
-            }
-            semaphore.signal()
-        }
-        
-        semaphore.wait()
-        
-        if let e = error {
-            throw e
-        }
-        return resultURL!
+        let item = try await provider.createDirectory(at: path, name: name)
+        return item.path
     }
 
     /// 创建空文件
-    func createFile(at path: URL, name: String) throws -> URL {
+    func createFile(at path: URL, name: String) async throws -> URL {
         let provider = getProvider(for: path)
-        var resultURL: URL?
-        var error: Error?
-        
-        let semaphore = DispatchSemaphore(value: 0)
-        
-        Task {
-            do {
-                let item = try await provider.createFile(at: path, name: name)
-                resultURL = item.path
-            } catch let e {
-                error = e
-            }
-            semaphore.signal()
-        }
-        
-        semaphore.wait()
-        
-        if let e = error {
-            throw e
-        }
-        return resultURL!
+        let item = try await provider.createFile(at: path, name: name)
+        return item.path
     }
 
     /// 打开文件

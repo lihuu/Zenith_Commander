@@ -517,7 +517,7 @@ struct MainView: View {
             // mkdir <name> - 在当前目录创建文件夹
             let (_, folderName) = CommandParser.validateMkdir(command)
             do {
-                let _ = try FileSystemService.shared.createDirectory(
+                let _ = try await FileSystemService.shared.createDirectory(
                     at: currentPath,
                     name: folderName
                 )
@@ -535,7 +535,7 @@ struct MainView: View {
             // touch <name> - 在当前目录创建文件
             let (_, fileName) = CommandParser.validateTouch(command)
             do {
-                let _ = try FileSystemService.shared.createFile(
+                let _ = try await FileSystemService.shared.createFile(
                     at: currentPath,
                     name: fileName
                 )
@@ -648,11 +648,11 @@ struct MainView: View {
             }
 
             do {
-                try FileSystemService.shared.moveFiles(
+                try await FileSystemService.shared.moveFiles(
                     selectedFiles,
                     to: destPath
                 )
-                await appState.refreshCurrentPane()
+                await self.appState.refreshCurrentPane()
             } catch {
                 appState.showToast(
                     LocalizationManager.shared.localized(
@@ -702,11 +702,11 @@ struct MainView: View {
             }
 
             do {
-                try FileSystemService.shared.copyFiles(
+                try await FileSystemService.shared.copyFiles(
                     selectedFiles,
                     to: destPath
                 )
-                await appState.refreshCurrentPane()
+                await self.appState.refreshCurrentPane()
             } catch {
                 appState.showToast(
                     LocalizationManager.shared.localized(
@@ -756,9 +756,9 @@ struct MainView: View {
             }
 
             do {
-                try FileSystemService.shared.trashFiles(selectedFiles)
-                await appState.refreshCurrentPane()
-                appState.showToast(
+                try await FileSystemService.shared.trashFiles(selectedFiles)
+                await self.appState.refreshCurrentPane()
+                self.appState.showToast(
                     LocalizationManager.shared.localized(
                         .toastFilesMovedToTrash,
                         selectedFiles.count
@@ -958,14 +958,11 @@ struct MainView: View {
             return
         }
 
-        do {
-            try FileSystemService.shared.trashFiles(filesToDelete)
-            appState.showToast(
-                LocalizationManager.shared.localized(
-                    .toastFilesMovedToTrash,
-                    filesToDelete.count
-                )
-            )
+                do {
+
+                    try await FileSystemService.shared.trashFiles(filesToDelete)
+
+                    appState.showToast(LocalizationManager.shared.localized(.toastFilesMovedToTrash, filesToDelete.count))
             pane.clearSelections()
             await appState.refreshCurrentPane()
         } catch {
