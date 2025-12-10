@@ -183,6 +183,9 @@ enum AppAction {
     case moveDriveCursor(CursorDirection)
     case selectDrive
 
+    /// 同步操作
+    case openRsync
+
     /// 命令操作
     case deleteCommand
     case executeCommand
@@ -250,6 +253,7 @@ enum AppModeKeyMaps {
             KeyChord("g"): .jumpToTop,
             KeyChord("G", [.shift]): .jumpToBottom,
             KeyChord("D", [.shift]): .enterDriveSelection,
+            KeyChord("S", [.shift]): .openRsync,
         ]
 
         return normalOverrides.merging(defaultMap) { current, _ in

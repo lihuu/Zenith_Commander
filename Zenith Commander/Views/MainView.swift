@@ -435,6 +435,10 @@ struct MainView: View {
 
         case .doFilter:
             appState.doFilter()
+        
+        case .openRsync:
+            // Open rsync sync sheet with left pane as source
+            appState.presentRsyncSheet(sourceIsLeft: true)
         }
 
     }

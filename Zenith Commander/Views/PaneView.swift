@@ -452,6 +452,12 @@ struct PaneView: View {
         Button(LocalizationManager.shared.localized(.contextRefresh)) {
             refreshDirectory()
         }
+
+        Divider()
+        Button(LocalizationManager.shared.localized(.rsyncSync)) {
+            // Open rsync sync sheet with this file/folder as source
+            appState.presentRsyncSheet(sourceIsLeft: pane.isLeft)
+        }
     }
 
     /// 目录级右键菜单（空白处右键）
@@ -495,6 +501,13 @@ struct PaneView: View {
             Button(LocalizationManager.shared.localized(.gitRepoHistory)) {
                 appState.showGitHistoryForRepo(at: pane.activeTab.currentPath)
             }
+        }
+
+        Divider()
+
+        Button(LocalizationManager.shared.localized(.rsyncSync)) {
+            // Open rsync sync sheet with this directory as source
+            appState.presentRsyncSheet(sourceIsLeft: pane.isLeft)
         }
     }
 

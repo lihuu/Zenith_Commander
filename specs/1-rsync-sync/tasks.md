@@ -168,11 +168,11 @@
 
 **Tasks**:
 
-- [ ] T051 [P] Add :rsync command parsing in Zenith Commander/Services/CommandParser.swift
-- [ ] T052 [P] Add :rsync mode argument support (update/mirror/copyAll/custom) in Zenith Commander/Services/CommandParser.swift
-- [ ] T053 [P] Add Shift+S keyboard shortcut handler in Zenith Commander/Views/MainView.swift
-- [ ] T054 Add context menu "Rsync Sync..." option for files in Zenith Commander/Views/PaneView.swift
-- [ ] T055 Add context menu "Rsync Sync..." option for directories in Zenith Commander/Views/PaneView.swift
+- [x] T051 [P] Add :rsync command parsing in Zenith Commander/Services/CommandParser.swift
+- [x] T052 [P] Add :rsync mode argument support (update/mirror/copyAll/custom) in Zenith Commander/Services/CommandParser.swift
+- [x] T053 [P] Add Shift+S keyboard shortcut handler in Zenith Commander/Views/MainView.swift
+- [x] T054 Add context menu "Rsync Sync..." option for files in Zenith Commander/Views/PaneView.swift
+- [x] T055 Add context menu "Rsync Sync..." option for directories in Zenith Commander/Views/PaneView.swift
 
 ---
 
