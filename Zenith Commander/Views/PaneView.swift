@@ -456,7 +456,7 @@ struct PaneView: View {
         Divider()
         Button(LocalizationManager.shared.localized(.rsyncSync)) {
             // Open rsync sync sheet with this file/folder as source
-            appState.presentRsyncSheet(sourceIsLeft: pane.isLeft)
+            appState.presentRsyncSheet(sourceIsLeft: pane.side == .left)
         }
     }
 
@@ -507,7 +507,7 @@ struct PaneView: View {
 
         Button(LocalizationManager.shared.localized(.rsyncSync)) {
             // Open rsync sync sheet with this directory as source
-            appState.presentRsyncSheet(sourceIsLeft: pane.isLeft)
+            appState.presentRsyncSheet(sourceIsLeft: pane.side == .left)
         }
     }
 

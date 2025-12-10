@@ -852,11 +852,11 @@ extension AppState {
             exitMode()
             return
         }
-
+        
         // 使用 CommandParser 解析命令
         let command = CommandParser.parse(commandInput)
         let currentPath = currentPane.activeTab.currentPath
-
+        
         switch command.type {
         case .mkdir:
             // mkdir <name> - 在当前目录创建文件夹
@@ -875,7 +875,7 @@ extension AppState {
                     )
                 )
             }
-
+            
         case .touch:
             // touch <name> - 在当前目录创建文件
             let (_, fileName) = CommandParser.validateTouch(command)
@@ -893,19 +893,19 @@ extension AppState {
                     )
                 )
             }
-
+            
         case .move, .mv:
             // move <src> <dest> 或 move <dest> (使用选中文件作为源)
             await executeMove(command: command, currentPath: currentPath)
-
+            
         case .copy, .cp:
             // copy <src> <dest> 或 copy <dest> (使用选中文件作为源)
             await executeCopy(command: command, currentPath: currentPath)
-
+            
         case .delete, .rm:
             // delete [name] - 删除指定文件或当前选中文件
             await executeDelete(command: command, currentPath: currentPath)
-
+            
         case .cd:
             // cd <path> - 切换目录
             let result = CommandParser.validateCd(
@@ -918,20 +918,20 @@ extension AppState {
             } else if let error = result.error {
                 showToast(error)
             }
-
+            
         case .open:
             // open - 打开当前选中的文件
             if let file = getCurrentFile() {
                 NSWorkspace.shared.open(file.path)
             }
-
+            
         case .term, .terminal:
             // term - 在当前目录打开终端
             FileSystemService.shared.openInTerminal(path: currentPath)
-
+            
         case .q, .quit:
             NSApp.terminate(nil)
-
+            
         case .unknown:
             showToast(
                 LocalizationManager.shared.localized(
@@ -939,203 +939,205 @@ extension AppState {
                     command.rawInput
                 )
             )
+        case .rsync:
+            break;
+            
+            exitMode()
         }
-
-        exitMode()
-    }
-
-    private func executeMove(command: ParsedCommand, currentPath: URL) async {
-        let result = CommandParser.validateMoveOrCopy(
-            command,
-            currentPath: currentPath
-        )
-
-        guard result.valid else {
-            if let error = result.error {
-                showToast(error)
-            }
-            return
-        }
-
-        if let srcPath = result.source, let destPath = result.destination {
-            // move <src> <dest>
-            do {
-                try FileManager.default.moveItem(at: srcPath, to: destPath)
-                await refreshCurrentPane()
-            } catch {
-                showToast(
-                    LocalizationManager.shared.localized(
-                        .toastMoveFailed,
-                        error.localizedDescription
-                    )
-                )
-            }
-        } else if let destPath = result.destination {
-            // move <dest> - 移动当前选中文件
-            let selectedFiles = getSelectedFiles()
-            guard !selectedFiles.isEmpty else {
-                showToast(
-                    LocalizationManager.shared.localized(.toastNoFileSelected)
-                )
+        
+        func executeMove(command: ParsedCommand, currentPath: URL) async {
+            let result = CommandParser.validateMoveOrCopy(
+                command,
+                currentPath: currentPath
+            )
+            
+            guard result.valid else {
+                if let error = result.error {
+                    showToast(error)
+                }
                 return
             }
-
-            do {
-                try await FileSystemService.shared.moveFiles(
-                    selectedFiles,
-                    to: destPath
-                )
-                await refreshCurrentPane()
-            } catch {
-                showToast(
-                    LocalizationManager.shared.localized(
-                        .toastMoveFailed,
-                        error.localizedDescription
+            
+            if let srcPath = result.source, let destPath = result.destination {
+                // move <src> <dest>
+                do {
+                    try FileManager.default.moveItem(at: srcPath, to: destPath)
+                    await refreshCurrentPane()
+                } catch {
+                    showToast(
+                        LocalizationManager.shared.localized(
+                            .toastMoveFailed,
+                            error.localizedDescription
+                        )
                     )
-                )
+                }
+            } else if let destPath = result.destination {
+                // move <dest> - 移动当前选中文件
+                let selectedFiles = getSelectedFiles()
+                guard !selectedFiles.isEmpty else {
+                    showToast(
+                        LocalizationManager.shared.localized(.toastNoFileSelected)
+                    )
+                    return
+                }
+                
+                do {
+                    try await FileSystemService.shared.moveFiles(
+                        selectedFiles,
+                        to: destPath
+                    )
+                    await refreshCurrentPane()
+                } catch {
+                    showToast(
+                        LocalizationManager.shared.localized(
+                            .toastMoveFailed,
+                            error.localizedDescription
+                        )
+                    )
+                }
             }
         }
-    }
-
-    /// 执行复制命令
-    private func executeCopy(command: ParsedCommand, currentPath: URL) async {
-        let result = CommandParser.validateMoveOrCopy(
-            command,
-            currentPath: currentPath
-        )
-
-        guard result.valid else {
-            if let error = result.error {
-                showToast(error)
-            }
-            return
-        }
-
-        if let srcPath = result.source, let destPath = result.destination {
-            // copy <src> <dest>
-            do {
-                try FileManager.default.copyItem(at: srcPath, to: destPath)
-                await refreshCurrentPane()
-            } catch {
-                showToast(
-                    LocalizationManager.shared.localized(
-                        .toastCopyFailed,
-                        error.localizedDescription
-                    )
-                )
-            }
-        } else if let destPath = result.destination {
-            // copy <dest> - 复制当前选中文件
-            let selectedFiles = getSelectedFiles()
-            guard !selectedFiles.isEmpty else {
-                showToast(
-                    LocalizationManager.shared.localized(.toastNoFileSelected)
-                )
+        
+        /// 执行复制命令
+        func executeCopy(command: ParsedCommand, currentPath: URL) async {
+            let result = CommandParser.validateMoveOrCopy(
+                command,
+                currentPath: currentPath
+            )
+            
+            guard result.valid else {
+                if let error = result.error {
+                    showToast(error)
+                }
                 return
             }
-
-            do {
-                try await FileSystemService.shared.copyFiles(
-                    selectedFiles,
-                    to: destPath
-                )
-                await refreshCurrentPane()
-            } catch {
-                showToast(
-                    LocalizationManager.shared.localized(
-                        .toastCopyFailed,
-                        error.localizedDescription
+            
+            if let srcPath = result.source, let destPath = result.destination {
+                // copy <src> <dest>
+                do {
+                    try FileManager.default.copyItem(at: srcPath, to: destPath)
+                    await refreshCurrentPane()
+                } catch {
+                    showToast(
+                        LocalizationManager.shared.localized(
+                            .toastCopyFailed,
+                            error.localizedDescription
+                        )
                     )
-                )
+                }
+            } else if let destPath = result.destination {
+                // copy <dest> - 复制当前选中文件
+                let selectedFiles = getSelectedFiles()
+                guard !selectedFiles.isEmpty else {
+                    showToast(
+                        LocalizationManager.shared.localized(.toastNoFileSelected)
+                    )
+                    return
+                }
+                
+                do {
+                    try await FileSystemService.shared.copyFiles(
+                        selectedFiles,
+                        to: destPath
+                    )
+                    await refreshCurrentPane()
+                } catch {
+                    showToast(
+                        LocalizationManager.shared.localized(
+                            .toastCopyFailed,
+                            error.localizedDescription
+                        )
+                    )
+                }
             }
         }
-    }
-
-    /// 执行删除命令
-    private func executeDelete(command: ParsedCommand, currentPath: URL) async {
-        let result = CommandParser.validateDelete(
-            command,
-            currentPath: currentPath
-        )
-
-        if let targetPath = result.targetPath {
-            // delete <name> - 删除指定文件
-            do {
-                try FileManager.default.trashItem(
-                    at: targetPath,
-                    resultingItemURL: nil
-                )
-                await refreshCurrentPane()
-                showToast(
-                    LocalizationManager.shared.localized(.toastDeleted)
+        
+        /// 执行删除命令
+        func executeDelete(command: ParsedCommand, currentPath: URL) async {
+            let result = CommandParser.validateDelete(
+                command,
+                currentPath: currentPath
+            )
+            
+            if let targetPath = result.targetPath {
+                // delete <name> - 删除指定文件
+                do {
+                    try FileManager.default.trashItem(
+                        at: targetPath,
+                        resultingItemURL: nil
+                    )
+                    await refreshCurrentPane()
+                    showToast(
+                        LocalizationManager.shared.localized(.toastDeleted)
                         + ": \(targetPath.lastPathComponent)"
-                )
-            } catch {
-                showToast(
-                    LocalizationManager.shared.localized(
-                        .toastDeleteFailed,
-                        error.localizedDescription
                     )
-                )
-            }
-        } else {
-            // delete - 删除当前选中文件
-            let selectedFiles = getSelectedFiles()
-            guard !selectedFiles.isEmpty else {
-                showToast(
-                    LocalizationManager.shared.localized(.toastNoFileSelected)
-                )
-                return
-            }
-
-            do {
-                try await FileSystemService.shared.trashFiles(selectedFiles)
-                await refreshCurrentPane()
-                showToast(
-                    LocalizationManager.shared.localized(
-                        .toastFilesMovedToTrash,
-                        selectedFiles.count
+                } catch {
+                    showToast(
+                        LocalizationManager.shared.localized(
+                            .toastDeleteFailed,
+                            error.localizedDescription
+                        )
                     )
-                )
-            } catch {
-                showToast(
-                    LocalizationManager.shared.localized(
-                        .toastDeleteFailed,
-                        error.localizedDescription
+                }
+            } else {
+                // delete - 删除当前选中文件
+                let selectedFiles = getSelectedFiles()
+                guard !selectedFiles.isEmpty else {
+                    showToast(
+                        LocalizationManager.shared.localized(.toastNoFileSelected)
                     )
-                )
+                    return
+                }
+                
+                do {
+                    try await FileSystemService.shared.trashFiles(selectedFiles)
+                    await refreshCurrentPane()
+                    showToast(
+                        LocalizationManager.shared.localized(
+                            .toastFilesMovedToTrash,
+                            selectedFiles.count
+                        )
+                    )
+                } catch {
+                    showToast(
+                        LocalizationManager.shared.localized(
+                            .toastDeleteFailed,
+                            error.localizedDescription
+                        )
+                    )
+                }
             }
         }
-    }
-
-    private func getSelectedFiles() -> [FileItem] {
-        let pane = currentPane
-        let selections = pane.selections
-
-        if selections.isEmpty {
-            // 如果没有选中，返回当前光标所在的文件
-            if let file = pane.activeTab.files[safe: pane.cursorIndex],
-                !file.isParentDirectory
-            {
-                return [file]
-            }
-            return []
-        } else {
-            // 返回选中的文件，排除父目录项
-            return pane.activeTab.files.filter {
-                selections.contains($0.id) && !$0.isParentDirectory
+        
+        func getSelectedFiles() -> [FileItem] {
+            let pane = currentPane
+            let selections = pane.selections
+            
+            if selections.isEmpty {
+                // 如果没有选中，返回当前光标所在的文件
+                if let file = pane.activeTab.files[safe: pane.cursorIndex],
+                   !file.isParentDirectory
+                {
+                    return [file]
+                }
+                return []
+            } else {
+                // 返回选中的文件，排除父目录项
+                return pane.activeTab.files.filter {
+                    selections.contains($0.id) && !$0.isParentDirectory
+                }
             }
         }
-    }
-
-    private func getCurrentFile() -> FileItem? {
-        let pane = currentPane
-        guard let file = pane.activeTab.files[safe: pane.cursorIndex],
-            !file.isParentDirectory
-        else {
-            return nil
+        
+        func getCurrentFile() -> FileItem? {
+            let pane = currentPane
+            guard let file = pane.activeTab.files[safe: pane.cursorIndex],
+                  !file.isParentDirectory
+            else {
+                return nil
+            }
+            return file
         }
-        return file
+        
     }
-
 }
