@@ -122,35 +122,45 @@ extension AppState {
         rsyncUIState.isRunningSync = true
         rsyncUIState.error = nil
         rsyncUIState.syncProgress = nil
+        rsyncUIState.syncResult = nil
         
         do {
             // 创建进度流
             let (stream, continuation) = AsyncStream<RsyncProgress>.makeStream()
             
-            // 启动同步任务
-            Task {
+            // 在后台任务中执行同步
+            let syncTask = Task {
                 do {
                     let result = try await RsyncService.shared.run(
                         config: config,
-                        progress: stream
+                        progressContinuation: continuation
                     )
-                    await MainActor.run {
-                        rsyncUIState.syncResult = result
-                        rsyncUIState.isRunningSync = false
-                    }
+                    return result
                 } catch {
-                    await MainActor.run {
-                        rsyncUIState.error = error.localizedDescription
-                        rsyncUIState.isRunningSync = false
-                    }
+                    throw error
                 }
             }
             
-            // 监听进度更新
+            // 监听进度更新并在主线程更新 UI
             for await progress in stream {
-                rsyncUIState.syncProgress = progress
+                await MainActor.run {
+                    rsyncUIState.syncProgress = progress
+                }
             }
             
+            // 等待同步任务完成并获取最终结果
+            do {
+                let result = try await syncTask.value
+                await MainActor.run {
+                    rsyncUIState.syncResult = result
+                    rsyncUIState.isRunningSync = false
+                }
+            } catch {
+                await MainActor.run {
+                    rsyncUIState.error = error.localizedDescription
+                    rsyncUIState.isRunningSync = false
+                }
+            }
         } catch {
             rsyncUIState.error = error.localizedDescription
             rsyncUIState.isRunningSync = false

@@ -46,7 +46,10 @@ struct RsyncSyncSheetView: View {
             Divider()
             
             // 主内容区
-            if let previewResult = appState.rsyncUIState.previewResult {
+            if appState.rsyncUIState.isRunningSync {
+                // 进度视图
+                progressView
+            } else if let previewResult = appState.rsyncUIState.previewResult {
                 // 预览视图
                 previewView(result: previewResult)
             } else if let syncResult = appState.rsyncUIState.syncResult {
@@ -347,6 +350,92 @@ struct RsyncSyncSheetView: View {
         }
     }
     
+    // MARK: - 进度视图
+    
+    @ViewBuilder
+    private var progressView: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    // 进度指示器
+                    VStack(spacing: 12) {
+                        if let progress = appState.rsyncUIState.syncProgress {
+                            // 进度百分比
+                            VStack(spacing: 8) {
+                                HStack {
+                                    Text(L(.rsyncProgress))
+                                        .font(.headline)
+                                    Spacer()
+                                    Text(String(format: "%.0f%%", progress.percentage))
+                                        .font(.headline)
+                                        .foregroundColor(.blue)
+                                }
+                                
+                                // 进度条
+                                ProgressView(value: progress.percentage / 100.0)
+                                    .tint(.blue)
+                            }
+                            
+                            // 统计信息
+                            HStack(spacing: 16) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(L(.rsyncCopied))
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Text("\(progress.completed)")
+                                        .font(.title3)
+                                        .fontWeight(.semibold)
+                                }
+                                
+                                Divider()
+                                    .frame(height: 30)
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(L(.rsyncUpdated))
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Text("\(progress.total - progress.completed)")
+                                        .font(.title3)
+                                        .fontWeight(.semibold)
+                                }
+                                
+                                Spacer()
+                            }
+                            .padding()
+                            .background(Color(NSColor.controlBackgroundColor))
+                            .cornerRadius(6)
+                            
+                            // 当前操作信息
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(L(.loading))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text(progress.message)
+                                    .font(.body)
+                                    .lineLimit(2)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                            .background(Color(NSColor.controlBackgroundColor))
+                            .cornerRadius(6)
+                        } else {
+                            // 初始化进度视图
+                            VStack(spacing: 12) {
+                                ProgressView()
+                                    .scaleEffect(1.2, anchor: .center)
+                                Text(L(.rsyncProgress))
+                                    .foregroundColor(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .padding()
+                        }
+                    }
+                    .padding()
+                }
+            }
+        }
+    }
+    
     // MARK: - 结果视图
     
     @ViewBuilder
@@ -376,6 +465,7 @@ struct RsyncSyncSheetView: View {
                             resultStat(L(.rsyncCopied), result.summary.copy, .green)
                             resultStat(L(.rsyncUpdated), result.summary.update, .blue)
                             resultStat(L(.rsyncDeleted), result.summary.delete, .red)
+                            resultStat(L(.rsyncSkipped), result.summary.skip, .gray)
                         }
                     }
                     

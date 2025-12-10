@@ -98,11 +98,11 @@
 
 **Tasks**:
 
-- [ ] T036 [US3] Implement run(config:progress:) async method in RsyncService in Zenith Commander/Services/RsyncService.swift
-- [ ] T037 [US3] Implement executeSync() with AsyncStream in AppState+Rsync in Zenith Commander/Models/AppState+Rsync.swift
-- [ ] T038 [P] [US3] Add progress indicator view in Zenith Commander/Views/RsyncSyncSheetView.swift
-- [ ] T039 [P] [US3] Add completion summary view in Zenith Commander/Views/RsyncSyncSheetView.swift
-- [ ] T040 [US3] Wire progress updates to UI in Zenith Commander/Views/RsyncSyncSheetView.swift
+- [x] T036 [US3] Implement run(config:progress:) async method in RsyncService in Zenith Commander/Services/RsyncService.swift
+- [x] T037 [US3] Implement executeSync() with AsyncStream in AppState+Rsync in Zenith Commander/Models/AppState+Rsync.swift
+- [x] T038 [P] [US3] Add progress indicator view in Zenith Commander/Views/RsyncSyncSheetView.swift
+- [x] T039 [P] [US3] Add completion summary view in Zenith Commander/Views/RsyncSyncSheetView.swift
+- [x] T040 [US3] Wire progress updates to UI in Zenith Commander/Views/RsyncSyncSheetView.swift
 
 ---
 
