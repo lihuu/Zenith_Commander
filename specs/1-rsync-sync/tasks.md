@@ -19,12 +19,12 @@
 
 **Tasks**:
 
-- [X] T001 Create RsyncMode enum in Zenith Commander/Models/RsyncSyncConfig.swift
-- [X] T002 Create RsyncAction enum in Zenith Commander/Models/RsyncSyncConfig.swift
-- [X] T003 Create RsyncItem struct in Zenith Commander/Models/RsyncSyncConfig.swift
-- [X] T004 Create RsyncPreviewResult struct in Zenith Commander/Models/RsyncSyncConfig.swift
-- [X] T005 Create RsyncProgress struct in Zenith Commander/Models/RsyncSyncConfig.swift
-- [X] T006 Create RsyncRunResult struct in Zenith Commander/Models/RsyncSyncConfig.swift
+- [x] T001 Create RsyncMode enum in Zenith Commander/Models/RsyncSyncConfig.swift
+- [x] T002 Create RsyncAction enum in Zenith Commander/Models/RsyncSyncConfig.swift
+- [x] T003 Create RsyncItem struct in Zenith Commander/Models/RsyncSyncConfig.swift
+- [x] T004 Create RsyncPreviewResult struct in Zenith Commander/Models/RsyncSyncConfig.swift
+- [x] T005 Create RsyncProgress struct in Zenith Commander/Models/RsyncSyncConfig.swift
+- [x] T006 Create RsyncRunResult struct in Zenith Commander/Models/RsyncSyncConfig.swift
 
 ---
 
@@ -36,14 +36,14 @@
 
 **Tasks**:
 
-- [ ] T007 Create RsyncSyncConfig struct with all fields in Zenith Commander/Models/RsyncSyncConfig.swift
-- [ ] T008 Implement isValid() method in RsyncSyncConfig in Zenith Commander/Models/RsyncSyncConfig.swift
-- [ ] T009 Implement effectiveFlags() method in RsyncSyncConfig in Zenith Commander/Models/RsyncSyncConfig.swift
-- [ ] T010 Create RsyncService class skeleton in Zenith Commander/Services/RsyncService.swift
-- [ ] T011 Implement validatePaths() helper in RsyncService in Zenith Commander/Services/RsyncService.swift
-- [ ] T012 Implement buildCommand() helper in RsyncService in Zenith Commander/Services/RsyncService.swift
-- [ ] T013 Add localization keys for rsync labels in Zenith Commander/Localization/LocalizationManager.swift
-- [ ] T014 Add localization keys for rsync errors in Zenith Commander/Localization/LocalizationManager.swift
+- [X] T007 Create RsyncSyncConfig struct with all fields in Zenith Commander/Models/RsyncSyncConfig.swift
+- [X] T008 Implement isValid() method in RsyncSyncConfig in Zenith Commander/Models/RsyncSyncConfig.swift
+- [X] T009 Implement effectiveFlags() method in RsyncSyncConfig in Zenith Commander/Models/RsyncSyncConfig.swift
+- [X] T010 Create RsyncService class skeleton in Zenith Commander/Services/RsyncService.swift
+- [X] T011 Implement validatePaths() helper in RsyncService in Zenith Commander/Services/RsyncService.swift
+- [X] T012 Implement buildCommand() helper in RsyncService in Zenith Commander/Services/RsyncService.swift
+- [X] T013 Add localization keys for rsync labels in Zenith Commander/Localization/LocalizationManager.swift
+- [X] T014 Add localization keys for rsync errors in Zenith Commander/Localization/LocalizationManager.swift
 
 ---
 

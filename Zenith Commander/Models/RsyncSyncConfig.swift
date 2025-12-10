@@ -143,3 +143,100 @@ struct RsyncRunResult: Codable {
         !errors.isEmpty
     }
 }
+
+// MARK: - Configuration
+
+/// Configuration for rsync synchronization operation
+struct RsyncSyncConfig: Codable {
+    var source: URL
+    var destination: URL
+    var mode: RsyncMode
+    var dryRun: Bool
+    var preserveAttributes: Bool
+    var deleteExtras: Bool
+    var excludePatterns: [String]
+    var customFlags: [String]
+    
+    init(
+        source: URL,
+        destination: URL,
+        mode: RsyncMode = .update,
+        dryRun: Bool = true,
+        preserveAttributes: Bool = true,
+        deleteExtras: Bool = false,
+        excludePatterns: [String] = [],
+        customFlags: [String] = []
+    ) {
+        self.source = source
+        self.destination = destination
+        self.mode = mode
+        self.dryRun = dryRun
+        self.preserveAttributes = preserveAttributes
+        self.deleteExtras = deleteExtras
+        self.excludePatterns = excludePatterns
+        self.customFlags = customFlags
+    }
+    
+    /// Validates that both source and destination are valid directories
+    func isValid() -> Bool {
+        var isSourceDir: ObjCBool = false
+        var isDestDir: ObjCBool = false
+        
+        let sourceExists = FileManager.default.fileExists(atPath: source.path, isDirectory: &isSourceDir)
+        let destExists = FileManager.default.fileExists(atPath: destination.path, isDirectory: &isDestDir)
+        
+        return sourceExists && isSourceDir.boolValue && destExists && isDestDir.boolValue
+    }
+    
+    /// Derives effective rsync flags from configuration settings
+    func effectiveFlags() -> [String] {
+        var flags: [String] = []
+        
+        switch mode {
+        case .update:
+            // Update mode: recursive, preserve times, update only
+            flags.append("-ru")
+            if preserveAttributes {
+                flags.append("-t")  // preserve modification times
+                flags.append("-p")  // preserve permissions
+            }
+            
+        case .mirror:
+            // Mirror mode: recursive, archive, delete extras
+            if preserveAttributes {
+                flags.append("-a")  // archive mode (recursive + preserve everything)
+            } else {
+                flags.append("-r")  // recursive only
+            }
+            if deleteExtras {
+                flags.append("--delete")
+            }
+            
+        case .copyAll:
+            // Copy all mode: recursive, overwrite existing
+            flags.append("-r")
+            if preserveAttributes {
+                flags.append("-a")
+            }
+            
+        case .custom:
+            // Custom mode: use user-provided flags
+            flags.append(contentsOf: customFlags)
+        }
+        
+        // Add itemize changes for parsing output
+        flags.append("--itemize-changes")
+        
+        // Add dry-run if requested
+        if dryRun {
+            flags.append("-n")
+        }
+        
+        // Add exclude patterns
+        for pattern in excludePatterns where !pattern.isEmpty {
+            flags.append("--exclude=\(pattern)")
+        }
+        
+        return flags
+    }
+}
