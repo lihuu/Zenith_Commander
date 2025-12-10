@@ -182,14 +182,14 @@
 
 **Tasks**:
 
-- [X] T056 [P] Add error handling and user-friendly messages in Zenith Commander/Services/RsyncService.swift
-- [X] T057 [P] Complete all localization strings for rsync feature in Zenith Commander/Localization/LocalizationManager.swift
-- [X] T058 [P] Write unit tests for RsyncService.buildCommand() in Zenith CommanderTests/RsyncServiceTests.swift
-- [X] T059 [P] Write unit tests for RsyncService.parseDryRunOutput() in Zenith CommanderTests/RsyncServiceTests.swift
-- [X] T060 [P] Write unit tests for RsyncService preview/run with temp directories in Zenith CommanderTests/RsyncServiceTests.swift
-- [X] T061 [P] Write AppState tests for rsync flow in Zenith CommanderTests/AppStateRsyncTests.swift
-- [X] T062 [P] Write CommandParser tests for :rsync command in Zenith CommanderTests/CommandParserTests.swift
-- [X] T063 Perform end-to-end manual testing of complete sync flow
+- [x] T056 [P] Add error handling and user-friendly messages in Zenith Commander/Services/RsyncService.swift
+- [x] T057 [P] Complete all localization strings for rsync feature in Zenith Commander/Localization/LocalizationManager.swift
+- [x] T058 [P] Write unit tests for RsyncService.buildCommand() in Zenith CommanderTests/RsyncServiceTests.swift
+- [x] T059 [P] Write unit tests for RsyncService.parseDryRunOutput() in Zenith CommanderTests/RsyncServiceTests.swift
+- [x] T060 [P] Write unit tests for RsyncService preview/run with temp directories in Zenith CommanderTests/RsyncServiceTests.swift
+- [x] T061 [P] Write AppState tests for rsync flow in Zenith CommanderTests/AppStateRsyncTests.swift
+- [x] T062 [P] Write CommandParser tests for :rsync command in Zenith CommanderTests/CommandParserTests.swift
+- [x] T063 Perform end-to-end manual testing of complete sync flow
 
 ---
 
