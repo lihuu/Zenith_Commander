@@ -279,19 +279,19 @@ enum RsyncError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .sourceNotFound(let path):
-            return "Source path not found: \(path)"
+            return String(format: "%@: %@", L(.rsyncErrorSourceNotFound), path)
         case .sourceNotDirectory(let path):
-            return "Source path is not a directory: \(path)"
+            return String(format: "%@: %@", L(.rsyncErrorSourceNotDirectory), path)
         case .destinationNotFound(let path):
-            return "Destination path not found: \(path)"
+            return String(format: "%@: %@", L(.rsyncErrorDestinationNotFound), path)
         case .destinationNotDirectory(let path):
-            return "Destination path is not a directory: \(path)"
+            return String(format: "%@: %@", L(.rsyncErrorDestinationNotDirectory), path)
         case .sameSourceAndDestination:
-            return "Source and destination cannot be the same"
+            return L(.rsyncErrorSameSourceDestination)
         case .executionFailed(let code, let message):
-            return "Rsync failed with code \(code): \(message)"
+            return String(format: "%@ (code: %d): %@", L(.rsyncErrorExecutionFailed), code, message)
         case .processError(let error):
-            return "Process error: \(error.localizedDescription)"
+            return String(format: "%@: %@", L(.rsyncErrorExecutionFailed), error.localizedDescription)
         }
     }
 }
