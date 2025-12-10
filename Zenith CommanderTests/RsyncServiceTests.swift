@@ -12,6 +12,19 @@ final class RsyncServiceTests: XCTestCase {
     
     var service: RsyncService!
     
+    // Helper to create a dummy DriveInfo for PaneState initialization
+    func createTestDrive() -> DriveInfo {
+        return DriveInfo(
+            id: UUID().uuidString,
+            name: "Test Drive",
+            path: URL(fileURLWithPath: "/"),
+            type: .system,
+            totalCapacity: 0,
+            availableCapacity: 0
+        )
+    }
+    
+    @MainActor
     override func setUp() {
         super.setUp()
         service = RsyncService.shared
@@ -27,14 +40,14 @@ final class RsyncServiceTests: XCTestCase {
     func testBuildCommand_UpdateMode() {
         // Given
         let config = RsyncSyncConfig(
-            source: PaneState(path: "/source", tabStates: []),
-            destination: PaneState(path: "/dest", tabStates: []),
+            source: URL(fileURLWithPath: "/source"),
+            destination: URL(fileURLWithPath: "/dest"),
             mode: .update,
+            dryRun: false,
             preserveAttributes: false,
             deleteExtras: false,
             excludePatterns: [],
-            customFlags: "",
-            dryRun: false
+            customFlags: []
         )
         
         // When
@@ -52,14 +65,14 @@ final class RsyncServiceTests: XCTestCase {
     func testBuildCommand_MirrorMode() {
         // Given
         let config = RsyncSyncConfig(
-            source: PaneState(path: "/source", tabStates: []),
-            destination: PaneState(path: "/dest", tabStates: []),
+            source: URL(fileURLWithPath: "/source"),
+            destination: URL(fileURLWithPath: "/dest"),
             mode: .mirror,
+            dryRun: false,
             preserveAttributes: false,
             deleteExtras: true,
             excludePatterns: [],
-            customFlags: "",
-            dryRun: false
+            customFlags: []
         )
         
         // When
@@ -72,14 +85,14 @@ final class RsyncServiceTests: XCTestCase {
     func testBuildCommand_PreserveAttributes() {
         // Given
         let config = RsyncSyncConfig(
-            source: PaneState(path: "/source", tabStates: []),
-            destination: PaneState(path: "/dest", tabStates: []),
+            source: URL(fileURLWithPath: "/source"),
+            destination: URL(fileURLWithPath: "/dest"),
             mode: .update,
+            dryRun: false,
             preserveAttributes: true,
             deleteExtras: false,
             excludePatterns: [],
-            customFlags: "",
-            dryRun: false
+            customFlags: []
         )
         
         // When
@@ -92,14 +105,14 @@ final class RsyncServiceTests: XCTestCase {
     func testBuildCommand_ExcludePatterns() {
         // Given
         let config = RsyncSyncConfig(
-            source: PaneState(path: "/source", tabStates: []),
-            destination: PaneState(path: "/dest", tabStates: []),
+            source: URL(fileURLWithPath: "/source"),
+            destination: URL(fileURLWithPath: "/dest"),
             mode: .update,
+            dryRun: false,
             preserveAttributes: false,
             deleteExtras: false,
             excludePatterns: ["*.log", "*.tmp"],
-            customFlags: "",
-            dryRun: false
+            customFlags: []
         )
         
         // When
@@ -114,14 +127,14 @@ final class RsyncServiceTests: XCTestCase {
     func testBuildCommand_CustomMode() {
         // Given
         let config = RsyncSyncConfig(
-            source: PaneState(path: "/source", tabStates: []),
-            destination: PaneState(path: "/dest", tabStates: []),
+            source: URL(fileURLWithPath: "/source"),
+            destination: URL(fileURLWithPath: "/dest"),
             mode: .custom,
+            dryRun: false,
             preserveAttributes: false,
             deleteExtras: false,
             excludePatterns: [],
-            customFlags: "-z --compress",
-            dryRun: false
+            customFlags: ["-z", "--compress"]
         )
         
         // When
@@ -135,14 +148,14 @@ final class RsyncServiceTests: XCTestCase {
     func testBuildCommand_DryRun() {
         // Given
         let config = RsyncSyncConfig(
-            source: PaneState(path: "/source", tabStates: []),
-            destination: PaneState(path: "/dest", tabStates: []),
+            source: URL(fileURLWithPath: "/source"),
+            destination: URL(fileURLWithPath: "/dest"),
             mode: .update,
+            dryRun: true,
             preserveAttributes: false,
             deleteExtras: false,
             excludePatterns: [],
-            customFlags: "",
-            dryRun: true
+            customFlags: []
         )
         
         // When
@@ -245,14 +258,14 @@ final class RsyncServiceTests: XCTestCase {
     func testValidatePaths_InvalidSource() {
         // Given
         let config = RsyncSyncConfig(
-            source: PaneState(path: "/nonexistent/source", tabStates: []),
-            destination: PaneState(path: NSTemporaryDirectory(), tabStates: []),
+            source: URL(fileURLWithPath: "/nonexistent/source"),
+            destination: URL(fileURLWithPath: NSTemporaryDirectory()),
             mode: .update,
+            dryRun: false,
             preserveAttributes: false,
             deleteExtras: false,
             excludePatterns: [],
-            customFlags: "",
-            dryRun: false
+            customFlags: []
         )
         
         // When/Then
@@ -269,14 +282,14 @@ final class RsyncServiceTests: XCTestCase {
     func testValidatePaths_InvalidDestination() {
         // Given
         let config = RsyncSyncConfig(
-            source: PaneState(path: NSTemporaryDirectory(), tabStates: []),
-            destination: PaneState(path: "/nonexistent/dest", tabStates: []),
+            source: URL(fileURLWithPath: NSTemporaryDirectory()),
+            destination: URL(fileURLWithPath: "/nonexistent/dest"),
             mode: .update,
+            dryRun: false,
             preserveAttributes: false,
             deleteExtras: false,
             excludePatterns: [],
-            customFlags: "",
-            dryRun: false
+            customFlags: []
         )
         
         // When/Then
@@ -294,14 +307,14 @@ final class RsyncServiceTests: XCTestCase {
         // Given
         let tempDir = NSTemporaryDirectory()
         let config = RsyncSyncConfig(
-            source: PaneState(path: tempDir, tabStates: []),
-            destination: PaneState(path: tempDir, tabStates: []),
+            source: URL(fileURLWithPath: tempDir),
+            destination: URL(fileURLWithPath: tempDir),
             mode: .update,
+            dryRun: false,
             preserveAttributes: false,
             deleteExtras: false,
             excludePatterns: [],
-            customFlags: "",
-            dryRun: false
+            customFlags: []
         )
         
         // When/Then
@@ -325,14 +338,14 @@ final class RsyncServiceTests: XCTestCase {
         try? FileManager.default.createDirectory(atPath: destDir, withIntermediateDirectories: true)
         
         let config = RsyncSyncConfig(
-            source: PaneState(path: sourceDir, tabStates: []),
-            destination: PaneState(path: destDir, tabStates: []),
+            source: URL(fileURLWithPath: sourceDir),
+            destination: URL(fileURLWithPath: destDir),
             mode: .update,
+            dryRun: false,
             preserveAttributes: false,
             deleteExtras: false,
             excludePatterns: [],
-            customFlags: "",
-            dryRun: false
+            customFlags: []
         )
         
         // When/Then

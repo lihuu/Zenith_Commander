@@ -2,7 +2,7 @@
 //  RsyncSyncSheetView.swift
 //  Zenith Commander
 //
-//  Rsync 同步配置弹窗
+//  Rsync 同步配置弹窗 - 支持系统主题
 //
 
 import SwiftUI
@@ -15,6 +15,7 @@ private func L(_ key: LocalizationKey) -> String {
 
 struct RsyncSyncSheetView: View {
     @EnvironmentObject var appState: AppState
+    @ObservedObject private var themeManager = ThemeManager.shared
     @State private var localConfig: RsyncSyncConfig
     @State private var excludePatternsText: String = ""
     @State private var customFlagsText: String = ""
@@ -27,40 +28,48 @@ struct RsyncSyncSheetView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // 标题栏
+            // MARK: - Title Bar
             HStack {
-                Text(L(.rsyncSyncTitle))
-                    .font(.headline)
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.left.arrow.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(Theme.accent)
+                    Text(L(.rsyncSyncTitle))
+                        .font(.system(.headline, design: .default))
+                        .foregroundColor(Theme.textPrimary)
+                }
                 Spacer()
                 Button(action: {
                     appState.dismissRsyncSheet()
                 }) {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(Theme.textSecondary)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .hoverEffect(.highlight)
             }
-            .padding()
-            .background(Color(NSColor.windowBackgroundColor))
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Theme.backgroundSecondary)
             
             Divider()
+                .foregroundColor(Theme.borderSubtle)
             
-            // 主内容区
+            // MARK: - Main Content
             if appState.rsyncUIState.isRunningSync {
-                // 进度视图
                 progressView
             } else if let previewResult = appState.rsyncUIState.previewResult {
-                // 预览视图
                 previewView(result: previewResult)
             } else if let syncResult = appState.rsyncUIState.syncResult {
-                // 结果视图
                 resultView(result: syncResult)
             } else {
-                // 配置视图
                 configView
             }
         }
-        .frame(width: 600, height: 500)
+        .background(Theme.background)
+        .frame(width: 650, height: 550)
         .onChange(of: localConfig) { oldValue, newValue in
             appState.updateRsyncConfig(newValue)
         }
