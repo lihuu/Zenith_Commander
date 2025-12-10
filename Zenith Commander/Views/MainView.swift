@@ -195,6 +195,17 @@ struct MainView: View {
             ) {
                 HelpView()
             }
+            .sheet(
+                isPresented: $appState.rsyncUIState.showConfigSheet,
+                onDismiss: {
+                    appState.dismissRsyncSheet()
+                }
+            ) {
+                if let config = appState.rsyncUIState.config {
+                    RsyncSyncSheetView(config: config)
+                        .environmentObject(appState)
+                }
+            }
             .focusable()
             .onKeyPress { keyPress in
                 handleKeyPress(keyPress)

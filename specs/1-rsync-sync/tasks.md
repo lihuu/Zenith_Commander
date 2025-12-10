@@ -36,14 +36,14 @@
 
 **Tasks**:
 
-- [X] T007 Create RsyncSyncConfig struct with all fields in Zenith Commander/Models/RsyncSyncConfig.swift
-- [X] T008 Implement isValid() method in RsyncSyncConfig in Zenith Commander/Models/RsyncSyncConfig.swift
-- [X] T009 Implement effectiveFlags() method in RsyncSyncConfig in Zenith Commander/Models/RsyncSyncConfig.swift
-- [X] T010 Create RsyncService class skeleton in Zenith Commander/Services/RsyncService.swift
-- [X] T011 Implement validatePaths() helper in RsyncService in Zenith Commander/Services/RsyncService.swift
-- [X] T012 Implement buildCommand() helper in RsyncService in Zenith Commander/Services/RsyncService.swift
-- [X] T013 Add localization keys for rsync labels in Zenith Commander/Localization/LocalizationManager.swift
-- [X] T014 Add localization keys for rsync errors in Zenith Commander/Localization/LocalizationManager.swift
+- [x] T007 Create RsyncSyncConfig struct with all fields in Zenith Commander/Models/RsyncSyncConfig.swift
+- [x] T008 Implement isValid() method in RsyncSyncConfig in Zenith Commander/Models/RsyncSyncConfig.swift
+- [x] T009 Implement effectiveFlags() method in RsyncSyncConfig in Zenith Commander/Models/RsyncSyncConfig.swift
+- [x] T010 Create RsyncService class skeleton in Zenith Commander/Services/RsyncService.swift
+- [x] T011 Implement validatePaths() helper in RsyncService in Zenith Commander/Services/RsyncService.swift
+- [x] T012 Implement buildCommand() helper in RsyncService in Zenith Commander/Services/RsyncService.swift
+- [x] T013 Add localization keys for rsync labels in Zenith Commander/Localization/LocalizationManager.swift
+- [x] T014 Add localization keys for rsync errors in Zenith Commander/Localization/LocalizationManager.swift
 
 ---
 
@@ -55,19 +55,19 @@
 
 **Tasks**:
 
-- [ ] T015 [US1] Create RsyncUIState struct in Zenith Commander/Models/AppState+Rsync.swift
-- [ ] T016 [US1] Add rsyncUIState property to AppState in Zenith Commander/Models/AppState.swift
-- [ ] T017 [US1] Implement presentRsyncSheet(sourceIsLeft:) in Zenith Commander/Models/AppState+Rsync.swift
-- [ ] T018 [US1] Implement updateConfig(\_:) in Zenith Commander/Models/AppState+Rsync.swift
-- [ ] T019 [US1] Implement dismissRsyncSheet() in Zenith Commander/Models/AppState+Rsync.swift
-- [ ] T020 [P] [US1] Create RsyncSyncSheetView skeleton in Zenith Commander/Views/RsyncSyncSheetView.swift
-- [ ] T021 [P] [US1] Add source/destination selector UI in Zenith Commander/Views/RsyncSyncSheetView.swift
-- [ ] T022 [P] [US1] Add mode selector UI (Update/Mirror/CopyAll/Custom) in Zenith Commander/Views/RsyncSyncSheetView.swift
-- [ ] T023 [P] [US1] Add toggles for preserve attributes and delete extras in Zenith Commander/Views/RsyncSyncSheetView.swift
-- [ ] T024 [P] [US1] Add exclude patterns text field in Zenith Commander/Views/RsyncSyncSheetView.swift
-- [ ] T025 [P] [US1] Add custom flags input (visible only in Custom mode) in Zenith Commander/Views/RsyncSyncSheetView.swift
-- [ ] T026 [US1] Wire RsyncSyncSheetView bindings to AppState.rsyncUIState in Zenith Commander/Views/RsyncSyncSheetView.swift
-- [ ] T027 [US1] Add sheet presentation logic to MainView in Zenith Commander/Views/MainView.swift
+- [x] T015 [US1] Create RsyncUIState struct in Zenith Commander/Models/AppState+Rsync.swift
+- [x] T016 [US1] Add rsyncUIState property to AppState in Zenith Commander/Models/AppState.swift
+- [x] T017 [US1] Implement presentRsyncSheet(sourceIsLeft:) in Zenith Commander/Models/AppState+Rsync.swift
+- [x] T018 [US1] Implement updateConfig(\_:) in Zenith Commander/Models/AppState+Rsync.swift
+- [x] T019 [US1] Implement dismissRsyncSheet() in Zenith Commander/Models/AppState+Rsync.swift
+- [x] T020 [P] [US1] Create RsyncSyncSheetView skeleton in Zenith Commander/Views/RsyncSyncSheetView.swift
+- [x] T021 [P] [US1] Add source/destination selector UI in Zenith Commander/Views/RsyncSyncSheetView.swift
+- [x] T022 [P] [US1] Add mode selector UI (Update/Mirror/CopyAll/Custom) in Zenith Commander/Views/RsyncSyncSheetView.swift
+- [x] T023 [P] [US1] Add toggles for preserve attributes and delete extras in Zenith Commander/Views/RsyncSyncSheetView.swift
+- [x] T024 [P] [US1] Add exclude patterns text field in Zenith Commander/Views/RsyncSyncSheetView.swift
+- [x] T025 [P] [US1] Add custom flags input (visible only in Custom mode) in Zenith Commander/Views/RsyncSyncSheetView.swift
+- [x] T026 [US1] Wire RsyncSyncSheetView bindings to AppState.rsyncUIState in Zenith Commander/Views/RsyncSyncSheetView.swift
+- [x] T027 [US1] Add sheet presentation logic to MainView in Zenith Commander/Views/RsyncSyncSheetView.swift
 
 ---
 

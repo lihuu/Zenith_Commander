@@ -82,6 +82,9 @@ class AppState: ObservableObject {
     @Published var contextMenuPosition: CGPoint?
     @Published var contextMenuFile: FileItem?
 
+    // MARK: - Rsync 状态
+    @Published var rsyncUIState: RsyncUIState = RsyncUIState()
+
     init(testDirectory: URL? = nil) {
         // 获取默认驱动器
         let defaultDrive = DriveInfo(
