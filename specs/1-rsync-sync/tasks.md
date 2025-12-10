@@ -79,14 +79,14 @@
 
 **Tasks**:
 
-- [ ] T028 [US2] Implement parseDryRunOutput(\_:) in RsyncService in Zenith Commander/Services/RsyncService.swift
-- [ ] T029 [US2] Implement preview(config:) async method in RsyncService in Zenith Commander/Services/RsyncService.swift
-- [ ] T030 [US2] Implement runPreview() in AppState+Rsync in Zenith Commander/Models/AppState+Rsync.swift
-- [ ] T031 [P] [US2] Add command preview display (read-only) in Zenith Commander/Views/RsyncSyncSheetView.swift
-- [ ] T032 [P] [US2] Add validation logic and Continue button state in Zenith Commander/Views/RsyncSyncSheetView.swift
-- [ ] T033 [P] [US2] Create preview summary view with counts in Zenith Commander/Views/RsyncSyncSheetView.swift
-- [ ] T034 [P] [US2] Create grouped list view for preview items in Zenith Commander/Views/RsyncSyncSheetView.swift
-- [ ] T035 [US2] Add Back and Run Sync actions to preview view in Zenith Commander/Views/RsyncSyncSheetView.swift
+- [x] T028 [US2] Implement parseDryRunOutput(\_:) in RsyncService in Zenith Commander/Services/RsyncService.swift
+- [x] T029 [US2] Implement preview(config:) async method in RsyncService in Zenith Commander/Services/RsyncService.swift
+- [x] T030 [US2] Implement runPreview() in AppState+Rsync in Zenith Commander/Models/AppState+Rsync.swift
+- [x] T031 [P] [US2] Add command preview display (read-only) in Zenith Commander/Views/RsyncSyncSheetView.swift
+- [x] T032 [P] [US2] Add validation logic and Continue button state in Zenith Commander/Views/RsyncSyncSheetView.swift
+- [x] T033 [P] [US2] Create preview summary view with counts in Zenith Commander/Views/RsyncSyncSheetView.swift
+- [x] T034 [P] [US2] Create grouped list view for preview items in Zenith Commander/Views/RsyncSyncSheetView.swift
+- [x] T035 [US2] Add Back and Run Sync actions to preview view in Zenith Commander/Views/RsyncSyncSheetView.swift
 
 ---
 
