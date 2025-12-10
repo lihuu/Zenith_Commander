@@ -114,9 +114,9 @@
 
 **Tasks**:
 
-- [ ] T041 [P] [US4] Update effectiveFlags() to add --delete for mirror mode in Zenith Commander/Models/RsyncSyncConfig.swift
-- [ ] T042 [P] [US4] Update parseDryRunOutput() to parse deletions in Zenith Commander/Services/RsyncService.swift
-- [ ] T043 [US4] Verify delete extras toggle updates config.deleteExtras in Zenith Commander/Views/RsyncSyncSheetView.swift
+- [x] T041 [P] [US4] Update effectiveFlags() to add --delete for mirror mode in Zenith Commander/Models/RsyncSyncConfig.swift
+- [x] T042 [P] [US4] Update parseDryRunOutput() to parse deletions in Zenith Commander/Services/RsyncService.swift
+- [x] T043 [US4] Verify delete extras toggle updates config.deleteExtras in Zenith Commander/Views/RsyncSyncSheetView.swift
 
 ---
 
@@ -128,8 +128,8 @@
 
 **Tasks**:
 
-- [ ] T044 [P] [US5] Update effectiveFlags() to add -a or specific flags when preserveAttributes is true in Zenith Commander/Models/RsyncSyncConfig.swift
-- [ ] T045 [US5] Verify preserve attributes toggle updates config.preserveAttributes in Zenith Commander/Views/RsyncSyncSheetView.swift
+- [x] T044 [P] [US5] Update effectiveFlags() to add -a or specific flags when preserveAttributes is true in Zenith Commander/Models/RsyncSyncConfig.swift
+- [x] T045 [US5] Verify preserve attributes toggle updates config.preserveAttributes in Zenith Commander/Views/RsyncSyncSheetView.swift
 
 ---
 
@@ -141,8 +141,8 @@
 
 **Tasks**:
 
-- [ ] T046 [P] [US6] Update buildCommand() to add multiple --exclude flags from excludePatterns in Zenith Commander/Services/RsyncService.swift
-- [ ] T047 [US6] Verify exclude patterns field updates config.excludePatterns in Zenith Commander/Views/RsyncSyncSheetView.swift
+- [x] T046 [P] [US6] Update buildCommand() to add multiple --exclude flags from excludePatterns in Zenith Commander/Services/RsyncService.swift
+- [x] T047 [US6] Verify exclude patterns field updates config.excludePatterns in Zenith Commander/Views/RsyncSyncSheetView.swift
 
 ---
 
@@ -154,9 +154,9 @@
 
 **Tasks**:
 
-- [ ] T048 [P] [US7] Implement path validation in validatePaths() in Zenith Commander/Services/RsyncService.swift
-- [ ] T049 [P] [US7] Add inline error display for validation failures in Zenith Commander/Views/RsyncSyncSheetView.swift
-- [ ] T050 [US7] Wire validation to Continue button enabled state in Zenith Commander/Views/RsyncSyncSheetView.swift
+- [x] T048 [P] [US7] Implement path validation in validatePaths() in Zenith Commander/Services/RsyncService.swift
+- [x] T049 [P] [US7] Add inline error display for validation failures in Zenith Commander/Views/RsyncSyncSheetView.swift
+- [x] T050 [US7] Wire validation to Continue button enabled state in Zenith Commander/Views/RsyncSyncSheetView.swift
 
 ---
 
