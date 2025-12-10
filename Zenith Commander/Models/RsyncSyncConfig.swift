@@ -6,16 +6,17 @@
 //
 
 import Foundation
+import Combine
 
 // MARK: - Enums
 
 /// Rsync synchronization modes
 enum RsyncMode: String, Codable, CaseIterable {
-    case update = "update"           // Skip newer files (default)
-    case mirror = "mirror"           // Delete extras in destination
-    case copyAll = "copyAll"         // Overwrite all existing files
-    case custom = "custom"           // User-defined custom flags
-    
+    case update = "update"  // Skip newer files (default)
+    case mirror = "mirror"  // Delete extras in destination
+    case copyAll = "copyAll"  // Overwrite all existing files
+    case custom = "custom"  // User-defined custom flags
+
     var displayName: String {
         switch self {
         case .update: return "Update (Skip newer files)"
@@ -24,15 +25,28 @@ enum RsyncMode: String, Codable, CaseIterable {
         case .custom: return "Custom"
         }
     }
+
+    func flags() -> Set<String> {
+        switch self {
+        case .update:
+            return ["-a", "-u"]
+        case .mirror:
+            return ["-a", "--delete"]
+        case .copyAll:
+            return ["-a", "--ignore-existing"]
+        case .custom:
+            return []
+        }
+    }
 }
 
 /// Actions that can be performed on files during sync
 enum RsyncAction: String, Codable {
-    case copy = "copy"               // File will be copied to destination
-    case update = "update"           // Existing file will be updated
-    case delete = "delete"           // File will be deleted from destination
-    case skip = "skip"               // File will be skipped
-    
+    case copy = "copy"  // File will be copied to destination
+    case update = "update"  // Existing file will be updated
+    case delete = "delete"  // File will be deleted from destination
+    case skip = "skip"  // File will be skipped
+
     var displayName: String {
         switch self {
         case .copy: return "Copy"
@@ -50,7 +64,7 @@ struct RsyncItem: Identifiable, Codable {
     let id = UUID()
     let relativePath: String
     let action: RsyncAction
-    
+
     enum CodingKeys: String, CodingKey {
         case relativePath
         case action
@@ -63,15 +77,18 @@ struct RsyncPreviewResult: Codable {
     let updated: [RsyncItem]
     let deleted: [RsyncItem]
     let skipped: [RsyncItem]
-    
+
     var counts: (copy: Int, update: Int, delete: Int, skip: Int) {
-        (copy: copied.count, update: updated.count, delete: deleted.count, skip: skipped.count)
+        (
+            copy: copied.count, update: updated.count, delete: deleted.count,
+            skip: skipped.count
+        )
     }
-    
+
     var totalItems: Int {
         copied.count + updated.count + deleted.count + skipped.count
     }
-    
+
     var isEmpty: Bool {
         totalItems == 0
     }
@@ -79,15 +96,15 @@ struct RsyncPreviewResult: Codable {
 
 /// Progress information during rsync execution
 struct RsyncProgress: Codable {
-    let message: String              // Current operation message
-    let completed: Int               // Number of operations completed
-    let total: Int                   // Total number of operations
-    
+    let message: String  // Current operation message
+    let completed: Int  // Number of operations completed
+    let total: Int  // Total number of operations
+
     var percentage: Double {
         guard total > 0 else { return 0.0 }
         return Double(completed) / Double(total) * 100.0
     }
-    
+
     var isComplete: Bool {
         completed >= total && total > 0
     }
@@ -98,7 +115,7 @@ struct RsyncRunResult: Codable {
     let success: Bool
     let errors: [String]
     let summary: (copy: Int, update: Int, delete: Int, skip: Int)
-    
+
     enum CodingKeys: String, CodingKey {
         case success
         case errors
@@ -107,13 +124,17 @@ struct RsyncRunResult: Codable {
         case deletedCount
         case skippedCount
     }
-    
-    init(success: Bool, errors: [String], summary: (copy: Int, update: Int, delete: Int, skip: Int)) {
+
+    init(
+        success: Bool,
+        errors: [String],
+        summary: (copy: Int, update: Int, delete: Int, skip: Int)
+    ) {
         self.success = success
         self.errors = errors
         self.summary = summary
     }
-    
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         success = try container.decode(Bool.self, forKey: .success)
@@ -124,7 +145,7 @@ struct RsyncRunResult: Codable {
         let skip = try container.decode(Int.self, forKey: .skippedCount)
         summary = (copy: copy, update: update, delete: delete, skip: skip)
     }
-    
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(success, forKey: .success)
@@ -134,11 +155,11 @@ struct RsyncRunResult: Codable {
         try container.encode(summary.delete, forKey: .deletedCount)
         try container.encode(summary.skip, forKey: .skippedCount)
     }
-    
+
     var totalOperations: Int {
         summary.copy + summary.update + summary.delete + summary.skip
     }
-    
+
     var hasErrors: Bool {
         !errors.isEmpty
     }
@@ -156,7 +177,8 @@ struct RsyncSyncConfig: Codable, Equatable {
     var deleteExtras: Bool
     var excludePatterns: [String]
     var customFlags: [String]
-    
+    var flags: Set<String>
+
     init(
         source: URL,
         destination: URL,
@@ -175,68 +197,46 @@ struct RsyncSyncConfig: Codable, Equatable {
         self.deleteExtras = deleteExtras
         self.excludePatterns = excludePatterns
         self.customFlags = customFlags
+        self.flags = mode.flags()
     }
-    
+
     /// Validates that both source and destination are valid directories
     func isValid() -> Bool {
         var isSourceDir: ObjCBool = false
         var isDestDir: ObjCBool = false
-        
-        let sourceExists = FileManager.default.fileExists(atPath: source.path, isDirectory: &isSourceDir)
-        let destExists = FileManager.default.fileExists(atPath: destination.path, isDirectory: &isDestDir)
-        
-        return sourceExists && isSourceDir.boolValue && destExists && isDestDir.boolValue
+
+        let sourceExists = FileManager.default.fileExists(
+            atPath: source.path,
+            isDirectory: &isSourceDir
+        )
+        let destExists = FileManager.default.fileExists(
+            atPath: destination.path,
+            isDirectory: &isDestDir
+        )
+
+        return sourceExists && isSourceDir.boolValue && destExists
+            && isDestDir.boolValue
     }
-    
+
     /// Derives effective rsync flags from configuration settings
     func effectiveFlags() -> [String] {
         var flags: [String] = []
-        
-        switch mode {
-        case .update:
-            // Update mode: recursive, preserve times, update only
-            flags.append("-ru")
-            if preserveAttributes {
-                flags.append("-t")  // preserve modification times
-                flags.append("-p")  // preserve permissions
-            }
-            
-        case .mirror:
-            // Mirror mode: recursive, archive, delete extras
-            if preserveAttributes {
-                flags.append("-a")  // archive mode (recursive + preserve everything)
-            } else {
-                flags.append("-r")  // recursive only
-            }
-            if deleteExtras {
-                flags.append("--delete")
-            }
-            
-        case .copyAll:
-            // Copy all mode: recursive, overwrite existing
-            flags.append("-r")
-            if preserveAttributes {
-                flags.append("-a")
-            }
-            
-        case .custom:
-            // Custom mode: use user-provided flags
-            flags.append(contentsOf: customFlags)
-        }
-        
+
+        flags.append(contentsOf: mode.flags())
+
         // Add itemize changes for parsing output
         flags.append("--itemize-changes")
-        
+
         // Add dry-run if requested
         if dryRun {
             flags.append("-n")
         }
-        
+
         // Add exclude patterns
         for pattern in excludePatterns where !pattern.isEmpty {
             flags.append("--exclude=\(pattern)")
         }
-        
+
         return flags
     }
 }

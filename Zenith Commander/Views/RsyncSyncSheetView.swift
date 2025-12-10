@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import os.log
 
 // Helper function to access localization
 private func L(_ key: LocalizedStringKey) -> String {
@@ -64,8 +65,8 @@ struct RsyncSyncSheetView: View {
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(Theme.accent)
                     .rotationEffect(appState.rsyncUIState.isRunningSync ? .degrees(360) : .degrees(0))
-                    .animation(appState.rsyncUIState.isRunningSync ? 
-                        Animation.linear(duration: 2).repeatForever(autoreverses: false) : .default, 
+                    .animation(appState.rsyncUIState.isRunningSync ?
+                        Animation.linear(duration: 2).repeatForever(autoreverses: false) : .default,
                         value: appState.rsyncUIState.isRunningSync)
                 
                 Text("Directory Synchronization (Rsync)")
@@ -171,8 +172,8 @@ struct RsyncSyncSheetView: View {
                                 alignment: .bottom
                             )
                         
-                        modeRadioButton(.mirror, "Mirror (Delete extraneous files)")
                         modeRadioButton(.update, "Update (Skip newer files)")
+                        modeRadioButton(.mirror, "Mirror (Delete extraneous files)")
                         modeRadioButton(.copyAll, "Copy All (Overwrite everything)")
                         modeRadioButton(.custom, "Custom")
                     }
@@ -190,28 +191,68 @@ struct RsyncSyncSheetView: View {
                                 alignment: .bottom
                             )
                         
-                        Toggle(isOn: $localConfig.preserveAttributes) {
-                            Text("Recursive (-r)")
+                        Toggle(
+                            isOn: Binding<Bool>(
+                                get: { localConfig.flags.contains("-a") },
+                                set: { newValue in
+                                    if newValue {
+                                        localConfig.flags.insert("-a")
+                                    } else {
+                                        localConfig.flags.remove("-a")
+                                    }
+                                }
+                            )
+                        ) {
+                            Text("Archive (-a)")
                                 .font(.system(size: 13))
                                 .foregroundColor(Theme.textPrimary)
                         }
                         .toggleStyle(.checkbox)
                         
-                        Toggle(isOn: $localConfig.preserveAttributes) {
-                            Text("Preserve times (-t)")
+                        Toggle(
+                            isOn: Binding<Bool>(
+                                get: { localConfig.flags.contains("-u") },
+                                set: { newValue in
+                                    if newValue {
+                                        localConfig.flags.insert("-u")
+                                    } else {
+                                        localConfig.flags.remove("-u")
+                                    }
+                                }
+                            )
+                        ) {
+                            Text("Update (-u)")
                                 .font(.system(size: 13))
                                 .foregroundColor(Theme.textPrimary)
                         }
                         .toggleStyle(.checkbox)
                         
-                        Toggle(isOn: Binding.constant(true)) {
+                        Toggle(isOn: Binding<Bool>(
+                            get: { localConfig.flags.contains("-z") },
+                            set: { newValue in
+                                if newValue {
+                                    localConfig.flags.insert("-z")
+                                } else {
+                                    localConfig.flags.remove("-z")
+                                }
+                            }
+                        )) {
                             Text("Compress (-z)")
                                 .font(.system(size: 13))
                                 .foregroundColor(Theme.textPrimary)
                         }
                         .toggleStyle(.checkbox)
                         
-                        Toggle(isOn: $localConfig.deleteExtras) {
+                        Toggle(isOn: Binding<Bool>(
+                            get: { localConfig.flags.contains("--delete") },
+                            set: { newValue in
+                                if newValue {
+                                    localConfig.flags.insert("--delete")
+                                } else {
+                                    localConfig.flags.remove("--delete")
+                                }
+                            }
+                        )) {
                             Text("Force Delete (--delete)")
                                 .font(.system(size: 13))
                                 .foregroundColor(Theme.error)
@@ -277,6 +318,8 @@ struct RsyncSyncSheetView: View {
     private func modeRadioButton(_ mode: RsyncMode, _ label: String) -> some View {
         Button(action: {
             localConfig.mode = mode
+            localConfig.flags = mode.flags()
+            Logger.ui.info("Set rsync mode to \(mode.rawValue)")
         }) {
             HStack(spacing: 8) {
                 Image(systemName: localConfig.mode == mode ? "circle.fill" : "circle")
@@ -293,7 +336,7 @@ struct RsyncSyncSheetView: View {
             .padding(.horizontal, 6)
             .contentShape(Rectangle())
             .background(
-                localConfig.mode == mode ? 
+                localConfig.mode == mode ?
                     Theme.backgroundTertiary.opacity(0.5) : Color.clear
             )
             .cornerRadius(4)
