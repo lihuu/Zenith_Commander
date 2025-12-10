@@ -453,10 +453,12 @@ struct PaneView: View {
             refreshDirectory()
         }
 
-        Divider()
-        Button(LocalizationManager.shared.localized(.rsyncSync)) {
-            // Open rsync sync sheet with this file/folder as source
-            appState.presentRsyncSheet(sourceIsLeft: pane.side == .left)
+        if settingsManager.settings.rsync.enabled {
+            Divider()
+            Button(LocalizationManager.shared.localized(.rsyncSync)) {
+                // Open rsync sync sheet with this file/folder as source
+                appState.presentRsyncSheet(sourceIsLeft: pane.side == .left)
+            }
         }
     }
 
@@ -503,11 +505,13 @@ struct PaneView: View {
             }
         }
 
-        Divider()
+        if settingsManager.settings.rsync.enabled {
+            Divider()
 
-        Button(LocalizationManager.shared.localized(.rsyncSync)) {
-            // Open rsync sync sheet with this directory as source
-            appState.presentRsyncSheet(sourceIsLeft: pane.side == .left)
+            Button(LocalizationManager.shared.localized(.rsyncSync)) {
+                // Open rsync sync sheet with this directory as source
+                appState.presentRsyncSheet(sourceIsLeft: pane.side == .left)
+            }
         }
     }
 

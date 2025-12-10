@@ -22,6 +22,27 @@ class RsyncService {
     
     // MARK: - Public API
     
+    /// Checks if rsync is installed on the system
+    /// - Returns: True if rsync executable is found
+    func isRsyncInstalled() -> Bool {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/which")
+        process.arguments = ["rsync"]
+        
+        // We don't care about output, just exit code
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+        
+        do {
+            try process.run()
+            process.waitUntilExit()
+            return process.terminationStatus == 0
+        } catch {
+            return false
+        }
+    }
+    
     /// Performs a dry-run preview of the rsync operation
     /// - Parameter config: Configuration for the rsync operation
     /// - Returns: Preview result with categorized file operations

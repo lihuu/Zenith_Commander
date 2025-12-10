@@ -171,6 +171,13 @@ enum LocalizedStringKey: String, CaseIterable {
     case settingsGitShowIgnored
     case settingsGitShowIgnoredDescription
     
+    // MARK: - Rsync Settings
+    case settingsRsync
+    case settingsRsyncEnabled
+    case settingsRsyncEnabledDescription
+    case settingsRsyncInstalled
+    case settingsRsyncNotInstalled
+    
     // MARK: - Git 状态显示
     case gitStatusModified
     case gitStatusAdded
@@ -372,6 +379,7 @@ enum LocalizedStringKey: String, CaseIterable {
     case toastCannotCopyParent
     case toastSelectFileForGitHistory
     case toastNewTabCreated
+    case toastRsyncDisabled
     
     // MARK: - 菜单栏
     case menuNavigation
@@ -515,6 +523,13 @@ class LocalizedStrings {
             .settingsGitShowUntrackedDescription: "Display status for files not tracked by Git",
             .settingsGitShowIgnored: "Show Ignored Files",
             .settingsGitShowIgnoredDescription: "Display status for files in .gitignore",
+            
+            // Rsync Settings
+            .settingsRsync: "Rsync Integration",
+            .settingsRsyncEnabled: "Enable Rsync Integration",
+            .settingsRsyncEnabledDescription: "Enable Rsync features (Context Menu, Shortcuts)",
+            .settingsRsyncInstalled: "Rsync is installed",
+            .settingsRsyncNotInstalled: "Rsync is not installed",
             
             // Git 状态显示
             .gitStatusModified: "Modified",
@@ -717,6 +732,7 @@ class LocalizedStrings {
             .toastCannotCopyParent: "Cannot copy parent directory item",
             .toastSelectFileForGitHistory: "Select a file to view Git history",
             .toastNewTabCreated: "New tab created",
+            .toastRsyncDisabled: "Rsync integration is disabled in Settings",
             
             // Menu Bar
             .menuNavigation: "Navigation",
@@ -843,6 +859,13 @@ class LocalizedStrings {
             .settingsGitShowUntrackedDescription: "显示未被 Git 跟踪的文件状态",
             .settingsGitShowIgnored: "显示被忽略文件",
             .settingsGitShowIgnoredDescription: "显示在 .gitignore 中的文件状态",
+            
+            // Rsync Settings
+            .settingsRsync: "Rsync 集成",
+            .settingsRsyncEnabled: "启用 Rsync 集成",
+            .settingsRsyncEnabledDescription: "启用 Rsync 相关功能（右键菜单、快捷键）",
+            .settingsRsyncInstalled: "Rsync 已安装",
+            .settingsRsyncNotInstalled: "Rsync 未安装",
             
             // Git 状态显示
             .gitStatusModified: "已修改",
@@ -1045,6 +1068,7 @@ class LocalizedStrings {
             .toastCannotCopyParent: "无法复制上级目录",
             .toastSelectFileForGitHistory: "选择一个文件查看 Git 历史",
             .toastNewTabCreated: "已创建新标签页",
+            .toastRsyncDisabled: "Rsync 集成已在设置中禁用",
             
             // 菜单栏
             .menuNavigation: "导航",
