@@ -373,9 +373,9 @@ struct RsyncSyncSheetView: View {
                             .foregroundColor(.secondary)
                         
                         HStack(spacing: 20) {
-                            resultStat(L(.rsyncCopied), result.summary.copied, .green)
-                            resultStat(L(.rsyncUpdated), result.summary.updated, .blue)
-                            resultStat(L(.rsyncDeleted), result.summary.deleted, .red)
+                            resultStat(L(.rsyncCopied), result.summary.copy, .green)
+                            resultStat(L(.rsyncUpdated), result.summary.update, .blue)
+                            resultStat(L(.rsyncDeleted), result.summary.delete, .red)
                         }
                     }
                     

@@ -147,7 +147,7 @@ struct RsyncRunResult: Codable {
 // MARK: - Configuration
 
 /// Configuration for rsync synchronization operation
-struct RsyncSyncConfig: Codable {
+struct RsyncSyncConfig: Codable, Equatable {
     var source: URL
     var destination: URL
     var mode: RsyncMode
