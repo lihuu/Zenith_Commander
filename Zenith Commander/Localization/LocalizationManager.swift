@@ -171,6 +171,13 @@ enum LocalizedStringKey: String, CaseIterable {
     case settingsGitShowIgnored
     case settingsGitShowIgnoredDescription
     
+    // MARK: - Rsync Settings
+    case settingsRsync
+    case settingsRsyncEnabled
+    case settingsRsyncEnabledDescription
+    case settingsRsyncInstalled
+    case settingsRsyncNotInstalled
+    
     // MARK: - Git 状态显示
     case gitStatusModified
     case gitStatusAdded
@@ -372,6 +379,7 @@ enum LocalizedStringKey: String, CaseIterable {
     case toastCannotCopyParent
     case toastSelectFileForGitHistory
     case toastNewTabCreated
+    case toastRsyncDisabled
     
     // MARK: - 菜单栏
     case menuNavigation
@@ -391,6 +399,44 @@ enum LocalizedStringKey: String, CaseIterable {
     case menuHideOthers
     case menuShowAll
     case menuQuit
+    
+    // MARK: - Rsync Sync
+    case rsyncSync
+    case rsyncSyncTitle
+    case rsyncSource
+    case rsyncDestination
+    case rsyncMode
+    case rsyncModeUpdate
+    case rsyncModeMirror
+    case rsyncModeCopyAll
+    case rsyncModeCustom
+    case rsyncPreserveAttributes
+    case rsyncDeleteExtras
+    case rsyncExcludePatterns
+    case rsyncCustomFlags
+    case rsyncCommandPreview
+    case rsyncContinue
+    case rsyncPreview
+    case rsyncRun
+    case rsyncBack
+    case rsyncProgress
+    case rsyncComplete
+    case rsyncCopied
+    case rsyncUpdated
+    case rsyncDeleted
+    case rsyncSkipped
+    case rsyncErrors
+    case rsyncSummary
+    
+    // MARK: - Rsync Errors
+    case rsyncErrorSourceNotFound
+    case rsyncErrorSourceNotDirectory
+    case rsyncErrorDestinationNotFound
+    case rsyncErrorDestinationNotDirectory
+    case rsyncErrorSameSourceDestination
+    case rsyncErrorExecutionFailed
+    case rsyncErrorInvalidPath
+    case rsyncErrorValidation
 }
 
 // MARK: - 本地化字符串存储
@@ -477,6 +523,13 @@ class LocalizedStrings {
             .settingsGitShowUntrackedDescription: "Display status for files not tracked by Git",
             .settingsGitShowIgnored: "Show Ignored Files",
             .settingsGitShowIgnoredDescription: "Display status for files in .gitignore",
+            
+            // Rsync Settings
+            .settingsRsync: "Rsync Integration",
+            .settingsRsyncEnabled: "Enable Rsync Integration",
+            .settingsRsyncEnabledDescription: "Enable Rsync features (Context Menu, Shortcuts)",
+            .settingsRsyncInstalled: "Rsync is installed",
+            .settingsRsyncNotInstalled: "Rsync is not installed",
             
             // Git 状态显示
             .gitStatusModified: "Modified",
@@ -679,6 +732,7 @@ class LocalizedStrings {
             .toastCannotCopyParent: "Cannot copy parent directory item",
             .toastSelectFileForGitHistory: "Select a file to view Git history",
             .toastNewTabCreated: "New tab created",
+            .toastRsyncDisabled: "Rsync integration is disabled in Settings",
             
             // Menu Bar
             .menuNavigation: "Navigation",
@@ -697,7 +751,45 @@ class LocalizedStrings {
             .menuHide: "Hide Zenith Commander",
             .menuHideOthers: "Hide Others",
             .menuShowAll: "Show All",
-            .menuQuit: "Quit Zenith Commander"
+            .menuQuit: "Quit Zenith Commander",
+            
+            // Rsync Sync
+            .rsyncSync: "Rsync Sync...",
+            .rsyncSyncTitle: "Rsync Synchronization",
+            .rsyncSource: "Source",
+            .rsyncDestination: "Destination",
+            .rsyncMode: "Mode",
+            .rsyncModeUpdate: "Update (Skip newer files)",
+            .rsyncModeMirror: "Mirror (Delete extras)",
+            .rsyncModeCopyAll: "Copy All (Overwrite existing)",
+            .rsyncModeCustom: "Custom",
+            .rsyncPreserveAttributes: "Preserve Attributes",
+            .rsyncDeleteExtras: "Delete Extras",
+            .rsyncExcludePatterns: "Exclude Patterns (comma-separated)",
+            .rsyncCustomFlags: "Custom Flags",
+            .rsyncCommandPreview: "Command Preview",
+            .rsyncContinue: "Continue to Preview",
+            .rsyncPreview: "Preview",
+            .rsyncRun: "Run Sync",
+            .rsyncBack: "Back",
+            .rsyncProgress: "Progress",
+            .rsyncComplete: "Complete",
+            .rsyncCopied: "Copied",
+            .rsyncUpdated: "Updated",
+            .rsyncDeleted: "Deleted",
+            .rsyncSkipped: "Skipped",
+            .rsyncErrors: "Errors",
+            .rsyncSummary: "Summary",
+            
+            // Rsync Errors
+            .rsyncErrorSourceNotFound: "Source path not found",
+            .rsyncErrorSourceNotDirectory: "Source path is not a directory",
+            .rsyncErrorDestinationNotFound: "Destination path not found",
+            .rsyncErrorDestinationNotDirectory: "Destination path is not a directory",
+            .rsyncErrorSameSourceDestination: "Source and destination cannot be the same",
+            .rsyncErrorExecutionFailed: "Rsync execution failed",
+            .rsyncErrorInvalidPath: "Invalid path",
+            .rsyncErrorValidation: "Validation failed"
         ]
     }
     
@@ -767,6 +859,13 @@ class LocalizedStrings {
             .settingsGitShowUntrackedDescription: "显示未被 Git 跟踪的文件状态",
             .settingsGitShowIgnored: "显示被忽略文件",
             .settingsGitShowIgnoredDescription: "显示在 .gitignore 中的文件状态",
+            
+            // Rsync Settings
+            .settingsRsync: "Rsync 集成",
+            .settingsRsyncEnabled: "启用 Rsync 集成",
+            .settingsRsyncEnabledDescription: "启用 Rsync 相关功能（右键菜单、快捷键）",
+            .settingsRsyncInstalled: "Rsync 已安装",
+            .settingsRsyncNotInstalled: "Rsync 未安装",
             
             // Git 状态显示
             .gitStatusModified: "已修改",
@@ -969,6 +1068,7 @@ class LocalizedStrings {
             .toastCannotCopyParent: "无法复制上级目录",
             .toastSelectFileForGitHistory: "选择一个文件查看 Git 历史",
             .toastNewTabCreated: "已创建新标签页",
+            .toastRsyncDisabled: "Rsync 集成已在设置中禁用",
             
             // 菜单栏
             .menuNavigation: "导航",
@@ -987,7 +1087,45 @@ class LocalizedStrings {
             .menuHide: "隐藏 Zenith Commander",
             .menuHideOthers: "隐藏其他",
             .menuShowAll: "显示全部",
-            .menuQuit: "退出 Zenith Commander"
+            .menuQuit: "退出 Zenith Commander",
+            
+            // Rsync 同步
+            .rsyncSync: "Rsync 同步...",
+            .rsyncSyncTitle: "Rsync 同步",
+            .rsyncSource: "源目录",
+            .rsyncDestination: "目标目录",
+            .rsyncMode: "模式",
+            .rsyncModeUpdate: "更新（跳过较新文件）",
+            .rsyncModeMirror: "镜像（删除多余文件）",
+            .rsyncModeCopyAll: "全部复制（覆盖现有文件）",
+            .rsyncModeCustom: "自定义",
+            .rsyncPreserveAttributes: "保留属性",
+            .rsyncDeleteExtras: "删除多余文件",
+            .rsyncExcludePatterns: "排除模式（逗号分隔）",
+            .rsyncCustomFlags: "自定义参数",
+            .rsyncCommandPreview: "命令预览",
+            .rsyncContinue: "继续预览",
+            .rsyncPreview: "预览",
+            .rsyncRun: "执行同步",
+            .rsyncBack: "返回",
+            .rsyncProgress: "进度",
+            .rsyncComplete: "完成",
+            .rsyncCopied: "已复制",
+            .rsyncUpdated: "已更新",
+            .rsyncDeleted: "已删除",
+            .rsyncSkipped: "已跳过",
+            .rsyncErrors: "错误",
+            .rsyncSummary: "摘要",
+            
+            // Rsync 错误
+            .rsyncErrorSourceNotFound: "源路径未找到",
+            .rsyncErrorSourceNotDirectory: "源路径不是目录",
+            .rsyncErrorDestinationNotFound: "目标路径未找到",
+            .rsyncErrorDestinationNotDirectory: "目标路径不是目录",
+            .rsyncErrorSameSourceDestination: "源和目标不能相同",
+            .rsyncErrorExecutionFailed: "Rsync 执行失败",
+            .rsyncErrorInvalidPath: "无效路径",
+            .rsyncErrorValidation: "验证失败"
         ]
     }
 }

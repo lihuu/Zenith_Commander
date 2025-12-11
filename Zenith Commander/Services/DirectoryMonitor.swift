@@ -119,7 +119,7 @@ class DispatchSourceDirectoryMonitor {
         source.resume()
         isMonitoring = true
         
-        Logger.monitor.info("DirectoryMonitor: Started monitoring \(self.directoryURL.path, privacy: .public)")
+        Logger.monitor.debug( "DirectoryMonitor: Started monitoring \(self.directoryURL.path, privacy: .public)" )
     }
     
     /// 停止监控
@@ -136,7 +136,7 @@ class DispatchSourceDirectoryMonitor {
         onChange = nil
         onDirectoryInvalidated = nil
         
-        Logger.monitor.info("DirectoryMonitor: Stopped monitoring")
+        Logger.monitor.debug("DirectoryMonitor: Stopped monitoring")
     }
     
     // MARK: - Private Methods
@@ -180,7 +180,7 @@ class DispatchSourceDirectoryMonitor {
         let workItem = DispatchWorkItem { [weak self] in
             guard let self = self, let onChange = self.onChange else { return }
             
-            Logger.monitor.info("DirectoryMonitor: Triggering refresh for \(self.directoryURL.path, privacy: .public)")
+            Logger.monitor.debug("DirectoryMonitor: Triggering refresh for \(self.directoryURL.path, privacy: .public)")
             
             DispatchQueue.main.async {
                 onChange()

@@ -22,6 +22,7 @@ enum AppMode: String, CaseIterable {
     case rename = "RENAME"  // 重命名模式 - 阻止键盘事件传播
     case settings = "SETTINGS"  // 设置模式 - 阻止键盘事件传播
     case help = "HELP"  // 帮助模式 - 阻止键盘事件传播
+    case modal = "MODAL" // 模态模式 - 阻止键盘事件传播
 
     /// 模式显示颜色
     var color: Color {
@@ -44,6 +45,8 @@ enum AppMode: String, CaseIterable {
             return .teal
         case .help:
             return .indigo
+        case .modal:
+            return .gray.opacity(0.5)
         }
     }
 
@@ -56,7 +59,7 @@ enum AppMode: String, CaseIterable {
     /// 这些模式下，键盘事件应该由模态窗口/视图处理，而不是全局快捷键
     var isModalMode: Bool {
         switch self {
-        case .rename, .settings, .aiAnalysis, .help:
+        case .rename, .settings, .aiAnalysis, .help, .modal:
             return true
         default:
             return false
@@ -84,6 +87,8 @@ enum AppMode: String, CaseIterable {
             return "Settings mode - configure application"
         case .help:
             return "Help mode - view keyboard shortcuts"
+        case .modal:
+            return "Modal mode - interacting with dialog"
         }
     }
 }
@@ -178,6 +183,9 @@ enum AppAction {
     case moveDriveCursor(CursorDirection)
     case selectDrive
 
+    /// 同步操作
+    case openRsync
+
     /// 命令操作
     case deleteCommand
     case executeCommand
@@ -244,6 +252,8 @@ enum AppModeKeyMaps {
 
             KeyChord("g"): .jumpToTop,
             KeyChord("G", [.shift]): .jumpToBottom,
+            KeyChord("D", [.shift]): .enterDriveSelection,
+            KeyChord("S", [.shift]): .openRsync,
         ]
 
         return normalOverrides.merging(defaultMap) { current, _ in
@@ -330,6 +340,8 @@ enum AppModeKeyMaps {
             return current
         }
     }()
+    
+    static let modal: [KeyChord: AppAction] = defaultMap
 
 }
 
@@ -353,6 +365,8 @@ extension AppMode {
             return AppModeKeyMaps.settings
         case .help:
             return AppModeKeyMaps.help
+        case .modal:
+            return AppModeKeyMaps.modal // No key maps for modal mode
         default:
             return [:]
         }
@@ -371,4 +385,30 @@ extension AppMode {
 
         return action
     }
+    
+    func action(for pointer: PointerButton) -> AppAction? {
+        switch self{
+        case .normal:
+            switch pointer{
+            case .back:
+                // should return back action
+                return nil
+                
+            case .forward:
+                // should return forward action
+                return nil
+            }
+        default:
+            return nil
+        }
+    }
 }
+
+
+
+enum PointerButton{
+    case back
+    case forward
+}
+
+

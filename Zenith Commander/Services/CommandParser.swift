@@ -21,6 +21,7 @@ enum CommandType: String, CaseIterable {
     case open
     case term
     case terminal
+    case rsync
     case quit
     case q
     case unknown
@@ -187,6 +188,25 @@ struct CommandParser {
             return (true, targetPath, nil)
         } else {
             return (false, nil, "Directory not found: \(pathArg)")
+        }
+    }
+    
+    /// 验证和解析 rsync 命令
+    /// 支持: rsync 或 rsync update/mirror/copyAll/custom
+    /// - Returns: (valid, mode, error)
+    static func validateRsync(_ command: ParsedCommand) -> (valid: Bool, mode: String?, error: String?) {
+        guard let modeArg = command.firstArg else {
+            // 无参数，使用默认模式 (update)
+            return (true, nil, nil)
+        }
+        
+        let validModes = ["update", "mirror", "copyAll", "custom"]
+        let modeLower = modeArg.lowercased()
+        
+        if validModes.contains(modeLower) {
+            return (true, modeLower, nil)
+        } else {
+            return (false, nil, "Invalid rsync mode: \(modeArg). Valid modes: update, mirror, copyAll, custom")
         }
     }
 }

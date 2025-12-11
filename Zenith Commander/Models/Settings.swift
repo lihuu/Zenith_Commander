@@ -22,12 +22,16 @@ struct AppSettings: Codable, Equatable {
     /// Git 设置
     var git: GitSettings
     
+    /// Rsync 设置
+    var rsync: RsyncSettings
+    
     /// 默认设置
     static var `default`: AppSettings {
         AppSettings(
             appearance: .default,
             terminal: .default,
-            git: .default
+            git: .default,
+            rsync: .default
         )
     }
     
@@ -37,12 +41,14 @@ struct AppSettings: Codable, Equatable {
         appearance = try container.decodeIfPresent(AppearanceSettings.self, forKey: .appearance) ?? .default
         terminal = try container.decodeIfPresent(TerminalSettings.self, forKey: .terminal) ?? .default
         git = try container.decodeIfPresent(GitSettings.self, forKey: .git) ?? .default
+        rsync = try container.decodeIfPresent(RsyncSettings.self, forKey: .rsync) ?? .default
     }
     
-    init(appearance: AppearanceSettings, terminal: TerminalSettings, git: GitSettings) {
+    init(appearance: AppearanceSettings, terminal: TerminalSettings, git: GitSettings, rsync: RsyncSettings) {
         self.appearance = appearance
         self.terminal = terminal
         self.git = git
+        self.rsync = rsync
     }
 }
 
@@ -63,6 +69,20 @@ struct GitSettings: Codable, Equatable {
             enabled: true,
             showUntrackedFiles: true,
             showIgnoredFiles: false
+        )
+    }
+}
+
+/// Rsync 设置
+struct RsyncSettings: Codable, Equatable {
+    /// 是否启用 Rsync 集成
+    var enabled: Bool
+    
+    /// 默认设置
+    static var `default`: RsyncSettings {
+        // Default to enabled if rsync is installed
+        RsyncSettings(
+            enabled: RsyncService.shared.isRsyncInstalled()
         )
     }
 }

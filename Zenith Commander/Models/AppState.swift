@@ -38,7 +38,6 @@ class AppState: ObservableObject {
     // MARK: - UI 状态
     @Published var toastMessage: String?
     @Published var showDriveSelector: Bool = false
-    @Published var driveSelectorCursor: Int = 0
     @Published var availableDrives: [DriveInfo] = []
 
     // MARK: - AI 状态
@@ -51,6 +50,28 @@ class AppState: ObservableObject {
     @Published var renameReplaceText: String = ""
     @Published var renameUseRegex: Bool = false
 
+    var driveSelectorCursor: Int {
+        get {
+            let index =  availableDrives.firstIndex(where: {
+                $0.id == currentPane.activeTab.drive.id
+            }) ?? 0
+            
+            Logger.app.debug("Current selected Index: \(index)")
+            
+            return index
+        }
+        set {
+            if newValue >= 0 && newValue < availableDrives.count {
+                Logger.app.debug("Current Selected newValue: \(newValue)")
+                let selectedDrive = availableDrives[newValue]
+                currentPane.activeTab.drive = selectedDrive
+            }
+        }
+    }
+
+    // MARK: - Connection Manager 状态
+    @Published var showConnectionManager: Bool = false
+
     // MARK: - Git History 状态
     @Published var showGitHistory: Bool = false
     @Published var gitHistoryFile: FileItem?
@@ -60,6 +81,9 @@ class AppState: ObservableObject {
     // MARK: - 右键菜单状态
     @Published var contextMenuPosition: CGPoint?
     @Published var contextMenuFile: FileItem?
+
+    // MARK: - Rsync 状态
+    @Published var rsyncUIState: RsyncUIState = RsyncUIState()
 
     init(testDirectory: URL? = nil) {
         // 获取默认驱动器
@@ -85,19 +109,17 @@ class AppState: ObservableObject {
                 drive: defaultDrive
             )
         } else {
-            // 初始化面板，默认路径为用户主目录
-            // TODO 这里可以从配置文件中读取，如果没有配置则使用默认路径，两边默认都应该使用home目录
-            /// 应该记录上次使用的路径吧，其他的软件都是这样做的
-            ///
-            let homePath = FileManager.default.homeDirectoryForCurrentUser
+            // 尝试恢复上次的路径
+            let (leftPath, rightPath) = Self.restoreLastPaths()
+            
             leftPane = PaneState(
                 side: .left,
-                initialPath: homePath,
+                initialPath: leftPath,
                 drive: defaultDrive
             )
             rightPane = PaneState(
                 side: .right,
-                initialPath: homePath.appendingPathComponent("Downloads"),
+                initialPath: rightPath,
                 drive: defaultDrive
             )
         }
@@ -119,6 +141,49 @@ class AppState: ObservableObject {
                 self?.objectWillChange.send()
             }
             .store(in: &paneCancellables)
+    }
+
+    // MARK: - 路径持久化
+    
+    /// 保存当前路径到 UserDefaults
+    func saveCurrentPaths() {
+        let leftPath = leftPane.activeTab.currentPath.path
+        let rightPath = rightPane.activeTab.currentPath.path
+        
+        UserDefaults.standard.set(leftPath, forKey: "lastLeftPanePath")
+        UserDefaults.standard.set(rightPath, forKey: "lastRightPanePath")
+        
+        Logger.app.debug("Saved paths - Left: \(leftPath, privacy: .public), Right: \(rightPath, privacy: .public)")
+    }
+    
+    /// 从 UserDefaults 恢复上次的路径
+    /// - Returns: (左面板路径, 右面板路径)
+    private static func restoreLastPaths() -> (URL, URL) {
+        let homePath = FileManager.default.homeDirectoryForCurrentUser
+        let defaultLeftPath = homePath
+        let defaultRightPath = homePath.appendingPathComponent("Downloads")
+        
+        // 读取保存的路径
+        guard let leftPathString = UserDefaults.standard.string(forKey: "lastLeftPanePath"),
+              let rightPathString = UserDefaults.standard.string(forKey: "lastRightPanePath") else {
+            Logger.app.debug("No saved paths found, using defaults")
+            return (defaultLeftPath, defaultRightPath)
+        }
+        
+        let leftURL = URL(fileURLWithPath: leftPathString)
+        let rightURL = URL(fileURLWithPath: rightPathString)
+        
+        // 验证路径是否仍然存在
+        let fileManager = FileManager.default
+        let leftPathExists = fileManager.fileExists(atPath: leftPathString)
+        let rightPathExists = fileManager.fileExists(atPath: rightPathString)
+        
+        let finalLeftPath = leftPathExists ? leftURL : defaultLeftPath
+        let finalRightPath = rightPathExists ? rightURL : defaultRightPath
+        
+        Logger.app.debug("Restored paths - Left: \(finalLeftPath.path, privacy: .public) (exists: \(leftPathExists)), Right: \(finalRightPath.path, privacy: .public) (exists: \(rightPathExists))")
+        
+        return (finalLeftPath, finalRightPath)
     }
 
     // MARK: - 计算属性
@@ -199,7 +264,7 @@ class AppState: ObservableObject {
     }
 
     // MARK: - 鼠标操作（统一通过模式系统处理）
-    
+
     /// 处理普通单击
     /// - 在 Normal 模式下：移动光标
     /// - 在 Visual 模式下：移动光标并更新选择范围
@@ -207,93 +272,96 @@ class AppState: ObservableObject {
         // 切换活动面板
         setActivePane(paneSide)
         let pane = paneSide == .left ? leftPane : rightPane
-        
+
         // 移动光标
         pane.cursorIndex = index
-        
+
         // 如果在 Visual 模式下，更新选择范围
         if mode == .visual {
             pane.updateVisualSelection()
         }
     }
-    
+
     /// 处理 Command+Click（切换选择）
     /// - 自动进入 Visual 模式
     /// - 切换点击项的选择状态
     func handleMouseCommandClick(at index: Int, paneSide: PaneSide) {
         setActivePane(paneSide)
         let pane = paneSide == .left ? leftPane : rightPane
-        
+
         // 获取目标文件
         guard let file = pane.activeTab.files[safe: index] else { return }
-        
+
         // 父目录项不能被选中
         guard !file.isParentDirectory else { return }
-        
+
         // 如果不在 Visual 模式，先进入 Visual 模式
         if mode != .visual {
             // 进入 Visual 模式但不设置锚点（因为我们要做切换选择）
             mode = .visual
             pane.visualAnchor = nil  // 清除锚点，因为 Command+Click 是独立选择
         }
-        
+
         // 移动光标到点击位置
         pane.cursorIndex = index
-        
+
         // 切换选择状态
         pane.toggleSelection(for: file.id)
-        
+
         // 如果没有选中项了，退出 Visual 模式
         if pane.selections.isEmpty {
             exitMode()
         }
     }
-    
+
     /// 处理 Shift+Click（范围选择）
     /// - 自动进入 Visual 模式
     /// - 从锚点（或当前光标）到点击位置进行范围选择
     func handleMouseShiftClick(at index: Int, paneSide: PaneSide) {
         setActivePane(paneSide)
         let pane = paneSide == .left ? leftPane : rightPane
-        
+
         // 如果不在 Visual 模式，先进入 Visual 模式
         if mode != .visual {
             // 设置当前光标位置为锚点
             pane.visualAnchor = pane.cursorIndex
             mode = .visual
         }
-        
+
         // 如果没有锚点，以当前光标为锚点
         if pane.visualAnchor == nil {
             pane.visualAnchor = pane.cursorIndex
         }
-        
+
         // 移动光标到点击位置
         pane.cursorIndex = index
-        
+
         // 更新范围选择
         pane.updateVisualSelection()
     }
-    
+
     /// 处理双击
     /// - 文件夹：进入目录
     /// - 文件：使用默认应用打开
     func handleMouseDoubleClick(fileId: String, paneSide: PaneSide) async {
         setActivePane(paneSide)
         let pane = paneSide == .left ? leftPane : rightPane
-        
-        guard let file = pane.activeTab.files.first(where: { $0.id == fileId }) else { return }
-        
+
+        guard let file = pane.activeTab.files.first(where: { $0.id == fileId })
+        else { return }
+
         if file.isFolder {
             // 进入目录
             let newPath = file.path
-            let files = await FileSystemService.shared.loadDirectory(at: newPath)
-            
+            let files = await FileSystemService.shared.loadDirectory(
+                at: newPath
+            )
+
             pane.activeTab.currentPath = newPath
             pane.activeTab.files = files
             pane.cursorIndex = 0
             pane.clearSelections()
-            
+
             // 如果在 Visual 模式，退出
             if mode == .visual {
                 exitMode()
@@ -581,7 +649,7 @@ class AppState: ObservableObject {
                 at: parent
             )
             pane.activeTab.files = files
-            
+
             pane.activeTab.currentPath = parent
             pane.clearSelections()
 
@@ -603,13 +671,13 @@ class AppState: ObservableObject {
             let destination = currentPane.activeTab.currentPath
 
             if clipboardOperation == .copy {
-                try FileSystemService.shared.copyFiles(
+                try await FileSystemService.shared.copyFiles(
                     clipboard,
                     to: destination
                 )
                 showToast("\(clipboard.count) file(s) copied")
             } else {
-                try FileSystemService.shared.moveFiles(
+                try await FileSystemService.shared.moveFiles(
                     clipboard,
                     to: destination
                 )
@@ -638,6 +706,9 @@ class AppState: ObservableObject {
     }
 
     func selectDrive(_ drive: DriveInfo) async {
+        self.driveSelectorCursor = availableDrives.firstIndex(of: drive) ?? 0
+        Logger.app.debug("Selected drive: \(drive.name, privacy: .public)")
+        Logger.app.debug("Delected drive index: \(self.driveSelectorCursor)")
         let pane = currentPane
         pane.activeTab.drive = drive
         pane.activeTab.currentPath = drive.path
@@ -645,7 +716,6 @@ class AppState: ObservableObject {
         pane.clearSelections()
         await refreshCurrentPane()
         exitMode()
-        showToast("Switched to \(drive.name)")
     }
 
     func jumpToTop() {
@@ -703,7 +773,6 @@ extension AppState {
             currentPane.startVisualSelection()
         case .driveSelect:
             showDriveSelector = true
-            driveSelectorCursor = 0
         default:
             break
         }
@@ -726,6 +795,10 @@ extension AppState {
             showRenameModal = false
         }
 
+        if mode == .modal {
+            showConnectionManager = false
+        }
+
         if mode == .rename {
             // Rename mode exit,should return visual mode if there are selections
             mode = .visual
@@ -736,6 +809,64 @@ extension AppState {
         commandInput = ""
         filterInput = ""
         filterUseRegex = false
+
+    }
+}
+
+// MARK: - 过滤功能扩展
+
+extension AppState {
+    func applyFilter() {
+        let pane = currentPane
+        let tab = pane.activeTab
+        let filter = filterInput
+
+        // 首次过滤时保存原始文件列表
+        if tab.unfilteredFiles.isEmpty && !tab.files.isEmpty {
+            tab.unfilteredFiles = tab.files
+        }
+
+        if filter.isEmpty {
+            // 过滤词为空时，恢复原始列表
+            if !tab.unfilteredFiles.isEmpty {
+                tab.files = tab.unfilteredFiles
+            }
+        } else {
+            // 从原始列表过滤
+            let sourceFiles =
+                tab.unfilteredFiles.isEmpty ? tab.files : tab.unfilteredFiles
+
+            if filterUseRegex {
+                // 正则表达式过滤
+                do {
+                    let regex = try NSRegularExpression(
+                        pattern: filter,
+                        options: [.caseInsensitive]
+                    )
+                    tab.files = sourceFiles.filter { file in
+                        let range = NSRange(
+                            file.name.startIndex...,
+                            in: file.name
+                        )
+                        return regex.firstMatch(
+                            in: file.name,
+                            options: [],
+                            range: range
+                        ) != nil
+                    }
+                } catch {
+                    // 正则表达式无效时，不过滤
+                    tab.files = sourceFiles
+                }
+            } else {
+                // 普通字符串匹配（大小写不敏感）
+                let lowerFilter = filter.lowercased()
+                tab.files = sourceFiles.filter {
+                    $0.name.lowercased().contains(lowerFilter)
+                }
+            }
+        }
+        pane.cursorIndex = 0
     }
 }
 
@@ -749,5 +880,359 @@ enum ClipboardOperation {
 extension Array {
     subscript(safe index: Int) -> Element? {
         return indices.contains(index) ? self[index] : nil
+    }
+}
+
+// For command mode process
+extension AppState {
+    func executeCommand() async {
+        let commandInput = commandInput.trimmingCharacters(
+            in: .whitespaces
+        )
+        guard !commandInput.isEmpty else {
+            exitMode()
+            return
+        }
+
+        // 使用 CommandParser 解析命令
+        let command = CommandParser.parse(commandInput)
+        let currentPath = currentPane.activeTab.currentPath
+
+        switch command.type {
+        case .mkdir:
+            // mkdir <name> - 在当前目录创建文件夹
+            let (_, folderName) = CommandParser.validateMkdir(command)
+            do {
+                let _ = try await FileSystemService.shared.createDirectory(
+                    at: currentPath,
+                    name: folderName
+                )
+                await refreshCurrentPane()
+            } catch {
+                showToast(
+                    LocalizationManager.shared.localized(
+                        .toastFailedToCreateDirectory,
+                        error.localizedDescription
+                    )
+                )
+            }
+
+        case .touch:
+            // touch <name> - 在当前目录创建文件
+            let (_, fileName) = CommandParser.validateTouch(command)
+            do {
+                let _ = try await FileSystemService.shared.createFile(
+                    at: currentPath,
+                    name: fileName
+                )
+                await refreshCurrentPane()
+            } catch {
+                showToast(
+                    LocalizationManager.shared.localized(
+                        .toastFailedToCreateFile,
+                        error.localizedDescription
+                    )
+                )
+            }
+
+        case .move, .mv:
+            // move <src> <dest> 或 move <dest> (使用选中文件作为源)
+            await executeMove(command: command, currentPath: currentPath)
+
+        case .copy, .cp:
+            // copy <src> <dest> 或 copy <dest> (使用选中文件作为源)
+            await executeCopy(command: command, currentPath: currentPath)
+
+        case .delete, .rm:
+            // delete [name] - 删除指定文件或当前选中文件
+            await executeDelete(command: command, currentPath: currentPath)
+
+        case .cd:
+            // cd <path> - 切换目录
+            let result = CommandParser.validateCd(
+                command,
+                currentPath: currentPath
+            )
+            if result.valid, let targetPath = result.targetPath {
+                currentPane.activeTab.currentPath = targetPath
+                await refreshCurrentPane()
+            } else if let error = result.error {
+                showToast(error)
+            }
+
+        case .open:
+            // open - 打开当前选中的文件
+            if let file = currentFile() {
+                NSWorkspace.shared.open(file.path)
+            }
+
+        case .term, .terminal:
+            // term - 在当前目录打开终端
+            FileSystemService.shared.openInTerminal(path: currentPath)
+
+        case .q, .quit:
+            NSApp.terminate(nil)
+
+        case .unknown:
+            showToast(
+                LocalizationManager.shared.localized(
+                    .toastUnknownCommand,
+                    command.rawInput
+                )
+            )
+        case .rsync:
+            let (valid, _, error) = CommandParser.validateRsync(command)
+
+            if valid {
+                presentRsyncSheet(sourceIsLeft: true)
+            } else if let error = error {
+                showToast(error)
+            }
+        }
+
+        exitMode()
+    }
+
+    func deleteSelectedFiles() async {
+        let pane = currentPane
+        if pane.selections.isEmpty,
+            let file = pane.activeTab.files[safe: pane.cursorIndex],
+            file.isParentDirectory
+        {
+            showToast(
+                LocalizationManager.shared.localized(.toastCannotDeleteParent)
+            )
+            return
+        }
+
+        let filesToDelete = selectedFiles()
+
+        guard !filesToDelete.isEmpty else {
+            showToast(
+                LocalizationManager.shared.localized(.toastNoFilesToDelete)
+            )
+            return
+        }
+
+        do {
+            try await FileSystemService.shared.trashFiles(filesToDelete)
+
+            showToast(
+                LocalizationManager.shared.localized(
+                    .toastFilesMovedToTrash,
+                    filesToDelete.count
+                )
+            )
+            pane.clearSelections()
+            await refreshCurrentPane()
+        } catch {
+            showToast(
+                LocalizationManager.shared.localized(.error)
+                    + ": \(error.localizedDescription)"
+            )
+        }
+    }
+
+    func selectedFiles() -> [FileItem] {
+        let pane = currentPane
+        let selections = pane.selections
+
+        if selections.isEmpty {
+            // 如果没有选中，返回当前光标所在的文件
+            if let file = pane.activeTab.files[safe: pane.cursorIndex],
+                !file.isParentDirectory
+            {
+                return [file]
+            }
+            return []
+        } else {
+            // 返回选中的文件，排除父目录项
+            return pane.activeTab.files.filter {
+                selections.contains($0.id) && !$0.isParentDirectory
+            }
+        }
+    }
+
+    func currentFile() -> FileItem? {
+        let pane = currentPane
+        guard let file = pane.activeTab.files[safe: pane.cursorIndex],
+            !file.isParentDirectory
+        else {
+            return nil
+        }
+        return file
+    }
+
+    private func executeMove(
+        command: ParsedCommand,
+        currentPath: URL
+    ) async {
+        let result = CommandParser.validateMoveOrCopy(
+            command,
+            currentPath: currentPath
+        )
+
+        guard result.valid else {
+            if let error = result.error {
+                showToast(error)
+            }
+            return
+        }
+
+        if let srcPath = result.source, let destPath = result.destination {
+            // move <src> <dest>
+            do {
+                try FileManager.default.moveItem(at: srcPath, to: destPath)
+                await refreshCurrentPane()
+            } catch {
+                showToast(
+                    LocalizationManager.shared.localized(
+                        .toastMoveFailed,
+                        error.localizedDescription
+                    )
+                )
+            }
+        } else if let destPath = result.destination {
+            // move <dest> - 移动当前选中文件
+            let selectedFiles = selectedFiles()
+            guard !selectedFiles.isEmpty else {
+                showToast(
+                    LocalizationManager.shared.localized(.toastNoFileSelected)
+                )
+                return
+            }
+
+            do {
+                try await FileSystemService.shared.moveFiles(
+                    selectedFiles,
+                    to: destPath
+                )
+                await refreshCurrentPane()
+            } catch {
+                showToast(
+                    LocalizationManager.shared.localized(
+                        .toastMoveFailed,
+                        error.localizedDescription
+                    )
+                )
+            }
+        }
+    }
+
+    /// 执行复制命令
+    private func executeCopy(
+        command: ParsedCommand,
+        currentPath: URL
+    ) async {
+        let result = CommandParser.validateMoveOrCopy(
+            command,
+            currentPath: currentPath
+        )
+
+        guard result.valid else {
+            if let error = result.error {
+                showToast(error)
+            }
+            return
+        }
+
+        if let srcPath = result.source, let destPath = result.destination {
+            // copy <src> <dest>
+            do {
+                try FileManager.default.copyItem(at: srcPath, to: destPath)
+                await refreshCurrentPane()
+            } catch {
+                showToast(
+                    LocalizationManager.shared.localized(
+                        .toastCopyFailed,
+                        error.localizedDescription
+                    )
+                )
+            }
+        } else if let destPath = result.destination {
+            // copy <dest> - 复制当前选中文件
+            let selectedFiles = selectedFiles()
+            guard !selectedFiles.isEmpty else {
+                showToast(
+                    LocalizationManager.shared.localized(.toastNoFileSelected)
+                )
+                return
+            }
+
+            do {
+                try await FileSystemService.shared.copyFiles(
+                    selectedFiles,
+                    to: destPath
+                )
+                await refreshCurrentPane()
+            } catch {
+                showToast(
+                    LocalizationManager.shared.localized(
+                        .toastCopyFailed,
+                        error.localizedDescription
+                    )
+                )
+            }
+        }
+    }
+
+    /// 执行删除命令
+    private func executeDelete(
+        command: ParsedCommand,
+        currentPath: URL
+    ) async {
+        let result = CommandParser.validateDelete(
+            command,
+            currentPath: currentPath
+        )
+
+        if let targetPath = result.targetPath {
+            // delete <name> - 删除指定文件
+            do {
+                try FileManager.default.trashItem(
+                    at: targetPath,
+                    resultingItemURL: nil
+                )
+                await refreshCurrentPane()
+                showToast(
+                    LocalizationManager.shared.localized(.toastDeleted)
+                        + ": \(targetPath.lastPathComponent)"
+                )
+            } catch {
+                showToast(
+                    LocalizationManager.shared.localized(
+                        .toastDeleteFailed,
+                        error.localizedDescription
+                    )
+                )
+            }
+        } else {
+            // delete - 删除当前选中文件
+            let selectedFiles = selectedFiles()
+            guard !selectedFiles.isEmpty else {
+                showToast(
+                    LocalizationManager.shared.localized(.toastNoFileSelected)
+                )
+                return
+            }
+
+            do {
+                try await FileSystemService.shared.trashFiles(selectedFiles)
+                await refreshCurrentPane()
+                showToast(
+                    LocalizationManager.shared.localized(
+                        .toastFilesMovedToTrash,
+                        selectedFiles.count
+                    )
+                )
+            } catch {
+                showToast(
+                    LocalizationManager.shared.localized(
+                        .toastDeleteFailed,
+                        error.localizedDescription
+                    )
+                )
+            }
+        }
     }
 }

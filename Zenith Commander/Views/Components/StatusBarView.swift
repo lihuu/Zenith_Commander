@@ -79,7 +79,10 @@ struct StatusBarView: View {
             return "ESC to close"
         case .help:
             return "ESC or ? to close"
+        default:
+            return "ESC to close"
         }
+        
     }
     
     /// 状态内容 - 根据模式显示不同内容
@@ -227,6 +230,7 @@ struct GitBranchIndicator: View {
             itemCount: 42,
             selectedCount: 0
         )
+       
     }
     .background(Theme.background)
 }

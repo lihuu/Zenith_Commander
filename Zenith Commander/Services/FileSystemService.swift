@@ -4,6 +4,8 @@
 //
 //  文件系统服务 - 读取真实文件系统
 //
+//  Refactored to use FileSystemProvider pattern for supporting multiple file systems (Local, SFTP, etc.)
+//
 
 import AppKit
 import Foundation
@@ -22,24 +24,63 @@ class FileSystemService {
     static let shared = FileSystemService()
 
     private let fileManager = FileManager.default
+    
+    // Provider Registry
+    private var providers: [String: FileSystemProvider] = [:]
+    private let localProvider = LocalFileSystemProvider()
 
-    private init() {}
+    private init() {
+        // Register default local provider
+        register(provider: localProvider)
+        
+        // Register SFTP provider
+        let sftpProvider = SFTPFileSystemProvider()
+        register(provider: sftpProvider)
+    }
+    
+    // MARK: - Provider Management
+    
+    func register(provider: FileSystemProvider) {
+        providers[provider.scheme] = provider
+    }
+    
+    private func getProvider(for url: URL) -> FileSystemProvider {
+        // Default to local provider if scheme is file or empty
+        if url.isFileURL || url.scheme == nil || url.scheme == "file" {
+            return localProvider
+        }
+        
+        if let scheme = url.scheme, let provider = providers[scheme] {
+            return provider
+        }
+        
+        // Fallback to local provider (or handle error)
+        Logger.fileSystem.warning("No provider found for scheme: \(url.scheme ?? "nil"), defaulting to local")
+        return localProvider
+    }
 
-    // MARK: - 权限检查
+    // MARK: - 权限检查 (Local Only for now)
 
     /// 检查是否有读取权限
     func hasReadPermission(for path: URL) -> Bool {
-        return fileManager.isReadableFile(atPath: path.path)
+        // Only relevant for local files
+        if path.isFileURL {
+            return fileManager.isReadableFile(atPath: path.path)
+        }
+        return true // Assume true for remote, provider will handle errors
     }
 
     /// 检查目录是否存在
     func directoryExists(at path: URL) -> Bool {
-        var isDirectory: ObjCBool = false
-        let exists = fileManager.fileExists(
-            atPath: path.path,
-            isDirectory: &isDirectory
-        )
-        return exists && isDirectory.boolValue
+        if path.isFileURL {
+            var isDirectory: ObjCBool = false
+            let exists = fileManager.fileExists(
+                atPath: path.path,
+                isDirectory: &isDirectory
+            )
+            return exists && isDirectory.boolValue
+        }
+        return true // Assume true for remote
     }
 
     /// 请求用户选择文件夹授权（通过 NSOpenPanel）
@@ -87,74 +128,24 @@ class FileSystemService {
         at path: URL,
         showHidden: Bool = false
     ) async -> DirectoryLoadResult {
-        // 检查目录是否存在
-        guard directoryExists(at: path) else {
-            return .notFound(path)
-        }
-
-        // 检查读取权限
-        guard hasReadPermission(for: path) else {
-            return .permissionDenied(path)
-        }
-
-        return await Task.detached(priority: .userInitiated) {
-            do {
-                let fileManager = FileManager.default
-                // Start accessing security scoped resource if needed
-                let isSecured = path.startAccessingSecurityScopedResource()
-                defer {
-                    if isSecured {
-                        path.stopAccessingSecurityScopedResource()
-                    }
-                }
-
-                let contents = try fileManager.contentsOfDirectory(
-                    at: path,
-                    includingPropertiesForKeys: [
-                        .isDirectoryKey,
-                        .fileSizeKey,
-                        .contentModificationDateKey,
-                        .creationDateKey,
-                        .isHiddenKey,
-                    ],
-                    options: showHidden ? [] : [.skipsHiddenFiles]
-                )
-
-                var files = contents.compactMap { url in
-                    FileItem.fromURL(url)
-                }.sorted { item1, item2 in
-                    // 文件夹优先，然后按名称排序
-                    if item1.type == .folder && item2.type != .folder {
-                        return true
-                    } else if item1.type != .folder && item2.type == .folder {
-                        return false
-                    }
-                    return item1.name.localizedCaseInsensitiveCompare(
-                        item2.name
-                    ) == .orderedAscending
-                }
-
-                // 如果不是根目录，在列表开头添加 ".." 父目录项
-                if path.standardizedFileURL.path != "/" {
-                    let parentPath = path.standardizedFileURL.deletingLastPathComponent()
-                    let parentItem = FileItem.parentDirectoryItem(
-                        for: parentPath
-                    )
-                    files.insert(parentItem, at: 0)
-                }
-
-                return .success(files)
-            } catch let error as NSError {
-                // 检查是否是权限错误
-                if error.domain == NSCocoaErrorDomain
-                    && (error.code == NSFileReadNoPermissionError
-                        || error.code == 257)
-                {
-                    return .permissionDenied(path)
-                }
-                return .error(error)
+        let provider = getProvider(for: path)
+        
+        do {
+            let files = try await provider.loadDirectory(at: path)
+            // Filter hidden files if needed (though providers might handle this)
+            let filteredFiles = showHidden ? files : files.filter { !$0.isHidden }
+            return .success(filteredFiles)
+        } catch {
+            // Handle specific errors
+            let nsError = error as NSError
+            if nsError.domain == NSCocoaErrorDomain && (nsError.code == NSFileReadNoPermissionError || nsError.code == 257) {
+                return .permissionDenied(path)
             }
-        }.value
+            if nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileReadNoSuchFileError {
+                return .notFound(path)
+            }
+            return .error(error)
+        }
     }
 
     /// 加载目录内容（简单版本，兼容旧代码）- 异步
@@ -176,18 +167,24 @@ class FileSystemService {
 
     /// 获取上级目录
     func parentDirectory(of path: URL) -> URL {
-        return path.deletingLastPathComponent()
+        let provider = getProvider(for: path)
+        return provider.parentDirectory(of: path)
     }
 
     /// 检查是否可以进入目录
     func canEnterDirectory(at path: URL) -> Bool {
-        var isDirectory: ObjCBool = false
-        let exists = fileManager.fileExists(
-            atPath: path.path,
-            isDirectory: &isDirectory
-        )
-        return exists && isDirectory.boolValue
-            && fileManager.isReadableFile(atPath: path.path)
+        // For local files, check existence and permission
+        if path.isFileURL {
+            var isDirectory: ObjCBool = false
+            let exists = fileManager.fileExists(
+                atPath: path.path,
+                isDirectory: &isDirectory
+            )
+            return exists && isDirectory.boolValue
+                && fileManager.isReadableFile(atPath: path.path)
+        }
+        // For remote, assume yes until we try
+        return true
     }
 
     // MARK: - 驱动器/卷操作
@@ -267,214 +264,84 @@ class FileSystemService {
 
     // MARK: - 文件操作
 
-    /// 生成唯一的文件名（处理重名情况）
-    /// 规则：原名 -> 原名 Copy -> 原名 Copy1 -> 原名 Copy2 ...
-    func generateUniqueFileName(for fileName: String, in directory: URL)
-        -> String
-    {
-        let destURL = directory.appendingPathComponent(fileName)
-
-        // 如果不存在同名文件，直接返回原名
-        if !fileManager.fileExists(atPath: destURL.path) {
-            return fileName
-        }
-
-        // 分离文件名和扩展名
-        let nameWithoutExtension: String
-        let fileExtension: String
-
-        if fileName.contains(".") && !fileName.hasPrefix(".") {
-            let components = fileName.split(
-                separator: ".",
-                maxSplits: 1,
-                omittingEmptySubsequences: false
-            )
-            if components.count == 2 {
-                // 处理多重扩展名的情况，如 file.tar.gz
-                let lastDotIndex = fileName.lastIndex(of: ".")!
-                nameWithoutExtension = String(fileName[..<lastDotIndex])
-                fileExtension = String(fileName[lastDotIndex...])
-            } else {
-                nameWithoutExtension = fileName
-                fileExtension = ""
-            }
+    /// 复制文件
+    func copyFiles(_ files: [FileItem], to destination: URL) async throws {
+        guard let firstFile = files.first else { return }
+        // Assume all files are from the same provider
+        let provider = getProvider(for: firstFile.path)
+        // Check if destination is same provider
+        let destProvider = getProvider(for: destination)
+        
+        if provider.scheme == destProvider.scheme {
+            try await provider.copy(items: files, to: destination)
         } else {
-            // 隐藏文件或无扩展名
-            nameWithoutExtension = fileName
-            fileExtension = ""
-        }
-
-        // 尝试 "原名 Copy"
-        let copyName = "\(nameWithoutExtension) Copy\(fileExtension)"
-        let copyURL = directory.appendingPathComponent(copyName)
-        if !fileManager.fileExists(atPath: copyURL.path) {
-            return copyName
-        }
-
-        // 尝试 "原名 Copy1", "原名 Copy2", ...
-        var counter = 1
-        while true {
-            let numberedName =
-                "\(nameWithoutExtension) Copy\(counter)\(fileExtension)"
-            let numberedURL = directory.appendingPathComponent(numberedName)
-            if !fileManager.fileExists(atPath: numberedURL.path) {
-                return numberedName
-            }
-            counter += 1
-
-            // 防止无限循环（理论上不应该发生）
-            if counter > 10000 {
-                let timestamp = Int(Date().timeIntervalSince1970)
-                return
-                    "\(nameWithoutExtension) Copy\(timestamp)\(fileExtension)"
-            }
+            // TODO: Handle cross-provider copy (download then upload)
+            throw NSError(domain: "FileSystemService", code: 2, userInfo: [NSLocalizedDescriptionKey: "Cross-provider copy not implemented yet"])
         }
     }
 
-    /// 复制文件（自动处理重名）
-    func copyFiles(_ files: [FileItem], to destination: URL) throws {
-        for file in files {
-            let uniqueName = generateUniqueFileName(
-                for: file.name,
-                in: destination
-            )
-            let destURL = destination.appendingPathComponent(uniqueName)
-            try fileManager.copyItem(at: file.path, to: destURL)
-        }
-    }
-
-    /// 移动文件（自动处理重名）
-    func moveFiles(_ files: [FileItem], to destination: URL) throws {
-        for file in files {
-            let uniqueName = generateUniqueFileName(
-                for: file.name,
-                in: destination
-            )
-            let destURL = destination.appendingPathComponent(uniqueName)
-            try fileManager.moveItem(at: file.path, to: destURL)
+    /// 移动文件
+    func moveFiles(_ files: [FileItem], to destination: URL) async throws {
+        guard let firstFile = files.first else { return }
+        let provider = getProvider(for: firstFile.path)
+        let destProvider = getProvider(for: destination)
+        
+        if provider.scheme == destProvider.scheme {
+            try await provider.move(items: files, to: destination)
+        } else {
+             throw NSError(domain: "FileSystemService", code: 2, userInfo: [NSLocalizedDescriptionKey: "Cross-provider move not implemented yet"])
         }
     }
 
     /// 删除文件（移动到废纸篓）
-    func trashFiles(_ files: [FileItem]) throws {
-        for file in files {
-            try fileManager.trashItem(at: file.path, resultingItemURL: nil)
-        }
+    func trashFiles(_ files: [FileItem]) async throws {
+        guard let firstFile = files.first else { return }
+        let provider = getProvider(for: firstFile.path)
+        try await provider.delete(items: files)
     }
 
     /// 永久删除文件
-    func deleteFiles(_ files: [FileItem]) throws {
-        for file in files {
-            try fileManager.removeItem(at: file.path)
-        }
+    func deleteFiles(_ files: [FileItem]) async throws {
+        // Currently mapped to delete in provider
+        try await trashFiles(files)
     }
 
-    /// 创建目录（支持自动重命名）
-    func createDirectory(at path: URL, name: String) throws -> URL {
-        let uniqueName = generateUniqueFileName(for: name, in: path)
-        let newPath = path.appendingPathComponent(uniqueName)
-        try fileManager.createDirectory(
-            at: newPath,
-            withIntermediateDirectories: false
-        )
-        return newPath
+    /// 创建目录
+    func createDirectory(at path: URL, name: String) async throws -> URL {
+        let provider = getProvider(for: path)
+        let item = try await provider.createDirectory(at: path, name: name)
+        return item.path
     }
 
-    /// 创建空文件（支持自动重命名）
-    func createFile(at path: URL, name: String) throws -> URL {
-        let uniqueName = generateUniqueFileName(for: name, in: path)
-        let newPath = path.appendingPathComponent(uniqueName)
-        guard
-            fileManager.createFile(
-                atPath: newPath.path,
-                contents: nil,
-                attributes: nil
-            )
-        else {
-            throw NSError(
-                domain: "FileSystemService",
-                code: 1,
-                userInfo: [NSLocalizedDescriptionKey: "Failed to create file"]
-            )
-        }
-        return newPath
-    }
-
-    /// 重命名文件
-    func renameFile(_ file: FileItem, to newName: String) throws -> URL {
-        let newPath = file.path.deletingLastPathComponent()
-            .appendingPathComponent(newName)
-        try fileManager.moveItem(at: file.path, to: newPath)
-        return newPath
-    }
-
-    /// 批量重命名
-    func batchRename(
-        files: [FileItem],
-        findPattern: String,
-        replacePattern: String,
-        useRegex: Bool
-    ) throws -> [(old: String, new: String)] {
-        var results: [(old: String, new: String)] = []
-
-        for (index, file) in files.enumerated() {
-            let oldName = file.name
-            var newName: String
-
-            // 处理动态变量
-            let processedReplace =
-                replacePattern
-                .replacingOccurrences(
-                    of: "{n}",
-                    with: String(format: "%03d", index + 1)
-                )
-                .replacingOccurrences(of: "{date}", with: formattedDate())
-
-            if useRegex {
-                // 正则表达式替换
-                if let regex = try? NSRegularExpression(
-                    pattern: findPattern,
-                    options: []
-                ) {
-                    let range = NSRange(oldName.startIndex..., in: oldName)
-                    newName = regex.stringByReplacingMatches(
-                        in: oldName,
-                        options: [],
-                        range: range,
-                        withTemplate: processedReplace
-                    )
-                } else {
-                    newName = oldName
-                }
-            } else {
-                // 普通字符串替换
-                newName = oldName.replacingOccurrences(
-                    of: findPattern,
-                    with: processedReplace
-                )
-            }
-
-            if newName != oldName {
-                let _ = try renameFile(file, to: newName)
-                results.append((old: oldName, new: newName))
-            }
-        }
-
-        return results
+    /// 创建空文件
+    func createFile(at path: URL, name: String) async throws -> URL {
+        let provider = getProvider(for: path)
+        let item = try await provider.createFile(at: path, name: name)
+        return item.path
     }
 
     /// 打开文件
     func openFile(_ file: FileItem) {
-        NSWorkspace.shared.open(file.path)
+        let provider = getProvider(for: file.path)
+        Task {
+            await provider.openFile(file)
+        }
     }
 
     /// 在 Finder 中显示
     func revealInFinder(_ file: FileItem) {
-        NSWorkspace.shared.activateFileViewerSelecting([file.path])
+        if file.path.isFileURL {
+            NSWorkspace.shared.activateFileViewerSelecting([file.path])
+        } else {
+            // Not supported for remote files yet
+        }
     }
 
     /// 在终端打开（使用用户设置的默认终端）
     func openInTerminal(path: URL) {
+        // Only support local paths for now
+        guard path.isFileURL else { return }
+        
         // 获取用户设置的默认终端
         let settings = SettingsManager.shared.settings
         let terminalOption = settings.terminal.currentTerminal
@@ -641,12 +508,5 @@ class FileSystemService {
             openInMacTerminal(path: path)
         }
     }
-
-    // MARK: - 辅助方法
-
-    private func formattedDate() -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyyMMdd"
-        return formatter.string(from: Date())
-    }
 }
+
