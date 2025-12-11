@@ -32,8 +32,17 @@ class RsyncSyncSheetViewTests: XCTestCase {
         let sourceURL = URL(fileURLWithPath: "/Users/test/source")
         let destURL = URL(fileURLWithPath: "/Users/test/dest")
 
-        appState.leftPane = PaneState(side: .left, currentPath: sourceURL)
-        appState.rightPane = PaneState(side: .right, currentPath: destURL)
+        let drive = DriveInfo(
+            id: "test-drive",
+            name: "Test Drive",
+            path: URL(fileURLWithPath: "/"),
+            type: .system,
+            totalCapacity: 1_000_000,
+            availableCapacity: 500_000
+        )
+
+        appState.leftPane = PaneState(side: .left, initialPath: sourceURL, drive: drive)
+        appState.rightPane = PaneState(side: .right, initialPath: destURL, drive: drive)
 
         // Act
         appState.presentRsyncSheet(sourceIsLeft: true)
@@ -51,8 +60,17 @@ class RsyncSyncSheetViewTests: XCTestCase {
         let sourceURL = URL(fileURLWithPath: "/Users/test/source")
         let destURL = URL(fileURLWithPath: "/Users/test/dest")
 
-        appState.leftPane = PaneState(side: .left, currentPath: destURL)
-        appState.rightPane = PaneState(side: .right, currentPath: sourceURL)
+        let drive = DriveInfo(
+            id: "test-drive",
+            name: "Test Drive",
+            path: URL(fileURLWithPath: "/"),
+            type: .system,
+            totalCapacity: 1_000_000,
+            availableCapacity: 500_000
+        )
+
+        appState.leftPane = PaneState(side: .left, initialPath: destURL, drive: drive)
+        appState.rightPane = PaneState(side: .right, initialPath: sourceURL, drive: drive)
 
         // Act
         appState.presentRsyncSheet(sourceIsLeft: false)
@@ -186,11 +204,11 @@ class RsyncSyncSheetViewTests: XCTestCase {
 
     func testSetSyncResultSuccess() {
         // Arrange
-        let summary = RsyncSummary(copy: 5, update: 2, delete: 0, skip: 1)
+        let summary = (copy: 5, update: 2, delete: 0, skip: 1)
         let syncResult = RsyncRunResult(
             success: true,
-            summary: summary,
-            errors: []
+            errors: [],
+            summary: summary
         )
 
         // Act
@@ -205,12 +223,12 @@ class RsyncSyncSheetViewTests: XCTestCase {
 
     func testSetSyncResultWithErrors() {
         // Arrange
-        let summary = RsyncSummary(copy: 0, update: 0, delete: 0, skip: 0)
+        let summary = (copy: 0, update: 0, delete: 0, skip: 0)
         let errors = ["Permission denied", "File not found"]
         let syncResult = RsyncRunResult(
             success: false,
-            summary: summary,
-            errors: errors
+            errors: errors,
+            summary: summary
         )
 
         // Act
@@ -239,10 +257,8 @@ class RsyncSyncSheetViewTests: XCTestCase {
 
         // Act & Assert - Setting progress
         let progress = RsyncProgress(
-            percentage: 45.0,
-            completed: 10,
-            total: 22,
-            message: "Syncing..."
+            message: "Syncing...", completed: 10,
+            total: 22
         )
         appState.rsyncUIState.syncProgress = progress
         let percentage = appState.rsyncUIState.syncProgress?.percentage

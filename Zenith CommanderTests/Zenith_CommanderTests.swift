@@ -3564,7 +3564,12 @@ struct AppSettingsGitTests {
         let settings = AppSettings(
             appearance: .default,
             terminal: .default,
-            git: GitSettings(enabled: false, showUntrackedFiles: false, showIgnoredFiles: true)
+            git: GitSettings(
+                enabled: false,
+                showUntrackedFiles: false,
+                showIgnoredFiles: true
+            ),
+            rsync: RsyncSettings(enabled: true)
         )
         
         // 编码
@@ -3630,6 +3635,7 @@ struct PaneStateGitInfoTests {
 }
 
 // MARK: - 8. AppState Git History Tests
+
 
 @MainActor
 struct AppStateGitHistoryTests {
