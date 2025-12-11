@@ -254,6 +254,10 @@ struct MainView: View {
                 _ in
                 appState.closeTab()
             }
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
+                // 应用退出时保存当前路径
+                appState.saveCurrentPaths()
+            }
     }
 
     private func handleKeyPress(_ keyPress: KeyPress) -> KeyPress.Result {

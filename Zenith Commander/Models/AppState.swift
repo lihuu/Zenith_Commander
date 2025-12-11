@@ -109,19 +109,17 @@ class AppState: ObservableObject {
                 drive: defaultDrive
             )
         } else {
-            // 初始化面板，默认路径为用户主目录
-            // TODO 这里可以从配置文件中读取，如果没有配置则使用默认路径，两边默认都应该使用home目录
-            /// 应该记录上次使用的路径吧，其他的软件都是这样做的
-            ///
-            let homePath = FileManager.default.homeDirectoryForCurrentUser
+            // 尝试恢复上次的路径
+            let (leftPath, rightPath) = Self.restoreLastPaths()
+            
             leftPane = PaneState(
                 side: .left,
-                initialPath: homePath,
+                initialPath: leftPath,
                 drive: defaultDrive
             )
             rightPane = PaneState(
                 side: .right,
-                initialPath: homePath.appendingPathComponent("Downloads"),
+                initialPath: rightPath,
                 drive: defaultDrive
             )
         }
@@ -143,6 +141,49 @@ class AppState: ObservableObject {
                 self?.objectWillChange.send()
             }
             .store(in: &paneCancellables)
+    }
+
+    // MARK: - 路径持久化
+    
+    /// 保存当前路径到 UserDefaults
+    func saveCurrentPaths() {
+        let leftPath = leftPane.activeTab.currentPath.path
+        let rightPath = rightPane.activeTab.currentPath.path
+        
+        UserDefaults.standard.set(leftPath, forKey: "lastLeftPanePath")
+        UserDefaults.standard.set(rightPath, forKey: "lastRightPanePath")
+        
+        Logger.app.debug("Saved paths - Left: \(leftPath, privacy: .public), Right: \(rightPath, privacy: .public)")
+    }
+    
+    /// 从 UserDefaults 恢复上次的路径
+    /// - Returns: (左面板路径, 右面板路径)
+    private static func restoreLastPaths() -> (URL, URL) {
+        let homePath = FileManager.default.homeDirectoryForCurrentUser
+        let defaultLeftPath = homePath
+        let defaultRightPath = homePath.appendingPathComponent("Downloads")
+        
+        // 读取保存的路径
+        guard let leftPathString = UserDefaults.standard.string(forKey: "lastLeftPanePath"),
+              let rightPathString = UserDefaults.standard.string(forKey: "lastRightPanePath") else {
+            Logger.app.debug("No saved paths found, using defaults")
+            return (defaultLeftPath, defaultRightPath)
+        }
+        
+        let leftURL = URL(fileURLWithPath: leftPathString)
+        let rightURL = URL(fileURLWithPath: rightPathString)
+        
+        // 验证路径是否仍然存在
+        let fileManager = FileManager.default
+        let leftPathExists = fileManager.fileExists(atPath: leftPathString)
+        let rightPathExists = fileManager.fileExists(atPath: rightPathString)
+        
+        let finalLeftPath = leftPathExists ? leftURL : defaultLeftPath
+        let finalRightPath = rightPathExists ? rightURL : defaultRightPath
+        
+        Logger.app.debug("Restored paths - Left: \(finalLeftPath.path, privacy: .public) (exists: \(leftPathExists)), Right: \(finalRightPath.path, privacy: .public) (exists: \(rightPathExists))")
+        
+        return (finalLeftPath, finalRightPath)
     }
 
     // MARK: - 计算属性
