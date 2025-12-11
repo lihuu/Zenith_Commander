@@ -12,12 +12,6 @@ private func L(_ key: LocalizedStringKey) -> String {
     return LocalizationManager.shared.localized(key)
 }
 
-// MARK: - Rsync UI State
-
-
-
-// MARK: - AppState Rsync Extension
-
 extension AppState {
     /// 打开 Rsync 配置弹窗
     /// - Parameter sourceIsLeft: 源目录是否为左侧面板（true 为左侧，false 为右侧）
@@ -104,46 +98,41 @@ extension AppState {
         rsyncUIState.syncProgress = nil
         rsyncUIState.syncResult = nil
         
-        do {
-            // 创建进度流
-            let (stream, continuation) = AsyncStream<RsyncProgress>.makeStream()
-            
-            // 在后台任务中执行同步
-            let syncTask = Task {
-                do {
-                    let result = try await RsyncService.shared.run(
-                        config: config,
-                        progressContinuation: continuation
-                    )
-                    return result
-                } catch {
-                    throw error
-                }
-            }
-            
-            // 监听进度更新并在主线程更新 UI
-            for await progress in stream {
-                await MainActor.run {
-                    rsyncUIState.syncProgress = progress
-                }
-            }
-            
-            // 等待同步任务完成并获取最终结果
+        // 创建进度流
+        let (stream, continuation) = AsyncStream<RsyncProgress>.makeStream()
+        
+        // 在后台任务中执行同步
+        let syncTask = Task {
             do {
-                let result = try await syncTask.value
-                await MainActor.run {
-                    rsyncUIState.syncResult = result
-                    rsyncUIState.isRunningSync = false
-                }
+                let result = try await RsyncService.shared.run(
+                    config: config,
+                    progressContinuation: continuation
+                )
+                return result
             } catch {
-                await MainActor.run {
-                    rsyncUIState.error = error.localizedDescription
-                    rsyncUIState.isRunningSync = false
-                }
+                throw error
+            }
+        }
+        
+        // 监听进度更新并在主线程更新 UI
+        for await progress in stream {
+            await MainActor.run {
+                rsyncUIState.syncProgress = progress
+            }
+        }
+        
+        // 等待同步任务完成并获取最终结果
+        do {
+            let result = try await syncTask.value
+            await MainActor.run {
+                rsyncUIState.syncResult = result
+                rsyncUIState.isRunningSync = false
             }
         } catch {
-            rsyncUIState.error = error.localizedDescription
-            rsyncUIState.isRunningSync = false
+            await MainActor.run {
+                rsyncUIState.error = error.localizedDescription
+                rsyncUIState.isRunningSync = false
+            }
         }
     }
 }

@@ -112,7 +112,7 @@ class LocalFileSystemProvider: FileSystemProvider {
     }
     
     func openFile(_ file: FileItem) async {
-        await MainActor.run {
+        _ = await MainActor.run {
             NSWorkspace.shared.open(file.path)
         }
     }

@@ -228,6 +228,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				1C985B942EE2D9EB009794E9 /* XCRemoteSwiftPackageReference "swift-nio" */,
+				1C673BB62EEA675400334843 /* XCRemoteSwiftPackageReference "Inject" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1C790B772ED8169E005B181E /* Products */;
@@ -617,6 +618,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		1C673BB62EEA675400334843 /* XCRemoteSwiftPackageReference "Inject" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/krzysztofzablocki/Inject.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.5.2;
+			};
+		};
 		1C985B942EE2D9EB009794E9 /* XCRemoteSwiftPackageReference "swift-nio" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/apple/swift-nio.git";

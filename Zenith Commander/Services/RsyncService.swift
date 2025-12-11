@@ -98,8 +98,6 @@ class RsyncService {
             for line in lines {
                 // Look for rsync summary line pattern: "sent X bytes  received Y bytes  Z.ZZ bytes/sec"
                 if line.contains("bytes") && line.contains("bytes/sec") {
-                    // Parse final statistics
-                    let parts = line.split(separator: " ")
                     // Extract numbers if available
                     fileCount = lines.count
                 }
