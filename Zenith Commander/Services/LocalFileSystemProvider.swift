@@ -72,39 +72,121 @@ class LocalFileSystemProvider: FileSystemProvider {
     func createDirectory(at path: URL, name: String) async throws -> FileItem {
         let uniqueName = generateUniqueFileName(for: name, in: path)
         let newPath = path.appendingPathComponent(uniqueName)
-        try fileManager.createDirectory(at: newPath, withIntermediateDirectories: false)
-        return FileItem.fromURL(newPath)!
+        
+        return try await Task.detached {
+            let coordinator = NSFileCoordinator(filePresenter: nil)
+            var coordinationError: NSError?
+            var fileError: Error?
+            
+            coordinator.coordinate(writingItemAt: newPath, options: [], error: &coordinationError) { url in
+                do {
+                    try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false)
+                } catch {
+                    fileError = error
+                }
+            }
+            
+            if let error = coordinationError { throw error }
+            if let error = fileError { throw error }
+            
+            return FileItem.fromURL(newPath)!
+        }.value
     }
     
     func createFile(at path: URL, name: String) async throws -> FileItem {
         let uniqueName = generateUniqueFileName(for: name, in: path)
         let newPath = path.appendingPathComponent(uniqueName)
-        guard fileManager.createFile(atPath: newPath.path, contents: nil, attributes: nil) else {
-            throw NSError(domain: "LocalFileSystemProvider", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to create file"])
-        }
-        return FileItem.fromURL(newPath)!
+        
+        return try await Task.detached {
+            let coordinator = NSFileCoordinator(filePresenter: nil)
+            var coordinationError: NSError?
+            var fileError: Error?
+            
+            coordinator.coordinate(writingItemAt: newPath, options: [], error: &coordinationError) { url in
+                do {
+                    guard FileManager.default.createFile(atPath: url.path, contents: nil, attributes: nil) else {
+                        throw NSError(domain: "LocalFileSystemProvider", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to create file"])
+                    }
+                } catch {
+                    fileError = error
+                }
+            }
+            
+            if let error = coordinationError { throw error }
+            if let error = fileError { throw error }
+            
+            return FileItem.fromURL(newPath)!
+        }.value
     }
     
     func delete(items: [FileItem]) async throws {
-        for item in items {
-            try fileManager.trashItem(at: item.path, resultingItemURL: nil)
-        }
+        try await Task.detached {
+            for item in items {
+                let coordinator = NSFileCoordinator(filePresenter: nil)
+                var coordinationError: NSError?
+                var fileError: Error?
+                
+                coordinator.coordinate(writingItemAt: item.path, options: .forDeleting, error: &coordinationError) { url in
+                    do {
+                        try FileManager.default.trashItem(at: url, resultingItemURL: nil)
+                    } catch {
+                        fileError = error
+                    }
+                }
+                
+                if let error = coordinationError { throw error }
+                if let error = fileError { throw error }
+            }
+        }.value
     }
     
     func move(items: [FileItem], to destination: URL) async throws {
-        for item in items {
-            let uniqueName = generateUniqueFileName(for: item.name, in: destination)
-            let destURL = destination.appendingPathComponent(uniqueName)
-            try fileManager.moveItem(at: item.path, to: destURL)
-        }
+        try await Task.detached {
+            for item in items {
+                let uniqueName = self.generateUniqueFileName(for: item.name, in: destination)
+                let destURL = destination.appendingPathComponent(uniqueName)
+                
+                let coordinator = NSFileCoordinator(filePresenter: nil)
+                var coordinationError: NSError?
+                var fileError: Error?
+                
+                coordinator.coordinate(writingItemAt: item.path, options: .forMoving, writingItemAt: destURL, options: .forMoving, error: &coordinationError) { newSource, newDest in
+                    do {
+                        try FileManager.default.moveItem(at: newSource, to: newDest)
+                    } catch {
+                        fileError = error
+                    }
+                }
+                
+                if let error = coordinationError { throw error }
+                if let error = fileError { throw error }
+            }
+        }.value
     }
     
     func copy(items: [FileItem], to destination: URL) async throws {
-        for item in items {
-            let uniqueName = generateUniqueFileName(for: item.name, in: destination)
-            let destURL = destination.appendingPathComponent(uniqueName)
-            try fileManager.copyItem(at: item.path, to: destURL)
-        }
+        try await Task.detached {
+            for item in items {
+                let uniqueName = self.generateUniqueFileName(for: item.name, in: destination)
+                let destURL = destination.appendingPathComponent(uniqueName)
+                
+                let coordinator = NSFileCoordinator(filePresenter: nil)
+                var coordinationError: NSError?
+                var fileError: Error?
+                
+                // For copy, we need read access to source and write access to dest
+                coordinator.coordinate(readingItemAt: item.path, options: [], writingItemAt: destURL, options: .forReplacing, error: &coordinationError) { newSource, newDest in
+                    do {
+                        try FileManager.default.copyItem(at: newSource, to: newDest)
+                    } catch {
+                        fileError = error
+                    }
+                }
+                
+                if let error = coordinationError { throw error }
+                if let error = fileError { throw error }
+            }
+        }.value
     }
     
     func parentDirectory(of path: URL) -> URL {
