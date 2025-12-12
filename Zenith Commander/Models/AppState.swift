@@ -50,10 +50,9 @@ class AppState: ObservableObject {
     @Published var renameReplaceText: String = ""
     @Published var renameUseRegex: Bool = false
 
-    // MARK: - 单个文件重命名状态
-    @Published var showSingleRenameModal: Bool = false
-    @Published var singleRenameFile: FileItem?
-    @Published var singleRenameText: String = ""
+    // MARK: - 单个文件内联编辑状态
+    @Published var editingFileId: String? = nil  // 当前正在编辑的文件ID
+    @Published var editingFileName: String = ""  // 编辑中的文件名
 
     var driveSelectorCursor: Int {
         get {
@@ -762,42 +761,40 @@ class AppState: ObservableObject {
         filterUseRegex = false
     }
 
-    // MARK: - 单个文件重命名
+    // MARK: - 单个文件内联编辑
     
-    /// 开始重命名指定文件
-    func startRenamingFile(_ file: FileItem) {
-        singleRenameFile = file
-        singleRenameText = file.name
-        showSingleRenameModal = true
-        enterMode(.rename)
+    /// 开始编辑指定文件
+    func startEditingFile(_ file: FileItem) {
+        editingFileId = file.id
+        editingFileName = file.name
     }
-
-    /// 完成单个文件重命名
-    func completeSingleRename() async {
-        guard let file = singleRenameFile, !singleRenameText.isEmpty else {
-            singleRenameFile = nil
-            showSingleRenameModal = false
+    
+    /// 完成文件编辑并重命名
+    func finishEditingFile() async {
+        guard let fileId = editingFileId,
+              let file = currentPane.activeTab.files.first(where: { $0.id == fileId }) else {
+            cancelEditingFile()
             return
         }
-
-        // 如果新名称与原名称相同，直接取消
-        if singleRenameText == file.name {
-            singleRenameFile = nil
-            showSingleRenameModal = false
-            exitMode()
+        
+        let newName = editingFileName.trimmingCharacters(in: .whitespaces)
+        
+        // 如果新名称与原名称相同或为空，直接取消
+        if newName.isEmpty || newName == file.name {
+            cancelEditingFile()
             return
         }
-
+        
         let newPath = file.path.deletingLastPathComponent()
-            .appendingPathComponent(singleRenameText)
-
+            .appendingPathComponent(newName)
+        
         do {
             try FileManager.default.moveItem(at: file.path, to: newPath)
             showToast(
                 LocalizationManager.shared.localized(
                     .toastFileRenamed,
                     file.name,
-                    singleRenameText
+                    newName
                 )
             )
             await refreshCurrentPane()
@@ -809,18 +806,14 @@ class AppState: ObservableObject {
                 )
             )
         }
-
-        singleRenameFile = nil
-        showSingleRenameModal = false
-        exitMode()
+        
+        cancelEditingFile()
     }
-
-    /// 取消单个文件重命名
-    func cancelSingleRename() {
-        singleRenameFile = nil
-        singleRenameText = ""
-        showSingleRenameModal = false
-        exitMode()
+    
+    /// 取消编辑
+    func cancelEditingFile() {
+        editingFileId = nil
+        editingFileName = ""
     }
 
 }

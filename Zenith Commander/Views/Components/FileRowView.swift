@@ -17,13 +17,17 @@ struct FileRowView: View, Equatable {
     let isSelected: Bool     // 被选中
     let isPaneActive: Bool   // 面板是否激活
     let rowIndex: Int        // 行索引，用于斑马条纹（可选）
+    let isEditing: Bool      // 是否正在编辑
+    @Binding var editingText: String  // 编辑时的文本
     
-    init(file: FileItem, isActive: Bool, isSelected: Bool, isPaneActive: Bool, rowIndex: Int = 0) {
+    init(file: FileItem, isActive: Bool, isSelected: Bool, isPaneActive: Bool, rowIndex: Int = 0, isEditing: Bool = false, editingText: Binding<String> = .constant("")) {
         self.file = file
         self.isActive = isActive
         self.isSelected = isSelected
         self.isPaneActive = isPaneActive
         self.rowIndex = rowIndex
+        self.isEditing = isEditing
+        self._editingText = editingText
     }
     
     // 实现 Equatable 以优化重绘
@@ -34,7 +38,9 @@ struct FileRowView: View, Equatable {
         lhs.isActive == rhs.isActive &&
         lhs.isSelected == rhs.isSelected &&
         lhs.isPaneActive == rhs.isPaneActive &&
-        lhs.rowIndex == rhs.rowIndex
+        lhs.rowIndex == rhs.rowIndex &&
+        lhs.isEditing == rhs.isEditing &&
+        lhs.editingText == rhs.editingText
     }
     
     // 基于设置的字体大小计算
@@ -61,50 +67,30 @@ struct FileRowView: View, Equatable {
     
     var body: some View {
         HStack(spacing: 8) {
-            // 文件图标 (异步加载)
+            // 文件图标
             AsyncIconView(
                 url: file.path,
                 type: file.type,
                 iconName: file.iconName,
                 size: baseFontSize + 4
             )
-            .foregroundColor(iconColor) // Apply color to fallback SF Symbol
+            .foregroundColor(iconColor)
             .frame(width: baseFontSize + 4, height: baseFontSize + 4)
             
-            // 文件名
-            Text(file.name)
-                .font(.system(size: nameSize, weight: .medium))
-                .foregroundColor(textColor)
-                .lineLimit(1)
-                .truncationMode(.middle)
-            
-            // Git 状态标记
-            if settingsManager.settings.git.enabled && file.gitStatus.shouldDisplay {
-                Text(file.gitStatus.displayText)
-                    .font(.system(size: detailSize, weight: .bold, design: .monospaced))
-                    .foregroundColor(file.gitStatus.color)
-                    .frame(width: 16)
-            }
+            // 文件名区域
+            fileNameView
             
             Spacer()
             
-            // 文件大小
-            Text(file.formattedSize)
-                .font(.system(size: detailSize, weight: .regular, design: .monospaced))
-                .foregroundColor(sizeColor)
-                .frame(width: 70, alignment: .trailing)
-            
-            // 修改日期
-            Text(file.formattedDate)
-                .font(.system(size: detailSize, weight: .regular))
-                .foregroundColor(dateColor)
-                .frame(width: 120, alignment: .trailing)
+            // 文件信息区域
+            if !isEditing {
+                fileInfoView
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, rowPadding)
         .background(backgroundColor)
         .overlay(
-            // 光标边框（非活动面板时显示空心框）
             RoundedRectangle(cornerRadius: 4)
                 .stroke(cursorBorderColor, lineWidth: isActive && !isPaneActive ? 1 : 0)
                 .padding(1)
@@ -118,18 +104,73 @@ struct FileRowView: View, Equatable {
             (isSelected ? ", selected" : "")
         )
         .draggable(file.path) {
-            // 拖动预览
-            HStack(spacing: 6) {
-                Image(systemName: file.type == .folder ? "folder.fill" : "doc.fill")
-                    .foregroundColor(file.type == .folder ? Theme.folder : Theme.file)
-                Text(file.name)
-                    .lineLimit(1)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Theme.backgroundSecondary)
-            .cornerRadius(6)
+            dragPreview
         }
+        .opacity(isEditing ? 0.5 : 1.0)
+    }
+    
+    private var fileNameView: some View {
+        if isEditing {
+            return AnyView(
+                TextField("", text: $editingText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: nameSize, weight: .medium))
+                    .foregroundColor(textColor)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+                    .background(Theme.backgroundTertiary)
+                    .cornerRadius(4)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Theme.accent, lineWidth: 1)
+                    )
+            )
+        } else {
+            return AnyView(
+                Text(file.name)
+                    .font(.system(size: nameSize, weight: .medium))
+                    .foregroundColor(textColor)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            )
+        }
+    }
+    
+    private var fileInfoView: some View {
+        HStack(spacing: 8) {
+            // Git 状态标记
+            if settingsManager.settings.git.enabled && file.gitStatus.shouldDisplay {
+                Text(file.gitStatus.displayText)
+                    .font(.system(size: detailSize, weight: .bold, design: .monospaced))
+                    .foregroundColor(file.gitStatus.color)
+                    .frame(width: 16)
+            }
+            
+            // 文件大小
+            Text(file.formattedSize)
+                .font(.system(size: detailSize, weight: .regular, design: .monospaced))
+                .foregroundColor(sizeColor)
+                .frame(width: 70, alignment: .trailing)
+            
+            // 修改日期
+            Text(file.formattedDate)
+                .font(.system(size: detailSize, weight: .regular))
+                .foregroundColor(dateColor)
+                .frame(width: 120, alignment: .trailing)
+        }
+    }
+    
+    private var dragPreview: some View {
+        HStack(spacing: 6) {
+            Image(systemName: file.type == .folder ? "folder.fill" : "doc.fill")
+                .foregroundColor(file.type == .folder ? Theme.folder : Theme.file)
+            Text(file.name)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Theme.backgroundSecondary)
+        .cornerRadius(6)
     }
     
     // MARK: - 颜色计算

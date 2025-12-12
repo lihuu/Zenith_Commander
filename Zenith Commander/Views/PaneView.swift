@@ -180,7 +180,12 @@ struct PaneView: View {
                             isActive: index == pane.cursorIndex,
                             isSelected: pane.selections.contains(file.id),
                             isPaneActive: isActivePane,
-                            rowIndex: index
+                            rowIndex: index,
+                            isEditing: appState.editingFileId == file.id,
+                            editingText: .init(
+                                get: { appState.editingFileName },
+                                set: { appState.editingFileName = $0 }
+                            )
                         )
                         .equatable()  // 使用 Equatable 优化重绘
                         .id(file.id)
@@ -191,6 +196,22 @@ struct PaneView: View {
                             return handleDroppedURLs(urls, to: file.path)
                         } isTargeted: { isTargeted in
                             // 可以在这里添加拖放目标高亮效果
+                        }
+                        .onKeyPress { keyPress in
+                            // 编辑模式时处理键盘事件
+                            if appState.editingFileId == file.id {
+                                switch keyPress.key {
+                                case .return:
+                                    Task { await appState.finishEditingFile() }
+                                    return .handled
+                                case .escape:
+                                    appState.cancelEditingFile()
+                                    return .handled
+                                default:
+                                    return .ignored
+                                }
+                            }
+                            return .ignored
                         }
                         .simultaneousGesture(
                             TapGesture(count: 2)
@@ -441,7 +462,7 @@ struct PaneView: View {
         }
 
         Button(LocalizationManager.shared.localized(.contextRename)) {
-            appState.startRenamingFile(file)
+            appState.startEditingFile(file)
         }
 
         Divider()
