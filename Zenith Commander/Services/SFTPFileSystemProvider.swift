@@ -27,7 +27,7 @@ class SFTPFileSystemProvider: FileSystemProvider {
         return "\(user)@\(host):\(port)"
     }
     
-    nonisolated private func getOrCreateConnection(for url: URL) throws -> MFTSftpConnection {
+    private func getOrCreateConnection(for url: URL) throws -> MFTSftpConnection {
         let key = getConnectionKey(for: url)
         
         connectionLock.lock()
