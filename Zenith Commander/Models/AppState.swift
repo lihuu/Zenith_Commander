@@ -128,6 +128,13 @@ class AppState: ObservableObject {
         subscribeToPaneChanges()
     }
 
+    // MARK: - Undo Support
+    var undoManager: UndoManager? {
+        // Access the undoManager from the key window, which is typically the main window.
+        // This is a common pattern in AppKit apps for undo/redo functionality.
+        NSApp.keyWindow?.undoManager
+    }
+
     /// 订阅面板状态变化
     private func subscribeToPaneChanges() {
         leftPane.objectWillChange
@@ -905,7 +912,8 @@ extension AppState {
             do {
                 let _ = try await FileSystemService.shared.createDirectory(
                     at: currentPath,
-                    name: folderName
+                    name: folderName,
+                    undoManager: self.undoManager
                 )
                 await refreshCurrentPane()
             } catch {
@@ -923,7 +931,8 @@ extension AppState {
             do {
                 let _ = try await FileSystemService.shared.createFile(
                     at: currentPath,
-                    name: fileName
+                    name: fileName,
+                    undoManager: self.undoManager
                 )
                 await refreshCurrentPane()
             } catch {
@@ -1014,10 +1023,8 @@ extension AppState {
             return
         }
 
-        do {
-            try await FileSystemService.shared.trashFiles(filesToDelete)
-
-            showToast(
+                                do {
+                                    try await FileSystemService.shared.trashFiles(filesToDelete, undoManager: self.undoManager); showToast(
                 LocalizationManager.shared.localized(
                     .toastFilesMovedToTrash,
                     filesToDelete.count
@@ -1105,7 +1112,8 @@ extension AppState {
             do {
                 try await FileSystemService.shared.moveFiles(
                     selectedFiles,
-                    to: destPath
+                    to: destPath,
+                    undoManager: self.undoManager
                 )
                 await refreshCurrentPane()
             } catch {
@@ -1162,7 +1170,8 @@ extension AppState {
             do {
                 try await FileSystemService.shared.copyFiles(
                     selectedFiles,
-                    to: destPath
+                    to: destPath,
+                    undoManager: self.undoManager
                 )
                 await refreshCurrentPane()
             } catch {
@@ -1217,7 +1226,10 @@ extension AppState {
             }
 
             do {
-                try await FileSystemService.shared.trashFiles(selectedFiles)
+                try await FileSystemService.shared.trashFiles(
+                    selectedFiles,
+                    undoManager: self.undoManager
+                )
                 await refreshCurrentPane()
                 showToast(
                     LocalizationManager.shared.localized(

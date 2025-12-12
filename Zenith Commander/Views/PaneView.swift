@@ -960,13 +960,15 @@ struct PaneView: View {
             if appState.clipboardOperation == .copy {
                 try await FileSystemService.shared.copyFiles(
                     appState.clipboard,
-                    to: destination
+                    to: destination,
+                    undoManager: appState.undoManager
                 )
                 appState.showToast(LocalizationManager.shared.localized(.toastItemsCopied, appState.clipboard.count))
             } else {
                 try await FileSystemService.shared.moveFiles(
                     appState.clipboard,
-                    to: destination
+                    to: destination,
+                    undoManager: appState.undoManager
                 )
                 appState.showToast(LocalizationManager.shared.localized(.toastItemsMoved, appState.clipboard.count))
                 appState.clipboard.removeAll()
@@ -1004,9 +1006,12 @@ struct PaneView: View {
             return
         }
 
-        do {
-            try await FileSystemService.shared.trashFiles(filesToDelete)
-            appState.showToast(LocalizationManager.shared.localized(.toastFilesMovedToTrash, filesToDelete.count))
+                    do {
+                        try await FileSystemService.shared.trashFiles(
+                            filesToDelete,
+                            undoManager: appState.undoManager
+                        )
+                    appState.showToast(LocalizationManager.shared.localized(.toastFilesMovedToTrash, filesToDelete.count))
             pane.clearSelections()
             loadCurrentDirectoryWithPermissionCheck()
         } catch {
@@ -1026,7 +1031,8 @@ struct PaneView: View {
             do {
                 _ = try await FileSystemService.shared.createFile(
                     at: self.appState.currentPane.activeTab.currentPath,
-                    name: name
+                    name: name,
+                    undoManager: appState.undoManager
                 )
                 self.textInput = ""
                 self.appState.exitMode()
@@ -1047,7 +1053,8 @@ struct PaneView: View {
             do {
                 _ = try await FileSystemService.shared.createDirectory(
                     at: self.pane.activeTab.currentPath,
-                    name: uniqueName
+                    name: uniqueName,
+                    undoManager: appState.undoManager
                 )
                 self.loadCurrentDirectoryWithPermissionCheck()
             } catch {
