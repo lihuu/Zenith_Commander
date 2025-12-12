@@ -440,6 +440,10 @@ struct PaneView: View {
             }
         }
 
+        Button(LocalizationManager.shared.localized(.contextRename)) {
+            appState.startRenamingFile(file)
+        }
+
         Divider()
 
         Button(LocalizationManager.shared.localized(.contextMoveToTrash)) {

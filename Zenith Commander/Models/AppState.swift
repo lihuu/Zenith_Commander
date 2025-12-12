@@ -50,6 +50,11 @@ class AppState: ObservableObject {
     @Published var renameReplaceText: String = ""
     @Published var renameUseRegex: Bool = false
 
+    // MARK: - 单个文件重命名状态
+    @Published var showSingleRenameModal: Bool = false
+    @Published var singleRenameFile: FileItem?
+    @Published var singleRenameText: String = ""
+
     var driveSelectorCursor: Int {
         get {
             let index =  availableDrives.firstIndex(where: {
@@ -755,6 +760,67 @@ class AppState: ObservableObject {
         mode = .normal
         filterInput = ""
         filterUseRegex = false
+    }
+
+    // MARK: - 单个文件重命名
+    
+    /// 开始重命名指定文件
+    func startRenamingFile(_ file: FileItem) {
+        singleRenameFile = file
+        singleRenameText = file.name
+        showSingleRenameModal = true
+        enterMode(.rename)
+    }
+
+    /// 完成单个文件重命名
+    func completeSingleRename() async {
+        guard let file = singleRenameFile, !singleRenameText.isEmpty else {
+            singleRenameFile = nil
+            showSingleRenameModal = false
+            return
+        }
+
+        // 如果新名称与原名称相同，直接取消
+        if singleRenameText == file.name {
+            singleRenameFile = nil
+            showSingleRenameModal = false
+            exitMode()
+            return
+        }
+
+        let newPath = file.path.deletingLastPathComponent()
+            .appendingPathComponent(singleRenameText)
+
+        do {
+            try FileManager.default.moveItem(at: file.path, to: newPath)
+            showToast(
+                LocalizationManager.shared.localized(
+                    .toastFileRenamed,
+                    file.name,
+                    singleRenameText
+                )
+            )
+            await refreshCurrentPane()
+        } catch {
+            showToast(
+                LocalizationManager.shared.localized(
+                    .toastRenameError,
+                    error.localizedDescription
+                )
+            )
+        }
+
+        singleRenameFile = nil
+        showSingleRenameModal = false
+        exitMode()
+    }
+
+    /// 取消单个文件重命名
+    func cancelSingleRename() {
+        singleRenameFile = nil
+        singleRenameText = ""
+        showSingleRenameModal = false
+        exitMode()
     }
 
 }

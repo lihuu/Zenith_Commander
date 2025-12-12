@@ -176,6 +176,7 @@ enum AppAction {
     case paste
     case deleteSelectedFiles
     case batchRename
+    case startRenamingFile(fileName: String, filePath: String)  // 开始单个文件重命名
     case refreshCurrentPane
 
     /// 驱动器选择

@@ -329,6 +329,7 @@ enum LocalizedStringKey: String, CaseIterable {
     case contextPaste
     case contextShowInFinder
     case contextCopyFullPath
+    case contextRename
     case contextMoveToTrash
     case contextRefresh
     case contextNewFile
@@ -356,7 +357,9 @@ enum LocalizedStringKey: String, CaseIterable {
     case toastNoFilesForRename
     case toastFindTextEmpty
     case toastFilesRenamed
+    case toastFileRenamed
     case toastRenamedWithErrors
+    case toastRenameError
     case toastCannotDeleteParent
     case toastNoFilesToDelete
     case toastFilesMovedToTrash
@@ -682,6 +685,7 @@ class LocalizedStrings {
             .contextPaste: "Paste (p)",
             .contextShowInFinder: "Show in Finder",
             .contextCopyFullPath: "Copy Full Path",
+            .contextRename: "Rename",
             .contextMoveToTrash: "Move to Trash",
             .contextRefresh: "Refresh (R)",
             .contextNewFile: "New File",
@@ -709,7 +713,9 @@ class LocalizedStrings {
             .toastNoFilesForRename: "No files selected for rename",
             .toastFindTextEmpty: "Find text cannot be empty",
             .toastFilesRenamed: "%d file(s) renamed successfully",
+            .toastFileRenamed: "Renamed '%@' to '%@'",
             .toastRenamedWithErrors: "%d renamed, %d failed",
+            .toastRenameError: "Rename failed: %@",
             .toastCannotDeleteParent: "Cannot delete parent directory item",
             .toastNoFilesToDelete: "No files to delete",
             .toastFilesMovedToTrash: "%d file(s) moved to Trash",
@@ -1018,6 +1024,7 @@ class LocalizedStrings {
             .contextPaste: "粘贴 (p)",
             .contextShowInFinder: "在访达中显示",
             .contextCopyFullPath: "复制完整路径",
+            .contextRename: "重命名",
             .contextMoveToTrash: "移到废纸篓",
             .contextRefresh: "刷新 (R)",
             .contextNewFile: "新建文件",
@@ -1045,7 +1052,9 @@ class LocalizedStrings {
             .toastNoFilesForRename: "没有选择要重命名的文件",
             .toastFindTextEmpty: "查找文本不能为空",
             .toastFilesRenamed: "%d 个文件重命名成功",
+            .toastFileRenamed: "已将 '%@' 重命名为 '%@'",
             .toastRenamedWithErrors: "%d 个成功，%d 个失败",
+            .toastRenameError: "重命名失败：%@",
             .toastCannotDeleteParent: "无法删除上级目录",
             .toastNoFilesToDelete: "没有要删除的文件",
             .toastFilesMovedToTrash: "%d 个文件已移到废纸篓",

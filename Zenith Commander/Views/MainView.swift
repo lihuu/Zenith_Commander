@@ -176,6 +176,26 @@ struct MainView: View {
                         appState: appState
                     )
                 }
+
+                // 单个文件重命名模态窗口
+                if appState.showSingleRenameModal {
+                    Color.black.opacity(0.4)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            appState.cancelSingleRename()
+                        }
+
+                    SingleFileRenameView(
+                        isPresented: $appState.showSingleRenameModal,
+                        fileName: $appState.singleRenameText,
+                        onConfirm: {
+                            Task { await appState.completeSingleRename() }
+                        },
+                        onCancel: {
+                            appState.cancelSingleRename()
+                        }
+                    )
+                }
             }
             .sheet(
                 isPresented: showSettings,
@@ -361,6 +381,23 @@ struct MainView: View {
 
         case .batchRename:
             break
+        case .startRenamingFile(let fileName, let filePath):
+            // 直接设置重命名状态，避免创建完整的 FileItem
+            appState.singleRenameFile = FileItem(
+                id: UUID().uuidString,
+                name: fileName,
+                path: URL(fileURLWithPath: filePath),
+                type: .file,
+                size: 0,
+                modifiedDate: Date(),
+                createdDate: Date(),
+                isHidden: fileName.hasPrefix("."),
+                permissions: "",
+                fileExtension: (fileName as NSString).pathExtension
+            )
+            appState.singleRenameText = fileName
+            appState.showSingleRenameModal = true
+            appState.enterMode(.rename)
         case .refreshCurrentPane:
             await appState.refreshCurrentPane()
 
