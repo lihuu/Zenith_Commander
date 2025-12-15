@@ -281,7 +281,7 @@ enum AppModeKeyMaps {
             KeyChord(.rightArrow): .moveVisualCursor(.right),
             KeyChord("y"): .visualModeYank,
             KeyChord("d"): .deleteSelectedFiles,
-            KeyChord("r"): .enterMode(.rename),
+            KeyChord("r"): .enterMode(.batchRename),
             KeyChord("v"): .exitMode,
         ]
 
