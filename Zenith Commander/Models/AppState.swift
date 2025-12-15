@@ -831,7 +831,7 @@ extension AppState {
         switch newMode {
         case .command:
             commandInput = ""
-        case .rename:
+        case .batchRename:
             showRenameModal = true
         case .filter:
             filterUseRegex = false
@@ -858,7 +858,7 @@ extension AppState {
             restoreUnfilteredFiles()
         }
 
-        if mode == .rename {
+        if mode == .batchRename {
             // 关闭重命名模态窗口
             showRenameModal = false
         }
@@ -867,7 +867,7 @@ extension AppState {
             showConnectionManager = false
         }
 
-        if mode == .rename {
+        if mode == .batchRename {
             // Rename mode exit,should return visual mode if there are selections
             mode = .visual
         } else {

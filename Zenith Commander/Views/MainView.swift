@@ -151,7 +151,7 @@ struct MainView: View {
                         .ignoresSafeArea()
                         .onTapGesture {
                             appState.showRenameModal = false
-                            appState.exitMode()  // 退出 RENAME 模式
+                            appState.exitMode()  // 退出 BATCH_RENAME 模式
                         }
 
                     BatchRenameView(
@@ -164,7 +164,7 @@ struct MainView: View {
                             Task { await performBatchRename() }
                         },
                         onDismiss: {
-                            appState.exitMode()  // 退出 RENAME 模式
+                            appState.exitMode()  // 退出 BATCH_RENAME 模式
                         }
                     )
                 }
@@ -360,7 +360,7 @@ struct MainView: View {
             appState.exitMode()
 
         case .batchRename:
-            break
+            appState.enterMode(.batchRename)
         case .startRenamingFile(let fileName, let filePath):
             // 创建临时 FileItem 用于启动编辑
             let fileItem = FileItem(

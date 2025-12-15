@@ -19,7 +19,8 @@ enum AppMode: String, CaseIterable {
     case filter = "FILTER"
     case driveSelect = "DRIVES"
     case aiAnalysis = "AI"
-    case rename = "RENAME"  // 重命名模式 - 阻止键盘事件传播
+    case rename = "RENAME"  // 单个文件重命名模式 - 阻止键盘事件传播
+    case batchRename = "BATCH_RENAME"  // 批量重命名模式 - 阻止键盘事件传播
     case settings = "SETTINGS"  // 设置模式 - 阻止键盘事件传播
     case help = "HELP"  // 帮助模式 - 阻止键盘事件传播
     case modal = "MODAL"  // 模态模式 - 阻止键盘事件传播
@@ -41,6 +42,8 @@ enum AppMode: String, CaseIterable {
             return .pink
         case .rename:
             return .cyan
+                case .batchRename:
+                    return .yellow
         case .settings:
             return .teal
         case .help:
@@ -59,7 +62,7 @@ enum AppMode: String, CaseIterable {
     /// 这些模式下，键盘事件应该由模态窗口/视图处理，而不是全局快捷键
     var isModalMode: Bool {
         switch self {
-        case .rename, .settings, .aiAnalysis, .help, .modal:
+        case .rename, .batchRename, .settings, .aiAnalysis, .help, .modal:
             return true
         default:
             return false
@@ -82,7 +85,9 @@ enum AppMode: String, CaseIterable {
         case .aiAnalysis:
             return "AI analysis mode"
         case .rename:
-            return "Rename mode - batch rename files"
+            return "Rename mode - rename single file inline"
+        case .batchRename:
+            return "Batch rename mode - rename multiple files"
         case .settings:
             return "Settings mode - configure application"
         case .help:
@@ -280,7 +285,18 @@ enum AppModeKeyMaps {
             KeyChord("v"): .exitMode,
         ]
 
+
         return visualOverrides.merging(defaultMap) { current, _ in
+            return current
+        }
+
+    }()
+
+    static let batchRename: [KeyChord: AppAction] = {
+        let batchRenameOverrides: [KeyChord: AppAction] = [:]
+            // 批量重命名模式只需要 Escape 退出即可，其他输入由 TextField 处理
+
+        return batchRenameOverrides.merging(defaultMap) { current, _ in
             return current
         }
 
@@ -362,6 +378,8 @@ extension AppMode {
             return AppModeKeyMaps.driver
         case .rename:
             return AppModeKeyMaps.rename
+                case .batchRename:
+                    return AppModeKeyMaps.batchRename
         case .settings:
             return AppModeKeyMaps.settings
         case .help:
