@@ -22,7 +22,7 @@ enum AppMode: String, CaseIterable {
     case rename = "RENAME"  // 重命名模式 - 阻止键盘事件传播
     case settings = "SETTINGS"  // 设置模式 - 阻止键盘事件传播
     case help = "HELP"  // 帮助模式 - 阻止键盘事件传播
-    case modal = "MODAL" // 模态模式 - 阻止键盘事件传播
+    case modal = "MODAL"  // 模态模式 - 阻止键盘事件传播
 
     /// 模式显示颜色
     var color: Color {
@@ -229,7 +229,7 @@ enum AppModeKeyMaps {
 
             /// 模式切换
             KeyChord("v"): .enterMode(.visual),
-            KeyChord(":"): .enterMode(.command),
+            KeyChord(":", [.shift]): .enterMode(.command),
             KeyChord("/"): .enterMode(.filter),
 
             /// Pane / Tab
@@ -341,7 +341,7 @@ enum AppModeKeyMaps {
             return current
         }
     }()
-    
+
     static let modal: [KeyChord: AppAction] = defaultMap
 
 }
@@ -367,7 +367,7 @@ extension AppMode {
         case .help:
             return AppModeKeyMaps.help
         case .modal:
-            return AppModeKeyMaps.modal // No key maps for modal mode
+            return AppModeKeyMaps.modal  // No key maps for modal mode
         default:
             return [:]
         }
@@ -386,15 +386,15 @@ extension AppMode {
 
         return action
     }
-    
+
     func action(for pointer: PointerButton) -> AppAction? {
-        switch self{
+        switch self {
         case .normal:
-            switch pointer{
+            switch pointer {
             case .back:
                 // should return back action
                 return nil
-                
+
             case .forward:
                 // should return forward action
                 return nil
@@ -405,11 +405,7 @@ extension AppMode {
     }
 }
 
-
-
-enum PointerButton{
+enum PointerButton {
     case back
     case forward
 }
-
-
