@@ -767,6 +767,7 @@ class AppState: ObservableObject {
     func startEditingFile(_ file: FileItem) {
         editingFileId = file.id
         editingFileName = file.name
+        enterMode(.rename)
     }
     
     /// 完成文件编辑并重命名
@@ -814,6 +815,7 @@ class AppState: ObservableObject {
     func cancelEditingFile() {
         editingFileId = nil
         editingFileName = ""
+        exitMode()
     }
 
 }
