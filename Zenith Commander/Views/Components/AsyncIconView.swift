@@ -7,6 +7,7 @@
 
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 /// 异步图标视图
 /// 在后台线程加载系统图标，避免阻塞主线程
@@ -63,18 +64,36 @@ struct AsyncIconView: View, Equatable {
             // For remote files (SFTP, etc.), use type-based icons
             // This ensures proper folder/file distinction and extension-based icons
             if type == .folder {
-                return workspace.icon(forFileType: "public.folder")
+                if #available(macOS 12.0, *) {
+                    return workspace.icon(for: .folder)
+                } else {
+                    return workspace.icon(forFileType: "public.folder")
+                }
             } else if type == .symlink {
-                return workspace.icon(forFileType: "public.symlink")
+                if #available(macOS 12.0, *) {
+                    return workspace.icon(for: .symbolicLink)
+                } else {
+                    return workspace.icon(forFileType: "public.symlink")
+                }
             } else {
                 // Use extension-based icon for files
                 let ext = url.pathExtension
                 if !ext.isEmpty {
                     // Try to get icon for the specific extension
-                    return workspace.icon(forFileType: ext)
+                    if #available(macOS 12.0, *) {
+                        if let utType = UTType(filenameExtension: ext) {
+                            return workspace.icon(for: utType)
+                        }
+                    } else {
+                        return workspace.icon(forFileType: ext)
+                    }
                 }
                 // Fallback to generic document icon
-                return workspace.icon(forFileType: "public.data")
+                if #available(macOS 12.0, *) {
+                    return workspace.icon(for: .data)
+                } else {
+                    return workspace.icon(forFileType: "public.data")
+                }
             }
         }.value
         
