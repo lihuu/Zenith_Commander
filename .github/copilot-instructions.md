@@ -18,7 +18,7 @@
 ### After Making Changes
 
 - Automatically run the build process.
-- Ensure the build succeeds; if it fails, revert changes or fix issues before proceeding.
+- Must Ensure the build succeeds; if it fails, revert changes or fix issues before proceeding.
 - Commit the new changes with a descriptive message.
 
 ### Additional Notes
