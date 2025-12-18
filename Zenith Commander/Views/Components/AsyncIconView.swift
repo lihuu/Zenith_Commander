@@ -52,10 +52,30 @@ struct AsyncIconView: View, Equatable {
         }
         
         // Run on detached task to avoid main actor blocking
-        let image = await Task.detached(priority: .userInitiated) {
+        let image = await Task.detached(priority: .userInitiated) { [url, type] in
             let workspace = NSWorkspace.shared
-            let icon = workspace.icon(forFile: url.path)
-            return icon
+            
+            // For local files, use NSWorkspace to get the actual file icon
+            if url.scheme == "file" || url.scheme == nil {
+                return workspace.icon(forFile: url.path)
+            }
+            
+            // For remote files (SFTP, etc.), use type-based icons
+            // This ensures proper folder/file distinction and extension-based icons
+            if type == .folder {
+                return workspace.icon(forFileType: "public.folder")
+            } else if type == .symlink {
+                return workspace.icon(forFileType: "public.symlink")
+            } else {
+                // Use extension-based icon for files
+                let ext = url.pathExtension
+                if !ext.isEmpty {
+                    // Try to get icon for the specific extension
+                    return workspace.icon(forFileType: ext)
+                }
+                // Fallback to generic document icon
+                return workspace.icon(forFileType: "public.data")
+            }
         }.value
         
         // Update on MainActor
