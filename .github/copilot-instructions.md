@@ -17,3 +17,8 @@
 
 - Always prioritize code quality and follow project-specific conventions.
 - If build failures occur, analyze logs and address root causes promptly.
+
+### Tools
+
+- Using ripgrep instead of grep.
+- We are on macOS.

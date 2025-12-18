@@ -15,14 +15,18 @@ class LocalFileSystemProvider: FileSystemProvider {
     weak var undoManager: UndoManager?
     
     func loadDirectory(at path: URL) async throws -> [FileItem] {
-        // 检查目录是否存在
+        // 解析可能的目录软链接到真实目录，但保持 pane 路径为软链接本身
+        let resolvedPath = path.resolvingSymlinksInPath()
+
+        // 检查目录是否存在（基于解析后的路径）
         var isDirectory: ObjCBool = false
-        guard fileManager.fileExists(atPath: path.path, isDirectory: &isDirectory), isDirectory.boolValue else {
-            throw NSError(domain: NSCocoaErrorDomain, code: NSFileReadNoSuchFileError, userInfo: nil)
+        guard fileManager.fileExists(atPath: resolvedPath.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+            // 返回更明确的错误，包含底层 POSIX 错误
+            throw NSError(domain: NSPOSIXErrorDomain, code: Int(ENOTDIR), userInfo: [NSLocalizedDescriptionKey: "Not a directory"])
         }
-        
-        // 检查读取权限
-        guard fileManager.isReadableFile(atPath: path.path) else {
+
+        // 检查读取权限（基于解析后的路径）
+        guard fileManager.isReadableFile(atPath: resolvedPath.path) else {
             throw NSError(domain: NSCocoaErrorDomain, code: NSFileReadNoPermissionError, userInfo: nil)
         }
         
@@ -37,7 +41,7 @@ class LocalFileSystemProvider: FileSystemProvider {
             }
             
             let contents = try fileManager.contentsOfDirectory(
-                at: path,
+                at: resolvedPath,
                 includingPropertiesForKeys: [
                     .isDirectoryKey,
                     .fileSizeKey,
@@ -51,9 +55,10 @@ class LocalFileSystemProvider: FileSystemProvider {
             var files = contents.compactMap { url in
                 FileItem.fromURL(url)
             }.sorted { item1, item2 in
-                if item1.type == .folder && item2.type != .folder {
+                // Use isFolder so that symlinks to directories are treated as folders
+                if item1.isFolder && !item2.isFolder {
                     return true
-                } else if item1.type != .folder && item2.type == .folder {
+                } else if !item1.isFolder && item2.isFolder {
                     return false
                 }
                 return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
@@ -71,7 +76,7 @@ class LocalFileSystemProvider: FileSystemProvider {
     }
     
     func createDirectory(at path: URL, name: String) async throws -> FileItem {
-        let uniqueName = await generateUniqueFileName(for: name, in: path) // Await here
+        let uniqueName = generateUniqueFileName(for: name, in: path) // Await here
         let newPath = path.appendingPathComponent(uniqueName)
         
         let createdItem = try await Task.detached {
@@ -99,18 +104,18 @@ class LocalFileSystemProvider: FileSystemProvider {
             return item
         }.value
 
-        await self.undoManager?.registerUndo(withTarget: self) { target in
+        self.undoManager?.registerUndo(withTarget: self) { target in
             Task { @MainActor in
                 try? await target.delete(items: [createdItem])
             }
         }
-        await self.undoManager?.setActionName("Create Directory")
+        self.undoManager?.setActionName("Create Directory")
 
         return createdItem
     }
     
     func createFile(at path: URL, name: String) async throws -> FileItem {
-        let uniqueName = await generateUniqueFileName(for: name, in: path) // Await here
+        let uniqueName = generateUniqueFileName(for: name, in: path) // Await here
         let newPath = path.appendingPathComponent(uniqueName)
         
         let createdItem = try await Task.detached {
@@ -140,12 +145,12 @@ class LocalFileSystemProvider: FileSystemProvider {
             return item
         }.value
 
-        await self.undoManager?.registerUndo(withTarget: self) { target in
+        self.undoManager?.registerUndo(withTarget: self) { target in
             Task { @MainActor in
                 try? await target.delete(items: [createdItem])
             }
         }
-        await self.undoManager?.setActionName("Create File")
+        self.undoManager?.setActionName("Create File")
 
         return createdItem
     }
@@ -181,10 +186,10 @@ class LocalFileSystemProvider: FileSystemProvider {
                     for itemInfo in undoItemsInfo {
                         if itemInfo.isFolder {
                             // Recreate empty folder for undo
-                            try? await target.createDirectory(at: itemInfo.parent, name: itemInfo.name)
+                            let _ = try? await target.createDirectory(at: itemInfo.parent, name: itemInfo.name)
                         } else {
                             // Recreate empty file for undo
-                            try? await target.createFile(at: itemInfo.parent, name: itemInfo.name)
+                            let _ = try? await target.createFile(at: itemInfo.parent, name: itemInfo.name)
                         }
                     }
                 }
