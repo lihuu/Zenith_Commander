@@ -177,6 +177,7 @@ enum AppAction {
 
     /// 文件操作
     case yank
+    case cut
     case visualModeYank
     case paste
     case deleteSelectedFiles
@@ -253,8 +254,14 @@ enum AppModeKeyMaps {
             KeyChord("b", [.command]): .addBookmark,
             KeyChord("r"): .refreshCurrentPane,
 
+            /// 文件操作 (Vim 风格)
             KeyChord("y"): .yank,
             KeyChord("p"): .paste,
+            
+            /// 文件操作 (macOS 标准)
+            KeyChord("c", [.command]): .yank,
+            KeyChord("v", [.command]): .paste,
+            KeyChord("x", [.command]): .cut,
 
             KeyChord("g"): .jumpToTop,
             KeyChord("G", [.shift]): .jumpToBottom,
@@ -279,8 +286,14 @@ enum AppModeKeyMaps {
             KeyChord(.upArrow): .moveVisualCursor(.up),
             KeyChord(.leftArrow): .moveVisualCursor(.left),
             KeyChord(.rightArrow): .moveVisualCursor(.right),
+            
+            /// 文件操作 (Vim 风格)
             KeyChord("y"): .visualModeYank,
             KeyChord("d"): .deleteSelectedFiles,
+            
+            /// 文件操作 (macOS 标准)
+            KeyChord("c", [.command]): .visualModeYank,
+            KeyChord("x", [.command]): .cut,
             KeyChord("r"): .enterMode(.batchRename),
             KeyChord("v"): .exitMode,
         ]

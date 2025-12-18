@@ -348,6 +348,8 @@ struct MainView: View {
 
         case .yank:
             appState.yankSelectedFiles()
+        case .cut:
+            appState.cutSelectedFiles()
         case .visualModeYank:
             let pane = appState.currentPane
             appState.yankSelectedFiles()
