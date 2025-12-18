@@ -118,7 +118,7 @@ class SFTPFileSystemProvider: FileSystemProvider {
             }
 
             // Sort: Folders (including dir symlinks via isFolder) first, then name
-            return fileItems.sorted { item1, item2 in
+            var sortedFiles = fileItems.sorted { item1, item2 in
                 if item1.isFolder && !item2.isFolder {
                     return true
                 } else if !item1.isFolder && item2.isFolder {
@@ -127,6 +127,14 @@ class SFTPFileSystemProvider: FileSystemProvider {
                 return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
             }
             
+            // 如果不是根目录，添加父目录项
+            if path.path != "/" && !path.path.isEmpty {
+                let parentPath = path.deletingLastPathComponent()
+                let parentItem = FileItem.parentDirectoryItem(for: parentPath)
+                sortedFiles.insert(parentItem, at: 0)
+            }
+            
+            return sortedFiles
         }.value
     }
     
