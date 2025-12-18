@@ -257,6 +257,11 @@ enum AppModeKeyMaps {
             /// 文件操作 (Vim 风格)
             KeyChord("y"): .yank,
             KeyChord("p"): .paste,
+            
+            /// 文件操作 (macOS 标准)
+            KeyChord("c", [.command]): .yank,
+            KeyChord("v", [.command]): .paste,
+            KeyChord("x", [.command]): .cut,
 
             KeyChord("g"): .jumpToTop,
             KeyChord("G", [.shift]): .jumpToBottom,
