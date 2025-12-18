@@ -84,46 +84,44 @@ class SFTPFileSystemProvider: FileSystemProvider {
             var fileItems: [FileItem] = []
             
             for item in items {
-                // Assuming item has properties: filename, isDirectory, fileSize, modificationDate, permissions
-                // I need to verify the exact property names from mft source or try to compile.
-                // Based on README: item.filename
-                // Based on standard SFTP libs: attributes usually available.
-                // I will try to use common names and fix if build fails.
-                
                 let name = item.filename
                 if name == "." || name == ".." { continue }
-                
+
                 let isDir = item.isDirectory
-                // Assuming 'size' property exists based on error 'fileSize' not found
-                // If 'size' also fails, I might need to check attributes dictionary if exposed?
-                // But let's try 'size' first.
-                // If item is MFTSftpItem, maybe it wraps attributes.
+                let isSymlink = item.isSymlink
                 let size = item.size
-                let modDate = Date() // item.modificationDate not found
+                let modDate = item.mtime
+                let createDate = item.createTime
                 let perms = String(format: "%o", item.permissions)
-                
+
                 let itemPath = path.appendingPathComponent(name)
-                
+
+                let fileType: FileType = {
+                    if isDir { return .folder }
+                    if isSymlink { return .symlink }
+                    return .file
+                }()
+
                 let fileItem = FileItem(
                     id: itemPath.absoluteString,
                     name: name,
                     path: itemPath,
-                    type: isDir ? .folder : .file, // TODO: Handle symlinks if possible
+                    type: fileType,
                     size: Int64(size),
                     modifiedDate: modDate,
-                    createdDate: modDate, // SFTP usually doesn't give creation date
+                    createdDate: createDate,
                     isHidden: name.hasPrefix("."),
                     permissions: perms,
                     fileExtension: URL(fileURLWithPath: name).pathExtension
                 )
                 fileItems.append(fileItem)
             }
-            
-            // Sort: Folders first, then name
+
+            // Sort: Folders (including dir symlinks via isFolder) first, then name
             return fileItems.sorted { item1, item2 in
-                if item1.type == .folder && item2.type != .folder {
+                if item1.isFolder && !item2.isFolder {
                     return true
-                } else if item1.type != .folder && item2.type == .folder {
+                } else if !item1.isFolder && item2.isFolder {
                     return false
                 }
                 return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending

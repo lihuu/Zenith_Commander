@@ -149,4 +149,4 @@ Violating this rule is considered a critical error.
 
 ## 13. SOP Rules
 
-You must also follow all relevant rules from AI-SOP.md and .github/copilot-instructions.md.
+You must also follow all relevant rules from ./AI-SOP.md and .github/copilot-instructions.md.
