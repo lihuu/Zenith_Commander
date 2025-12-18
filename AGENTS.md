@@ -125,6 +125,7 @@ Violating this rule is considered a critical error.
 
 ## 10. Git & Change Management Rules
 
+- You should commit local changes before modifying code.
 - You must keep changes minimal and scoped.
 - You must NOT refactor unrelated code.
 - Commit messages must be descriptive and scoped.
@@ -149,4 +150,4 @@ Violating this rule is considered a critical error.
 
 ## 13. SOP Rules
 
-You must also follow all relevant rules from AI-SOP.md and .github/copilot-instructions.md.
+You must also follow all relevant rules from ./AI-SOP.md and .github/copilot-instructions.md.

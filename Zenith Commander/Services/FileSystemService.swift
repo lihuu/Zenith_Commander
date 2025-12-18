@@ -37,6 +37,17 @@ class FileSystemService {
         let sftpProvider = SFTPFileSystemProvider()
         register(provider: sftpProvider)
     }
+
+    /// Helper to temporarily inject an UndoManager into the localProvider for undo registration.
+    private func withUndoManager<T>(manager: UndoManager?, perform action: () async throws -> T) async throws -> T {
+        if let manager = manager {
+            localProvider.undoManager = manager
+        }
+        defer {
+            localProvider.undoManager = nil // Ensure undoManager is reset
+        }
+        return try await action()
+    }
     
     // MARK: - Provider Management
     
@@ -265,59 +276,94 @@ class FileSystemService {
     // MARK: - 文件操作
 
     /// 复制文件
-    func copyFiles(_ files: [FileItem], to destination: URL) async throws {
-        guard let firstFile = files.first else { return }
-        // Assume all files are from the same provider
-        let provider = getProvider(for: firstFile.path)
-        // Check if destination is same provider
+    func copyFiles(_ files: [FileItem], to destination: URL, undoManager: UndoManager? = nil) async throws {
+        guard !files.isEmpty else { return }
+        let provider = getProvider(for: files.first!.path)
         let destProvider = getProvider(for: destination)
         
-        if provider.scheme == destProvider.scheme {
-            try await provider.copy(items: files, to: destination)
-        } else {
-            // TODO: Handle cross-provider copy (download then upload)
+        guard provider.scheme == destProvider.scheme else {
             throw NSError(domain: "FileSystemService", code: 2, userInfo: [NSLocalizedDescriptionKey: "Cross-provider copy not implemented yet"])
+        }
+
+        if provider is LocalFileSystemProvider {
+            try await withUndoManager(manager: undoManager) {
+                try await (provider as! LocalFileSystemProvider).copy(items: files, to: destination)
+            }
+        } else {
+            // For non-local providers, just call the copy method without undoManager injection
+            try await provider.copy(items: files, to: destination)
         }
     }
 
     /// 移动文件
-    func moveFiles(_ files: [FileItem], to destination: URL) async throws {
-        guard let firstFile = files.first else { return }
-        let provider = getProvider(for: firstFile.path)
+    func moveFiles(_ files: [FileItem], to destination: URL, undoManager: UndoManager? = nil) async throws {
+        guard !files.isEmpty else { return }
+        let provider = getProvider(for: files.first!.path)
         let destProvider = getProvider(for: destination)
         
-        if provider.scheme == destProvider.scheme {
-            try await provider.move(items: files, to: destination)
+        guard provider.scheme == destProvider.scheme else {
+            throw NSError(domain: "FileSystemService", code: 2, userInfo: [NSLocalizedDescriptionKey: "Cross-provider move not implemented yet"])
+        }
+
+        if provider is LocalFileSystemProvider {
+            try await withUndoManager(manager: undoManager) {
+                try await (provider as! LocalFileSystemProvider).move(items: files, to: destination)
+            }
         } else {
-             throw NSError(domain: "FileSystemService", code: 2, userInfo: [NSLocalizedDescriptionKey: "Cross-provider move not implemented yet"])
+            // For non-local providers, just call the move method without undoManager injection
+            try await provider.move(items: files, to: destination)
         }
     }
 
     /// 删除文件（移动到废纸篓）
-    func trashFiles(_ files: [FileItem]) async throws {
-        guard let firstFile = files.first else { return }
-        let provider = getProvider(for: firstFile.path)
-        try await provider.delete(items: files)
+    func trashFiles(_ files: [FileItem], undoManager: UndoManager? = nil) async throws {
+        guard !files.isEmpty else { return }
+        let provider = getProvider(for: files.first!.path)
+        
+        if provider is LocalFileSystemProvider {
+            try await withUndoManager(manager: undoManager) {
+                try await provider.delete(items: files)
+            }
+        } else {
+            // For non-local providers, just call the delete method without undoManager injection
+            try await provider.delete(items: files)
+        }
     }
 
     /// 永久删除文件
-    func deleteFiles(_ files: [FileItem]) async throws {
+    func deleteFiles(_ files: [FileItem], undoManager: UndoManager? = nil) async throws {
         // Currently mapped to delete in provider
-        try await trashFiles(files)
+        try await trashFiles(files, undoManager: undoManager)
     }
 
     /// 创建目录
-    func createDirectory(at path: URL, name: String) async throws -> URL {
+    func createDirectory(at path: URL, name: String, undoManager: UndoManager? = nil) async throws -> URL {
         let provider = getProvider(for: path)
-        let item = try await provider.createDirectory(at: path, name: name)
-        return item.path
+        
+        if provider is LocalFileSystemProvider {
+            return try await withUndoManager(manager: undoManager) {
+                let createdItem = try await provider.createDirectory(at: path, name: name)
+                return createdItem.path
+            }
+        } else {
+            let createdItem = try await provider.createDirectory(at: path, name: name)
+            return createdItem.path
+        }
     }
 
     /// 创建空文件
-    func createFile(at path: URL, name: String) async throws -> URL {
+    func createFile(at path: URL, name: String, undoManager: UndoManager? = nil) async throws -> URL {
         let provider = getProvider(for: path)
-        let item = try await provider.createFile(at: path, name: name)
-        return item.path
+        
+        if provider is LocalFileSystemProvider {
+            return try await withUndoManager(manager: undoManager) {
+                let createdItem = try await provider.createFile(at: path, name: name)
+                return createdItem.path
+            }
+        } else {
+            let createdItem = try await provider.createFile(at: path, name: name)
+            return createdItem.path
+        }
     }
 
     /// 打开文件

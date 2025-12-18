@@ -12,16 +12,21 @@ import AppKit
 class LocalFileSystemProvider: FileSystemProvider {
     var scheme: String { "file" }
     private let fileManager = FileManager.default
+    weak var undoManager: UndoManager?
     
     func loadDirectory(at path: URL) async throws -> [FileItem] {
-        // 检查目录是否存在
+        // 解析可能的目录软链接到真实目录，但保持 pane 路径为软链接本身
+        let resolvedPath = path.resolvingSymlinksInPath()
+
+        // 检查目录是否存在（基于解析后的路径）
         var isDirectory: ObjCBool = false
-        guard fileManager.fileExists(atPath: path.path, isDirectory: &isDirectory), isDirectory.boolValue else {
-            throw NSError(domain: NSCocoaErrorDomain, code: NSFileReadNoSuchFileError, userInfo: nil)
+        guard fileManager.fileExists(atPath: resolvedPath.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+            // 返回更明确的错误，包含底层 POSIX 错误
+            throw NSError(domain: NSPOSIXErrorDomain, code: Int(ENOTDIR), userInfo: [NSLocalizedDescriptionKey: "Not a directory"])
         }
-        
-        // 检查读取权限
-        guard fileManager.isReadableFile(atPath: path.path) else {
+
+        // 检查读取权限（基于解析后的路径）
+        guard fileManager.isReadableFile(atPath: resolvedPath.path) else {
             throw NSError(domain: NSCocoaErrorDomain, code: NSFileReadNoPermissionError, userInfo: nil)
         }
         
@@ -36,7 +41,7 @@ class LocalFileSystemProvider: FileSystemProvider {
             }
             
             let contents = try fileManager.contentsOfDirectory(
-                at: path,
+                at: resolvedPath,
                 includingPropertiesForKeys: [
                     .isDirectoryKey,
                     .fileSizeKey,
@@ -50,9 +55,10 @@ class LocalFileSystemProvider: FileSystemProvider {
             var files = contents.compactMap { url in
                 FileItem.fromURL(url)
             }.sorted { item1, item2 in
-                if item1.type == .folder && item2.type != .folder {
+                // Use isFolder so that symlinks to directories are treated as folders
+                if item1.isFolder && !item2.isFolder {
                     return true
-                } else if item1.type != .folder && item2.type == .folder {
+                } else if !item1.isFolder && item2.isFolder {
                     return false
                 }
                 return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
@@ -70,41 +76,210 @@ class LocalFileSystemProvider: FileSystemProvider {
     }
     
     func createDirectory(at path: URL, name: String) async throws -> FileItem {
-        let uniqueName = generateUniqueFileName(for: name, in: path)
+        let uniqueName = generateUniqueFileName(for: name, in: path) // Await here
         let newPath = path.appendingPathComponent(uniqueName)
-        try fileManager.createDirectory(at: newPath, withIntermediateDirectories: false)
-        return FileItem.fromURL(newPath)!
+        
+        let createdItem = try await Task.detached {
+            let coordinator = NSFileCoordinator(filePresenter: nil)
+            var coordinationError: NSError?
+            var fileError: Error?
+            
+            var actualCreatedURL: URL? = nil
+
+            coordinator.coordinate(writingItemAt: newPath, options: [], error: &coordinationError) { url in
+                do {
+                    try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false)
+                    actualCreatedURL = url
+                } catch {
+                    fileError = error
+                }
+            }
+            
+            if let error = coordinationError { throw error }
+            if let error = fileError { throw error }
+            
+            guard let item = FileItem.fromURL(actualCreatedURL ?? newPath) else {
+                throw NSError(domain: "LocalFileSystemProvider", code: 3, userInfo: [NSLocalizedDescriptionKey: "Failed to create FileItem from created URL"])
+            }
+            return item
+        }.value
+
+        self.undoManager?.registerUndo(withTarget: self) { target in
+            Task { @MainActor in
+                try? await target.delete(items: [createdItem])
+            }
+        }
+        self.undoManager?.setActionName("Create Directory")
+
+        return createdItem
     }
     
     func createFile(at path: URL, name: String) async throws -> FileItem {
-        let uniqueName = generateUniqueFileName(for: name, in: path)
+        let uniqueName = generateUniqueFileName(for: name, in: path) // Await here
         let newPath = path.appendingPathComponent(uniqueName)
-        guard fileManager.createFile(atPath: newPath.path, contents: nil, attributes: nil) else {
-            throw NSError(domain: "LocalFileSystemProvider", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to create file"])
+        
+        let createdItem = try await Task.detached {
+            let coordinator = NSFileCoordinator(filePresenter: nil)
+            var coordinationError: NSError?
+            var fileError: Error?
+            
+            var actualCreatedURL: URL? = nil
+
+            coordinator.coordinate(writingItemAt: newPath, options: [], error: &coordinationError) { url in
+                do {
+                    guard FileManager.default.createFile(atPath: url.path, contents: nil, attributes: nil) else {
+                        throw NSError(domain: "LocalFileSystemProvider", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to create file"])
+                    }
+                    actualCreatedURL = url
+                } catch {
+                    fileError = error
+                }
+            }
+            
+            if let error = coordinationError { throw error }
+            if let error = fileError { throw error }
+            
+            guard let item = FileItem.fromURL(actualCreatedURL ?? newPath) else {
+                throw NSError(domain: "LocalFileSystemProvider", code: 3, userInfo: [NSLocalizedDescriptionKey: "Failed to create FileItem from created URL"])
+            }
+            return item
+        }.value
+
+        self.undoManager?.registerUndo(withTarget: self) { target in
+            Task { @MainActor in
+                try? await target.delete(items: [createdItem])
+            }
         }
-        return FileItem.fromURL(newPath)!
+        self.undoManager?.setActionName("Create File")
+
+        return createdItem
     }
     
     func delete(items: [FileItem]) async throws {
-        for item in items {
-            try fileManager.trashItem(at: item.path, resultingItemURL: nil)
+        // Capture info for undo before deletion, including isFolder.
+        // Needs to be done before Task.detached because item.isFolder can be @MainActor isolated.
+        let undoItemsInfo: [(path: URL, isFolder: Bool, name: String, parent: URL)] = items.map { item in
+            (item.path, item.isFolder, item.name, item.path.deletingLastPathComponent())
         }
+
+        try await Task.detached {
+            for item in items {
+                let coordinator = NSFileCoordinator(filePresenter: nil)
+                var coordinationError: NSError?
+                var fileError: Error?
+                
+                coordinator.coordinate(writingItemAt: item.path, options: .forDeleting, error: &coordinationError) { url in
+                    do {
+                        try FileManager.default.trashItem(at: url, resultingItemURL: nil)
+                    } catch {
+                        fileError = error
+                    }
+                }
+                
+                if let error = coordinationError { throw error }
+                if let error = fileError { throw error }
+            }
+
+            // Register undo after all deletions
+            await self.undoManager?.registerUndo(withTarget: self) { target in
+                Task { @MainActor in
+                    for itemInfo in undoItemsInfo {
+                        if itemInfo.isFolder {
+                            // Recreate empty folder for undo
+                            let _ = try? await target.createDirectory(at: itemInfo.parent, name: itemInfo.name)
+                        } else {
+                            // Recreate empty file for undo
+                            let _ = try? await target.createFile(at: itemInfo.parent, name: itemInfo.name)
+                        }
+                    }
+                }
+            }
+            await self.undoManager?.setActionName("Move to Trash")
+
+        }.value
     }
     
     func move(items: [FileItem], to destination: URL) async throws {
-        for item in items {
-            let uniqueName = generateUniqueFileName(for: item.name, in: destination)
-            let destURL = destination.appendingPathComponent(uniqueName)
-            try fileManager.moveItem(at: item.path, to: destURL)
-        }
+        // Capture info for undo before move
+        var undoMoveInfo: [(originalSourcePath: URL, finalDestURL: URL)] = []
+
+        try await Task.detached {
+            for item in items {
+                let originalSourcePath = item.path // Capture original path
+                let uniqueName = await self.generateUniqueFileName(for: item.name, in: destination)
+                let finalDestURL = destination.appendingPathComponent(uniqueName)
+                
+                let coordinator = NSFileCoordinator(filePresenter: nil)
+                var coordinationError: NSError?
+                var fileError: Error?
+                
+                coordinator.coordinate(writingItemAt: originalSourcePath, options: .forMoving, writingItemAt: finalDestURL, options: .forMoving, error: &coordinationError) { newSourceCoord, newDestCoord in
+                    do {
+                        try FileManager.default.moveItem(at: newSourceCoord, to: newDestCoord)
+                        undoMoveInfo.append((originalSourcePath: originalSourcePath, finalDestURL: finalDestURL)) // Capture for undo
+                    } catch {
+                        fileError = error
+                    }
+                }
+                
+                if let error = coordinationError { throw error }
+                if let error = fileError { throw error }
+            }
+
+            // Register undo after all moves
+            await self.undoManager?.registerUndo(withTarget: self) { target in
+                Task { @MainActor in
+                    for info in undoMoveInfo {
+                        if let movedItemForUndo = FileItem.fromURL(info.finalDestURL) {
+                            try? await target.move(items: [movedItemForUndo], to: info.originalSourcePath.deletingLastPathComponent())
+                        }
+                    }
+                }
+            }
+            await self.undoManager?.setActionName("Move Files")
+
+        }.value
     }
     
     func copy(items: [FileItem], to destination: URL) async throws {
-        for item in items {
-            let uniqueName = generateUniqueFileName(for: item.name, in: destination)
-            let destURL = destination.appendingPathComponent(uniqueName)
-            try fileManager.copyItem(at: item.path, to: destURL)
-        }
+        // Capture info for undo before copy
+        var undoCopyInfo: [URL] = []
+
+        try await Task.detached {
+            for item in items {
+                let uniqueName = await self.generateUniqueFileName(for: item.name, in: destination)
+                let finalCopyPath = destination.appendingPathComponent(uniqueName)
+                
+                let coordinator = NSFileCoordinator(filePresenter: nil)
+                var coordinationError: NSError?
+                var fileError: Error?
+                
+                // For copy, we need read access to source and write access to dest
+                coordinator.coordinate(readingItemAt: item.path, options: [], writingItemAt: finalCopyPath, options: .forReplacing, error: &coordinationError) { newSource, newDest in
+                    do {
+                        try FileManager.default.copyItem(at: newSource, to: newDest)
+                        undoCopyInfo.append(finalCopyPath) // Capture for undo
+                    } catch {
+                        fileError = error
+                    }
+                }
+                
+                if let error = coordinationError { throw error }
+                if let error = fileError { throw error }
+            }
+
+            // Register undo after all copies
+            await self.undoManager?.registerUndo(withTarget: self) { target in
+                Task { @MainActor in
+                    for path in undoCopyInfo {
+                        if let copiedItemForUndo = FileItem.fromURL(path) {
+                            try? await target.delete(items: [copiedItemForUndo])
+                        }
+                    }
+                }
+            }
+            await self.undoManager?.setActionName("Copy Files")
+        }.value
     }
     
     func parentDirectory(of path: URL) -> URL {

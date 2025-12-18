@@ -193,8 +193,18 @@ struct FileItem: Identifiable, Hashable {
         return id == ".." && name == ".."
     }
 
-    var isFolder: Bool {
-        return type == .folder
+    nonisolated var isFolder: Bool {
+        if type == .folder { return true }
+
+        // Treat symlink pointing to a directory as a folder for navigation
+        if type == .symlink {
+            var isDir: ObjCBool = false
+            let resolvedPath = path.resolvingSymlinksInPath().path
+            if FileManager.default.fileExists(atPath: resolvedPath, isDirectory: &isDir) {
+                return isDir.boolValue
+            }
+        }
+        return false
     }
     
     var isSymlink: Bool{

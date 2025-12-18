@@ -50,6 +50,10 @@ class AppState: ObservableObject {
     @Published var renameReplaceText: String = ""
     @Published var renameUseRegex: Bool = false
 
+    // MARK: - 单个文件内联编辑状态
+    @Published var editingFileId: String? = nil  // 当前正在编辑的文件ID
+    @Published var editingFileName: String = ""  // 编辑中的文件名
+
     var driveSelectorCursor: Int {
         get {
             let index =  availableDrives.firstIndex(where: {
@@ -126,6 +130,13 @@ class AppState: ObservableObject {
 
         // 订阅两个面板的变化，转发到 AppState
         subscribeToPaneChanges()
+    }
+
+    // MARK: - Undo Support
+    var undoManager: UndoManager? {
+        // Access the undoManager from the key window, which is typically the main window.
+        // This is a common pattern in AppKit apps for undo/redo functionality.
+        NSApp.keyWindow?.undoManager
     }
 
     /// 订阅面板状态变化
@@ -750,6 +761,63 @@ class AppState: ObservableObject {
         filterUseRegex = false
     }
 
+    // MARK: - 单个文件内联编辑
+    
+    /// 开始编辑指定文件
+    func startEditingFile(_ file: FileItem) {
+        editingFileId = file.id
+        editingFileName = file.name
+        enterMode(.rename)
+    }
+    
+    /// 完成文件编辑并重命名
+    func finishEditingFile() async {
+        guard let fileId = editingFileId,
+              let file = currentPane.activeTab.files.first(where: { $0.id == fileId }) else {
+            cancelEditingFile()
+            return
+        }
+        
+        let newName = editingFileName.trimmingCharacters(in: .whitespaces)
+        
+        // 如果新名称与原名称相同或为空，直接取消
+        if newName.isEmpty || newName == file.name {
+            cancelEditingFile()
+            return
+        }
+        
+        let newPath = file.path.deletingLastPathComponent()
+            .appendingPathComponent(newName)
+        
+        do {
+            try FileManager.default.moveItem(at: file.path, to: newPath)
+            showToast(
+                LocalizationManager.shared.localized(
+                    .toastFileRenamed,
+                    file.name,
+                    newName
+                )
+            )
+            await refreshCurrentPane()
+        } catch {
+            showToast(
+                LocalizationManager.shared.localized(
+                    .toastRenameError,
+                    error.localizedDescription
+                )
+            )
+        }
+        
+        cancelEditingFile()
+    }
+    
+    /// 取消编辑
+    func cancelEditingFile() {
+        editingFileId = nil
+        editingFileName = ""
+        exitMode()
+    }
+
 }
 
 extension AppState {
@@ -763,7 +831,7 @@ extension AppState {
         switch newMode {
         case .command:
             commandInput = ""
-        case .rename:
+        case .batchRename:
             showRenameModal = true
         case .filter:
             filterUseRegex = false
@@ -790,7 +858,7 @@ extension AppState {
             restoreUnfilteredFiles()
         }
 
-        if mode == .rename {
+        if mode == .batchRename {
             // 关闭重命名模态窗口
             showRenameModal = false
         }
@@ -799,7 +867,7 @@ extension AppState {
             showConnectionManager = false
         }
 
-        if mode == .rename {
+        if mode == .batchRename {
             // Rename mode exit,should return visual mode if there are selections
             mode = .visual
         } else {
@@ -905,7 +973,8 @@ extension AppState {
             do {
                 let _ = try await FileSystemService.shared.createDirectory(
                     at: currentPath,
-                    name: folderName
+                    name: folderName,
+                    undoManager: self.undoManager
                 )
                 await refreshCurrentPane()
             } catch {
@@ -923,7 +992,8 @@ extension AppState {
             do {
                 let _ = try await FileSystemService.shared.createFile(
                     at: currentPath,
-                    name: fileName
+                    name: fileName,
+                    undoManager: self.undoManager
                 )
                 await refreshCurrentPane()
             } catch {
@@ -1014,10 +1084,8 @@ extension AppState {
             return
         }
 
-        do {
-            try await FileSystemService.shared.trashFiles(filesToDelete)
-
-            showToast(
+                                do {
+                                    try await FileSystemService.shared.trashFiles(filesToDelete, undoManager: self.undoManager); showToast(
                 LocalizationManager.shared.localized(
                     .toastFilesMovedToTrash,
                     filesToDelete.count
@@ -1105,7 +1173,8 @@ extension AppState {
             do {
                 try await FileSystemService.shared.moveFiles(
                     selectedFiles,
-                    to: destPath
+                    to: destPath,
+                    undoManager: self.undoManager
                 )
                 await refreshCurrentPane()
             } catch {
@@ -1162,7 +1231,8 @@ extension AppState {
             do {
                 try await FileSystemService.shared.copyFiles(
                     selectedFiles,
-                    to: destPath
+                    to: destPath,
+                    undoManager: self.undoManager
                 )
                 await refreshCurrentPane()
             } catch {
@@ -1217,7 +1287,10 @@ extension AppState {
             }
 
             do {
-                try await FileSystemService.shared.trashFiles(selectedFiles)
+                try await FileSystemService.shared.trashFiles(
+                    selectedFiles,
+                    undoManager: self.undoManager
+                )
                 await refreshCurrentPane()
                 showToast(
                     LocalizationManager.shared.localized(

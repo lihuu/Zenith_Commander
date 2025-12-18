@@ -1,9 +1,17 @@
 
 * 更多文件系统支持
-** TODO 支持 sftp 
+** TODO 支持 sftp
+sftp 访问的时候，图标显示不正确
 ** TODO 支持 ftp
+** TODO 支持 smb
+当前 smb 会直接使用 finder 打开
 ** TODO 支持第三方网盘
 1. Google drive
 2. OneDrive
+** DONE 如果当前目录是一个软链接，会在 finder 中打开，而不是在当前的 pane 中打开
+DEADLINE: <2025-12-18 Thu> SCHEDULED: <2025-12-18 Thu>
+
+
    
 * 多层级文件搜索
+

@@ -180,7 +180,12 @@ struct PaneView: View {
                             isActive: index == pane.cursorIndex,
                             isSelected: pane.selections.contains(file.id),
                             isPaneActive: isActivePane,
-                            rowIndex: index
+                            rowIndex: index,
+                            isEditing: appState.editingFileId == file.id,
+                            editingText: .init(
+                                get: { appState.editingFileName },
+                                set: { appState.editingFileName = $0 }
+                            )
                         )
                         .equatable()  // 使用 Equatable 优化重绘
                         .id(file.id)
@@ -191,6 +196,22 @@ struct PaneView: View {
                             return handleDroppedURLs(urls, to: file.path)
                         } isTargeted: { isTargeted in
                             // 可以在这里添加拖放目标高亮效果
+                        }
+                        .onKeyPress { keyPress in
+                            // 编辑模式时处理键盘事件
+                            if appState.editingFileId == file.id {
+                                switch keyPress.key {
+                                case .return:
+                                    Task { await appState.finishEditingFile() }
+                                    return .handled
+                                case .escape:
+                                    appState.cancelEditingFile()
+                                    return .handled
+                                default:
+                                    return .ignored
+                                }
+                            }
+                            return .ignored
                         }
                         .simultaneousGesture(
                             TapGesture(count: 2)
@@ -438,6 +459,10 @@ struct PaneView: View {
                 )
                 appState.showGitHistoryForFile(file)
             }
+        }
+
+        Button(LocalizationManager.shared.localized(.contextRename)) {
+            appState.startEditingFile(file)
         }
 
         Divider()
@@ -960,13 +985,15 @@ struct PaneView: View {
             if appState.clipboardOperation == .copy {
                 try await FileSystemService.shared.copyFiles(
                     appState.clipboard,
-                    to: destination
+                    to: destination,
+                    undoManager: appState.undoManager
                 )
                 appState.showToast(LocalizationManager.shared.localized(.toastItemsCopied, appState.clipboard.count))
             } else {
                 try await FileSystemService.shared.moveFiles(
                     appState.clipboard,
-                    to: destination
+                    to: destination,
+                    undoManager: appState.undoManager
                 )
                 appState.showToast(LocalizationManager.shared.localized(.toastItemsMoved, appState.clipboard.count))
                 appState.clipboard.removeAll()
@@ -1004,9 +1031,12 @@ struct PaneView: View {
             return
         }
 
-        do {
-            try await FileSystemService.shared.trashFiles(filesToDelete)
-            appState.showToast(LocalizationManager.shared.localized(.toastFilesMovedToTrash, filesToDelete.count))
+                    do {
+                        try await FileSystemService.shared.trashFiles(
+                            filesToDelete,
+                            undoManager: appState.undoManager
+                        )
+                    appState.showToast(LocalizationManager.shared.localized(.toastFilesMovedToTrash, filesToDelete.count))
             pane.clearSelections()
             loadCurrentDirectoryWithPermissionCheck()
         } catch {
@@ -1026,7 +1056,8 @@ struct PaneView: View {
             do {
                 _ = try await FileSystemService.shared.createFile(
                     at: self.appState.currentPane.activeTab.currentPath,
-                    name: name
+                    name: name,
+                    undoManager: appState.undoManager
                 )
                 self.textInput = ""
                 self.appState.exitMode()
@@ -1047,7 +1078,8 @@ struct PaneView: View {
             do {
                 _ = try await FileSystemService.shared.createDirectory(
                     at: self.pane.activeTab.currentPath,
-                    name: uniqueName
+                    name: uniqueName,
+                    undoManager: appState.undoManager
                 )
                 self.loadCurrentDirectoryWithPermissionCheck()
             } catch {

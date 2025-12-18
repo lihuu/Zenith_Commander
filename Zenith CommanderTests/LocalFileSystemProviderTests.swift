@@ -146,4 +146,71 @@ struct LocalFileSystemProviderTests {
         // 文件夹也应该添加 Copy 后缀
         #expect(result == "MyFolder Copy1")
     }
+    
+    // MARK: - File Operations Tests
+    
+    @Test func testDeleteFile() async throws {
+        let provider = LocalFileSystemProvider()
+        let fileManager = FileManager.default
+        let tempDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_\(UUID().uuidString)")
+        try fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: tempDir) }
+        
+        let fileURL = tempDir.appendingPathComponent("todelete.txt")
+        fileManager.createFile(atPath: fileURL.path, contents: Data("hello".utf8))
+        
+        let item = FileItem.fromURL(fileURL)!
+        try await provider.delete(items: [item])
+        
+        // Should be in trash or deleted (for test environment, checking existence is enough,
+        // but strictly trashItem moves to trash. In CI/Test env, trash might not work as expected,
+        // checking if it exists at original path is the main thing).
+        #expect(!fileManager.fileExists(atPath: fileURL.path))
+    }
+    
+    @Test func testMoveFile() async throws {
+        let provider = LocalFileSystemProvider()
+        let fileManager = FileManager.default
+        let sourceDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_Src_\(UUID().uuidString)")
+        let destDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_Dest_\(UUID().uuidString)")
+        try fileManager.createDirectory(at: sourceDir, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: destDir, withIntermediateDirectories: true)
+        defer {
+            try? fileManager.removeItem(at: sourceDir)
+            try? fileManager.removeItem(at: destDir)
+        }
+        
+        let fileName = "moveMe.txt"
+        let sourceURL = sourceDir.appendingPathComponent(fileName)
+        fileManager.createFile(atPath: sourceURL.path, contents: Data("move".utf8))
+        
+        let item = FileItem.fromURL(sourceURL)!
+        try await provider.move(items: [item], to: destDir)
+        
+        #expect(!fileManager.fileExists(atPath: sourceURL.path))
+        #expect(fileManager.fileExists(atPath: destDir.appendingPathComponent(fileName).path))
+    }
+    
+    @Test func testCopyFile() async throws {
+        let provider = LocalFileSystemProvider()
+        let fileManager = FileManager.default
+        let sourceDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_Src_\(UUID().uuidString)")
+        let destDir = fileManager.temporaryDirectory.appendingPathComponent("ZenithTest_Dest_\(UUID().uuidString)")
+        try fileManager.createDirectory(at: sourceDir, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: destDir, withIntermediateDirectories: true)
+        defer {
+            try? fileManager.removeItem(at: sourceDir)
+            try? fileManager.removeItem(at: destDir)
+        }
+        
+        let fileName = "copyMe.txt"
+        let sourceURL = sourceDir.appendingPathComponent(fileName)
+        fileManager.createFile(atPath: sourceURL.path, contents: Data("copy".utf8))
+        
+        let item = FileItem.fromURL(sourceURL)!
+        try await provider.copy(items: [item], to: destDir)
+        
+        #expect(fileManager.fileExists(atPath: sourceURL.path))
+        #expect(fileManager.fileExists(atPath: destDir.appendingPathComponent(fileName).path))
+    }
 }
