@@ -1,6 +1,6 @@
 
 * 更多文件系统支持
-** TODO 支持 sftp
+** DONE 支持 sftp
 sftp 访问的时候，图标显示不正确
 ** TODO 支持 ftp
 ** TODO 支持 smb

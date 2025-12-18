@@ -13,6 +13,15 @@ struct FileGridItemView: View {
     let isActive: Bool
     let isSelected: Bool
     let isPaneActive: Bool
+    @Binding var isDropTarget: Bool  // 是否为拖放目标
+    
+    init(file: FileItem, isActive: Bool, isSelected: Bool, isPaneActive: Bool, isDropTarget: Binding<Bool> = .constant(false)) {
+        self.file = file
+        self.isActive = isActive
+        self.isSelected = isSelected
+        self.isPaneActive = isPaneActive
+        self._isDropTarget = isDropTarget
+    }
     
     var body: some View {
         VStack(spacing: 6) {
@@ -39,7 +48,7 @@ struct FileGridItemView: View {
         .cornerRadius(6)
         .overlay(
             RoundedRectangle(cornerRadius: 6)
-                .stroke(borderColor, lineWidth: isActive ? 2 : 0)
+                .stroke(isDropTarget ? Theme.accent : borderColor, lineWidth: isDropTarget ? 2 : (isActive ? 2 : 0))
         )
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("file_grid_item_\(file.name)")
@@ -64,7 +73,9 @@ struct FileGridItemView: View {
     }
     
     private var backgroundColor: Color {
-        if isActive && isPaneActive {
+        if isDropTarget {
+            return Theme.accent.opacity(0.2)
+        } else if isActive && isPaneActive {
             return Theme.selection
         } else if isSelected {
             return Theme.selection.opacity(0.5)

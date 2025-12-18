@@ -22,6 +22,7 @@ struct PaneView: View {
     @State private var showPermissionError: Bool = false
     @State private var directoryMonitor: DispatchSourceDirectoryMonitor? = nil
     @State private var textInput: String = ""
+    @State private var dropTargetFileIds: Set<String> = []  // 跟踪当前拖放目标
 
     var isActivePane: Bool {
         appState.activePane == side
@@ -185,6 +186,10 @@ struct PaneView: View {
                             editingText: .init(
                                 get: { appState.editingFileName },
                                 set: { appState.editingFileName = $0 }
+                            ),
+                            isDropTarget: .init(
+                                get: { dropTargetFileIds.contains(file.id) },
+                                set: { _ in }
                             )
                         )
                         .equatable()  // 使用 Equatable 优化重绘
@@ -195,7 +200,12 @@ struct PaneView: View {
                             guard file.type == .folder else { return false }
                             return handleDroppedURLs(urls, to: file.path)
                         } isTargeted: { isTargeted in
-                            // 可以在这里添加拖放目标高亮效果
+                            // 控制拖放目标高亮
+                            if isTargeted && file.isFolder {
+                                dropTargetFileIds.insert(file.id)
+                            } else {
+                                dropTargetFileIds.remove(file.id)
+                            }
                         }
                         .onKeyPress { keyPress in
                             // 编辑模式时处理键盘事件
@@ -292,7 +302,11 @@ struct PaneView: View {
                                 file: file,
                                 isActive: index == pane.cursorIndex,
                                 isSelected: pane.selections.contains(file.id),
-                                isPaneActive: isActivePane
+                                isPaneActive: isActivePane,
+                                isDropTarget: .init(
+                                    get: { dropTargetFileIds.contains(file.id) },
+                                    set: { _ in }
+                                )
                             )
                             .id(file.id)
                             .contentShape(Rectangle())
@@ -301,7 +315,12 @@ struct PaneView: View {
                                 guard file.type == .folder else { return false }
                                 return handleDroppedURLs(urls, to: file.path)
                             } isTargeted: { isTargeted in
-                                // 可以在这里添加拖放目标高亮效果
+                                // 控制拖放目标高亮
+                                if isTargeted && file.isFolder {
+                                    dropTargetFileIds.insert(file.id)
+                                } else {
+                                    dropTargetFileIds.remove(file.id)
+                                }
                             }
                             .simultaneousGesture(
                                 TapGesture(count: 2)

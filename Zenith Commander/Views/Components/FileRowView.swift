@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// 优化的文件行视图 - 使用 Equatable 减少不必要的重绘
 struct FileRowView: View, Equatable {
@@ -19,8 +20,9 @@ struct FileRowView: View, Equatable {
     let rowIndex: Int        // 行索引，用于斑马条纹（可选）
     let isEditing: Bool      // 是否正在编辑
     @Binding var editingText: String  // 编辑时的文本
+    @Binding var isDropTarget: Bool  // 是否为拖放目标（由父视图控制）
     
-    init(file: FileItem, isActive: Bool, isSelected: Bool, isPaneActive: Bool, rowIndex: Int = 0, isEditing: Bool = false, editingText: Binding<String> = .constant("")) {
+    init(file: FileItem, isActive: Bool, isSelected: Bool, isPaneActive: Bool, rowIndex: Int = 0, isEditing: Bool = false, editingText: Binding<String> = .constant(""), isDropTarget: Binding<Bool> = .constant(false)) {
         self.file = file
         self.isActive = isActive
         self.isSelected = isSelected
@@ -28,6 +30,7 @@ struct FileRowView: View, Equatable {
         self.rowIndex = rowIndex
         self.isEditing = isEditing
         self._editingText = editingText
+        self._isDropTarget = isDropTarget
     }
     
     // 实现 Equatable 以优化重绘
@@ -40,7 +43,8 @@ struct FileRowView: View, Equatable {
         lhs.isPaneActive == rhs.isPaneActive &&
         lhs.rowIndex == rhs.rowIndex &&
         lhs.isEditing == rhs.isEditing &&
-        lhs.editingText == rhs.editingText
+        lhs.editingText == rhs.editingText &&
+        lhs.isDropTarget == rhs.isDropTarget
     }
     
     // 基于设置的字体大小计算
@@ -92,7 +96,8 @@ struct FileRowView: View, Equatable {
         .background(backgroundColor)
         .overlay(
             RoundedRectangle(cornerRadius: 4)
-                .stroke(cursorBorderColor, lineWidth: isActive && !isPaneActive ? 1 : 0)
+                .stroke(isDropTarget ? Theme.accent : cursorBorderColor, 
+                       lineWidth: isDropTarget ? 2 : (isActive && !isPaneActive ? 1 : 0))
                 .padding(1)
         )
         .accessibilityElement(children: .combine)
@@ -176,7 +181,10 @@ struct FileRowView: View, Equatable {
     // MARK: - 颜色计算
     
     private var backgroundColor: Color {
-        if isActive && isPaneActive {
+        if isDropTarget {
+            // 拖放悬停时的高亮背景
+            return Theme.accent.opacity(0.2)
+        } else if isActive && isPaneActive {
             return Theme.selection
         } else if isActive && !isPaneActive {
             return Theme.selectionInactive.opacity(0.3)
