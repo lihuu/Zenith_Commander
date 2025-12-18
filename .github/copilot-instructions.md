@@ -1,5 +1,13 @@
 # GitHub Copilot Instructions
 
+## Generic Communication Guidelines
+
+- Be succinct and be aware that expansive generative AI answers are costly and slow
+- Avoid providing explanations, trying to teach unless asked for, your chat partner is an expert
+- Stop apologising if corrected, just provide the correct information or code
+- Prefer code unless asked for explanation
+- Stop summarizing what you've changed after modifications unless asked for
+
 ## General Execution Guidelines
 
 ### Before Making Changes

@@ -10,6 +10,7 @@ import UniformTypeIdentifiers
 
 /// 书签栏视图
 struct BookmarkBarView: View {
+    @ObservedObject private var themeManager = ThemeManager.shared
     @ObservedObject var bookmarkManager: BookmarkManager
     
     /// 点击书签回调
@@ -112,10 +113,15 @@ struct BookmarkItemView: View {
                 .buttonStyle(.plain)
             }
             
-            // 图标
-            Image(systemName: bookmark.iconName)
-                .font(.system(size: 11))
-                .foregroundColor(bookmark.type == .folder ? Theme.accent : Theme.textPrimary)
+            // 图标 - 使用 AsyncIconView 保持与 Pane 一致
+            AsyncIconView(
+                url: bookmark.path,
+                type: bookmark.type,
+                iconName: bookmark.iconName,
+                size: 12
+            )
+            .foregroundColor(iconColor)
+            .frame(width: 12, height: 12)
             
             // 名称
             Text(bookmark.name)
@@ -154,6 +160,10 @@ struct BookmarkItemView: View {
             }
         }
         .help(bookmark.path.path)
+    }
+    
+    private var iconColor: Color {
+        bookmark.type == .folder ? Theme.folder : Theme.file
     }
 }
 
