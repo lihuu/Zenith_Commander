@@ -20,14 +20,14 @@ class SFTPFileSystemProvider: FileSystemProvider {
     
     // MARK: - Connection Management
     
-    private func getConnectionKey(for url: URL) -> String {
+    nonisolated private func getConnectionKey(for url: URL) -> String {
         let user = url.user ?? ""
         let host = url.host ?? ""
         let port = url.port ?? 22
         return "\(user)@\(host):\(port)"
     }
     
-    private func getOrCreateConnection(for url: URL) throws -> MFTSftpConnection {
+    nonisolated private func getOrCreateConnection(for url: URL) throws -> MFTSftpConnection {
         let key = getConnectionKey(for: url)
         
         connectionLock.lock()

@@ -193,7 +193,7 @@ struct FileItem: Identifiable, Hashable {
         return id == ".." && name == ".."
     }
 
-    var isFolder: Bool {
+    nonisolated var isFolder: Bool {
         if type == .folder { return true }
 
         // Treat symlink pointing to a directory as a folder for navigation

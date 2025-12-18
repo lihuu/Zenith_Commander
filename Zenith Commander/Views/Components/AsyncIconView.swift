@@ -17,6 +17,9 @@ struct AsyncIconView: View, Equatable {
     let size: CGFloat
     
     @State private var iconImage: NSImage?
+
+    // Simple in-memory cache to avoid refetching icons and prevent double-refresh flashes
+    private static let iconCache = NSCache<NSString, NSImage>()
     
     static func == (lhs: AsyncIconView, rhs: AsyncIconView) -> Bool {
         lhs.url == rhs.url && lhs.size == rhs.size
@@ -29,11 +32,8 @@ struct AsyncIconView: View, Equatable {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
             } else {
-                // Placeholder using SF Symbol
-                Image(systemName: iconName)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    // .foregroundColor(Color(nsColor: .secondaryLabelColor)) // Optional styling
+                // 不显示占位符，保持透明直到系统图标加载完成
+                Color.clear
             }
         }
         .frame(width: size, height: size)
@@ -45,6 +45,11 @@ struct AsyncIconView: View, Equatable {
     private func loadIcon() async {
         // Avoid reloading if already loaded
         if iconImage != nil { return }
+
+        if let cached = AsyncIconView.iconCache.object(forKey: url.path as NSString) {
+            iconImage = cached
+            return
+        }
         
         // Run on detached task to avoid main actor blocking
         let image = await Task.detached(priority: .userInitiated) {
@@ -54,6 +59,7 @@ struct AsyncIconView: View, Equatable {
         }.value
         
         // Update on MainActor
+        AsyncIconView.iconCache.setObject(image, forKey: url.path as NSString)
         self.iconImage = image
     }
 }
