@@ -23,8 +23,8 @@ struct BookmarkItem: Identifiable, Codable, Equatable {
     /// 书签路径
     let path: URL
     
-    /// 书签类型
-    let type: BookmarkType
+    /// 书签类型（使用 FileType）
+    let type: FileType
     
     /// 图标名称
     var iconName: String
@@ -32,18 +32,12 @@ struct BookmarkItem: Identifiable, Codable, Equatable {
     /// 创建时间
     let createdAt: Date
     
-    /// 书签类型枚举
-    enum BookmarkType: String, Codable {
-        case file
-        case folder
-    }
-    
     /// 初始化
     init(
         id: UUID = UUID(),
         name: String,
         path: URL,
-        type: BookmarkType,
+        type: FileType,
         iconName: String = "folder.fill",
         createdAt: Date = Date()
     ) {
@@ -57,14 +51,12 @@ struct BookmarkItem: Identifiable, Codable, Equatable {
     
     /// 从 FileItem 创建书签
     static func from(fileItem: FileItem) -> BookmarkItem {
-        let type: BookmarkType = fileItem.type == .folder ? .folder : .file
-        
         // 如果是父目录项 (..)，使用实际的目录名和标准文件夹图标
         if fileItem.isParentDirectory {
             return BookmarkItem(
                 name: fileItem.path.lastPathComponent,
                 path: fileItem.path,
-                type: type,
+                type: .folder,
                 iconName: "folder.fill"
             )
         }
@@ -72,7 +64,7 @@ struct BookmarkItem: Identifiable, Codable, Equatable {
         return BookmarkItem(
             name: fileItem.name,
             path: fileItem.path,
-            type: type,
+            type: fileItem.type,
             iconName: fileItem.iconName
         )
     }
