@@ -83,36 +83,16 @@ struct Zenith_CommanderApp: App {
             CommandGroup(replacing: .textEditing) { }
             CommandGroup(replacing: .pasteboard) {
                 Button(L(.menuCut)) {
-                    // 优先处理文件操作，如果没有文件则回退到文本操作
-                    if !appState.clipboard.isEmpty || !appState.currentPane.selections.isEmpty || appState.currentPane.cursorIndex < appState.currentPane.activeTab.files.count {
-                        appState.cutSelectedFiles()
-                    } else {
-                        NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil)
-                    }
+                    NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil)
                 }
-                .keyboardShortcut("x", modifiers: .command)
                 
                 Button(L(.menuCopy)) {
-                    // 优先处理文件操作，如果没有文件则回退到文本操作
-                    if !appState.currentPane.selections.isEmpty || appState.currentPane.cursorIndex < appState.currentPane.activeTab.files.count {
-                        appState.yankSelectedFiles()
-                    } else {
-                        NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
-                    }
+                    NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
                 }
-                .keyboardShortcut("c", modifiers: .command)
                 
                 Button(L(.menuPaste)) {
-                    // 优先处理文件操作，如果没有文件则回退到文本操作
-                    if !appState.clipboard.isEmpty {
-                        Task {
-                            await appState.pasteFiles()
-                        }
-                    } else {
-                        NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
-                    }
+                    NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
                 }
-                .keyboardShortcut("v", modifiers: .command)
                 
                 Button(L(.menuSelectAll)) {
                     NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
