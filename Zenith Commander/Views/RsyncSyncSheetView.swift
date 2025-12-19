@@ -5,36 +5,39 @@
 //  Rsync 同步配置弹窗 - 完全主题适配版本
 //
 
-import SwiftUI
 import os.log
+import SwiftUI
 
 // Helper function to access localization
 private func L(_ key: LocalizedStringKey) -> String {
-    return LocalizationManager.shared.localized(key)
+    LocalizationManager.shared.localized(key)
 }
 
 struct RsyncSyncSheetView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject private var themeManager = ThemeManager.shared
     @State private var localConfig: RsyncSyncConfig
-    @State private var excludePatternsText: String = ""
-    @State private var customFlagsText: String = ""
-    
+    @State private var excludePatternsText = ""
+    @State private var customFlagsText = ""
+
     init(config: RsyncSyncConfig) {
         _localConfig = State(initialValue: config)
         _excludePatternsText = State(initialValue: config.excludePatterns.joined(separator: ", "))
         _customFlagsText = State(initialValue: config.customFlags.joined(separator: " "))
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // MARK: - Header with Profile Badge
+
             headerView
-            
+
             // MARK: - Path Visualizer
+
             pathVisualizerView
-            
+
             // MARK: - Main Content Area
+
             if appState.rsyncUIState.isRunningSync {
                 progressView
             } else if let previewResult = appState.rsyncUIState.previewResult {
@@ -44,19 +47,20 @@ struct RsyncSyncSheetView: View {
             } else {
                 configView
             }
-            
+
             // MARK: - Footer Controls
+
             footerView
         }
         .background(Theme.background)
         .frame(width: 700, height: 600)
-        .onChange(of: localConfig) { oldValue, newValue in
+        .onChange(of: localConfig) { _, newValue in
             appState.updateRsyncConfig(newValue)
         }
     }
-    
+
     // MARK: - Header View
-    
+
     @ViewBuilder
     private var headerView: some View {
         HStack {
@@ -68,14 +72,14 @@ struct RsyncSyncSheetView: View {
                     .animation(appState.rsyncUIState.isRunningSync ?
                         Animation.linear(duration: 2).repeatForever(autoreverses: false) : .default,
                         value: appState.rsyncUIState.isRunningSync)
-                
+
                 Text("Directory Synchronization (Rsync)")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(Theme.textPrimary)
             }
-            
+
             Spacer()
-            
+
             // Profile Badge
             HStack(spacing: 4) {
                 Text("Profile:")
@@ -103,9 +107,9 @@ struct RsyncSyncSheetView: View {
             alignment: .bottom
         )
     }
-    
+
     // MARK: - Path Visualizer
-    
+
     @ViewBuilder
     private var pathVisualizerView: some View {
         HStack(spacing: 16) {
@@ -115,7 +119,7 @@ struct RsyncSyncSheetView: View {
                     .font(.system(size: 9, weight: .bold))
                     .tracking(0.5)
                     .foregroundColor(Theme.textTertiary)
-                
+
                 Text(localConfig.source.path)
                     .font(.system(size: 13, design: .monospaced))
                     .foregroundColor(Theme.success)
@@ -123,19 +127,19 @@ struct RsyncSyncSheetView: View {
                     .truncationMode(.middle)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            
+
             // Arrow
             Image(systemName: "arrow.right")
                 .font(.system(size: 20, weight: .bold))
                 .foregroundColor(Theme.textTertiary)
-            
+
             // Destination Path
             VStack(alignment: .trailing, spacing: 4) {
                 Text("DESTINATION")
                     .font(.system(size: 9, weight: .bold))
                     .tracking(0.5)
                     .foregroundColor(Theme.textTertiary)
-                
+
                 Text(localConfig.destination.path)
                     .font(.system(size: 13, design: .monospaced))
                     .foregroundColor(Theme.info)
@@ -152,9 +156,9 @@ struct RsyncSyncSheetView: View {
             alignment: .bottom
         )
     }
-    
+
     // MARK: - Configuration View
-    
+
     @ViewBuilder
     private var configView: some View {
         ScrollView {
@@ -171,14 +175,14 @@ struct RsyncSyncSheetView: View {
                                     .foregroundColor(Theme.border),
                                 alignment: .bottom
                             )
-                        
+
                         modeRadioButton(.update, "Update (Skip newer files)")
                         modeRadioButton(.mirror, "Mirror (Delete extraneous files)")
                         modeRadioButton(.copyAll, "Copy All (Overwrite everything)")
                         modeRadioButton(.custom, "Custom")
                     }
                     .frame(maxWidth: .infinity)
-                    
+
                     // Right Column - Options
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Options")
@@ -190,7 +194,7 @@ struct RsyncSyncSheetView: View {
                                     .foregroundColor(Theme.border),
                                 alignment: .bottom
                             )
-                        
+
                         Toggle(
                             isOn: Binding<Bool>(
                                 get: { localConfig.flags.contains("-a") },
@@ -208,7 +212,7 @@ struct RsyncSyncSheetView: View {
                                 .foregroundColor(Theme.textPrimary)
                         }
                         .toggleStyle(.checkbox)
-                        
+
                         Toggle(
                             isOn: Binding<Bool>(
                                 get: { localConfig.flags.contains("-u") },
@@ -226,7 +230,7 @@ struct RsyncSyncSheetView: View {
                                 .foregroundColor(Theme.textPrimary)
                         }
                         .toggleStyle(.checkbox)
-                        
+
                         Toggle(isOn: Binding<Bool>(
                             get: { localConfig.flags.contains("-z") },
                             set: { newValue in
@@ -242,7 +246,7 @@ struct RsyncSyncSheetView: View {
                                 .foregroundColor(Theme.textPrimary)
                         }
                         .toggleStyle(.checkbox)
-                        
+
                         Toggle(isOn: Binding<Bool>(
                             get: { localConfig.flags.contains("--delete") },
                             set: { newValue in
@@ -261,13 +265,13 @@ struct RsyncSyncSheetView: View {
                     }
                     .frame(maxWidth: .infinity)
                 }
-                
+
                 // Command Preview
                 VStack(alignment: .leading, spacing: 8) {
                     Text("# Generated Command Preview:")
                         .font(.system(size: 11, design: .monospaced))
                         .foregroundColor(Theme.textTertiary)
-                    
+
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 4) {
                             Text("rsync")
@@ -289,7 +293,7 @@ struct RsyncSyncSheetView: View {
                     RoundedRectangle(cornerRadius: 6)
                         .stroke(Theme.border, lineWidth: 1)
                 )
-                
+
                 // Error Display
                 if let error = appState.rsyncUIState.error {
                     HStack(spacing: 8) {
@@ -313,7 +317,7 @@ struct RsyncSyncSheetView: View {
         }
         .background(Theme.background)
     }
-    
+
     @ViewBuilder
     private func modeRadioButton(_ mode: RsyncMode, _ label: String) -> some View {
         Button(action: {
@@ -325,11 +329,11 @@ struct RsyncSyncSheetView: View {
                 Image(systemName: localConfig.mode == mode ? "circle.fill" : "circle")
                     .font(.system(size: 14))
                     .foregroundColor(localConfig.mode == mode ? Theme.accent : Theme.textTertiary)
-                
+
                 Text(label)
                     .font(.system(size: 13))
                     .foregroundColor(Theme.textPrimary)
-                
+
                 Spacer()
             }
             .padding(.vertical, 4)
@@ -343,9 +347,9 @@ struct RsyncSyncSheetView: View {
         }
         .buttonStyle(.plain)
     }
-    
+
     // MARK: - Preview View
-    
+
     @ViewBuilder
     private func previewView(result: RsyncPreviewResult) -> some View {
         VStack(spacing: 0) {
@@ -360,11 +364,11 @@ struct RsyncSyncSheetView: View {
                             statBadge("SKIP", result.skipped.count, Theme.warning)
                         }
                     }
-                    
+
                     Divider()
                         .foregroundColor(Theme.border)
                         .padding(.vertical, 4)
-                    
+
                     // File List Table
                     VStack(spacing: 0) {
                         // Header
@@ -381,10 +385,10 @@ struct RsyncSyncSheetView: View {
                         .padding(.vertical, 6)
                         .padding(.horizontal, 8)
                         .background(Theme.backgroundTertiary.opacity(0.3))
-                        
+
                         Divider()
                             .foregroundColor(Theme.border)
-                        
+
                         // Rows
                         ForEach(Array((result.copied + result.updated + result.deleted).prefix(20).enumerated()), id: \.offset) { index, item in
                             HStack {
@@ -397,7 +401,7 @@ struct RsyncSyncSheetView: View {
                                     .background(getChangeColor(item, from: result))
                                     .cornerRadius(3)
                                     .frame(width: 80, alignment: .leading)
-                                
+
                                 // File Path
                                 Text(item.relativePath)
                                     .font(.system(size: 12, design: .monospaced))
@@ -405,7 +409,7 @@ struct RsyncSyncSheetView: View {
                                     .lineLimit(1)
                                     .truncationMode(.middle)
                                     .frame(maxWidth: .infinity, alignment: .leading)
-                                
+
                                 // Size
                                 Text(formatFileSize(item))
                                     .font(.system(size: 11))
@@ -415,7 +419,7 @@ struct RsyncSyncSheetView: View {
                             .padding(.vertical, 6)
                             .padding(.horizontal, 8)
                             .background(index % 2 == 0 ? Color.clear : Theme.backgroundTertiary.opacity(0.1))
-                            
+
                             if index < 19 {
                                 Divider()
                                     .foregroundColor(Theme.border.opacity(0.3))
@@ -428,7 +432,7 @@ struct RsyncSyncSheetView: View {
             .background(Theme.background)
         }
     }
-    
+
     @ViewBuilder
     private func statBadge(_ label: String, _ count: Int, _ color: Color) -> some View {
         VStack(spacing: 4) {
@@ -448,33 +452,33 @@ struct RsyncSyncSheetView: View {
                 .stroke(color.opacity(0.2), lineWidth: 1)
         )
     }
-    
+
     private func getChangeType(_ item: RsyncItem, from result: RsyncPreviewResult) -> String {
         if result.copied.contains(where: { $0.id == item.id }) { return "ADD" }
         if result.updated.contains(where: { $0.id == item.id }) { return "UPDATE" }
         if result.deleted.contains(where: { $0.id == item.id }) { return "DELETE" }
         return "SKIP"
     }
-    
+
     private func getChangeColor(_ item: RsyncItem, from result: RsyncPreviewResult) -> Color {
         if result.copied.contains(where: { $0.id == item.id }) { return Theme.success }
         if result.updated.contains(where: { $0.id == item.id }) { return Theme.info }
         if result.deleted.contains(where: { $0.id == item.id }) { return Theme.error }
         return Theme.warning
     }
-    
-    private func formatFileSize(_ item: RsyncItem) -> String {
+
+    private func formatFileSize(_: RsyncItem) -> String {
         // Mock size formatting
-        return "\(Int.random(in: 1...999)) KB"
+        "\(Int.random(in: 1 ... 999)) KB"
     }
-    
+
     // MARK: - Progress View
-    
+
     @ViewBuilder
     private var progressView: some View {
         VStack(spacing: 0) {
             Spacer()
-            
+
             VStack(spacing: 16) {
                 if let progress = appState.rsyncUIState.syncProgress {
                     // Spinner and Text
@@ -482,12 +486,12 @@ struct RsyncSyncSheetView: View {
                         ProgressView()
                             .scaleEffect(1.5)
                             .tint(Theme.accent)
-                        
+
                         Text("Synchronizing files...")
                             .font(.system(size: 14))
                             .foregroundColor(Theme.textPrimary)
                     }
-                    
+
                     // Progress Bar
                     VStack(spacing: 8) {
                         HStack {
@@ -499,14 +503,14 @@ struct RsyncSyncSheetView: View {
                                 .font(.system(size: 12, weight: .bold, design: .monospaced))
                                 .foregroundColor(Theme.accent)
                         }
-                        
+
                         GeometryReader { geometry in
                             ZStack(alignment: .leading) {
                                 Rectangle()
                                     .fill(Theme.backgroundTertiary)
                                     .frame(height: 8)
                                     .cornerRadius(4)
-                                
+
                                 Rectangle()
                                     .fill(Theme.accent)
                                     .frame(width: geometry.size.width * CGFloat(progress.percentage / 100.0), height: 8)
@@ -520,44 +524,44 @@ struct RsyncSyncSheetView: View {
                     ProgressView()
                         .scaleEffect(1.5)
                         .tint(Theme.accent)
-                    
+
                     Text("Initializing...")
                         .font(.system(size: 14))
                         .foregroundColor(Theme.textSecondary)
                 }
             }
-            
+
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.background)
     }
-    
+
     // MARK: - Result View
-    
+
     @ViewBuilder
     private func resultView(result: RsyncRunResult) -> some View {
         VStack(spacing: 0) {
             Spacer()
-            
+
             VStack(spacing: 20) {
                 // Success/Error Icon
                 Image(systemName: result.success ? "checkmark.circle.fill" : "xmark.circle.fill")
                     .font(.system(size: 48))
                     .foregroundColor(result.success ? Theme.success : Theme.error)
-                
+
                 // Status Text
                 Text(result.success ? "Synchronization Complete" : "Synchronization Failed")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(Theme.textPrimary)
-                
+
                 // Summary
                 if result.success {
                     Text("\(result.summary.copy + result.summary.update) files transferred")
                         .font(.system(size: 13))
                         .foregroundColor(Theme.textSecondary)
                 }
-                
+
                 // Error List
                 if !result.errors.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
@@ -573,15 +577,15 @@ struct RsyncSyncSheetView: View {
                     .cornerRadius(6)
                 }
             }
-            
+
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.background)
     }
-    
+
     // MARK: - Footer View
-    
+
     @ViewBuilder
     private var footerView: some View {
         HStack {
@@ -591,9 +595,9 @@ struct RsyncSyncSheetView: View {
                     .font(.system(size: 11))
                     .foregroundColor(Theme.textSecondary)
             }
-            
+
             Spacer()
-            
+
             // Buttons
             HStack(spacing: 12) {
                 // Cancel/Close Button
@@ -612,9 +616,9 @@ struct RsyncSyncSheetView: View {
                 .buttonStyle(.borderless)
                 .background(Theme.backgroundTertiary)
                 .cornerRadius(4)
-                
+
                 // Back Button (Preview only)
-                if appState.rsyncUIState.previewResult != nil && appState.rsyncUIState.syncResult == nil {
+                if appState.rsyncUIState.previewResult != nil, appState.rsyncUIState.syncResult == nil {
                     Button(action: {
                         appState.rsyncUIState.previewResult = nil
                     }) {
@@ -627,7 +631,7 @@ struct RsyncSyncSheetView: View {
                     .background(Theme.backgroundTertiary)
                     .cornerRadius(4)
                 }
-                
+
                 // Primary Action Button
                 if appState.rsyncUIState.syncResult == nil {
                     if appState.rsyncUIState.previewResult != nil {
@@ -674,7 +678,7 @@ struct RsyncSyncSheetView: View {
                                 .stroke(Theme.border, lineWidth: 1)
                         )
                         .disabled(!localConfig.isValid())
-                        
+
                         // Start Sync
                         Button(action: {
                             Task {
@@ -722,7 +726,7 @@ struct RsyncSyncSheetView: View {
         excludePatterns: ["*.tmp", ".DS_Store"],
         customFlags: []
     )
-    
+
     RsyncSyncSheetView(config: config)
         .environmentObject(AppState())
 }

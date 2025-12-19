@@ -14,7 +14,7 @@ struct TabBarView: View {
     let onTabSwitch: (Int) -> Void
     let onTabClose: (Int) -> Void
     let onTabAdd: () -> Void
-    
+
     var body: some View {
         HStack(spacing: 0) {
             // 标签页列表
@@ -31,7 +31,7 @@ struct TabBarView: View {
                     }
                 }
             }
-            
+
             // 添加标签按钮
             Button(action: onTabAdd) {
                 Image(systemName: "plus")
@@ -48,7 +48,7 @@ struct TabBarView: View {
                     NSCursor.pop()
                 }
             }
-            
+
             Spacer()
         }
         .frame(height: 28)
@@ -60,22 +60,22 @@ struct TabBarView: View {
 
 struct TabItemView: View {
     @ObservedObject private var themeManager = ThemeManager.shared
-    
+
     let tab: TabState
     let isActive: Bool
     let isPaneActive: Bool
     let onSelect: () -> Void
     let onClose: () -> Void
-    
+
     @State private var isHovering = false
-    
+
     var body: some View {
         HStack(spacing: 6) {
             Text(tab.directoryName)
                 .font(.system(size: 11, weight: isActive ? .semibold : .regular))
                 .foregroundColor(textColor)
                 .lineLimit(1)
-            
+
             // 关闭按钮
             Button(action: onClose) {
                 Image(systemName: "xmark")
@@ -103,21 +103,21 @@ struct TabItemView: View {
             isHovering = hovering
         }
     }
-    
+
     private var backgroundColor: Color {
         if isActive {
             return Theme.background
         }
         return isHovering ? Theme.backgroundTertiary : Theme.backgroundSecondary
     }
-    
+
     private var textColor: Color {
-        if isActive && isPaneActive {
+        if isActive, isPaneActive {
             return Theme.accent
         }
         return isActive ? Theme.textPrimary : Theme.textSecondary
     }
-    
+
     private var closeButtonColor: Color {
         isHovering ? Theme.textPrimary : Theme.textTertiary
     }
@@ -129,7 +129,7 @@ struct TabItemView: View {
         initialPath: URL(fileURLWithPath: "/Users"),
         drive: DriveInfo(id: "1", name: "Macintosh HD", path: URL(fileURLWithPath: "/"), type: .system, totalCapacity: 0, availableCapacity: 0)
     )
-    
+
     return TabBarView(
         pane: pane,
         isActivePane: true,

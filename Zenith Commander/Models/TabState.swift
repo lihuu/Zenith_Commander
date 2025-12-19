@@ -14,15 +14,14 @@ class TabState: Identifiable, ObservableObject {
     @Published var files: [FileItem]
     @Published var cursorFileId: String
     @Published var scrollOffset: CGFloat
-    
+
     var isRemotePath: Bool {
         !currentPath.isFileURL
     }
-    
-    var isLocalPath: Bool{
+
+    var isLocalPath: Bool {
         currentPath.isFileURL
     }
-    
 
     /// 未过滤的原始文件列表（用于 Filter 模式恢复）
     var unfilteredFiles: [FileItem] = []
@@ -30,16 +29,16 @@ class TabState: Identifiable, ObservableObject {
     /// 当前光标在本 Tab 中对应的索引（基于 cursorFileId 计算）
     /// 如果找不到对应文件，则返回 nil
     var cursorIndexInTab: Int? {
-        files.firstIndex(where: { $0.id == cursorFileId })
+        files.firstIndex(where: { $0.id == self.cursorFileId })
     }
 
     init(drive: DriveInfo, path: URL) {
-        self.id = UUID()
+        id = UUID()
         self.drive = drive
-        self.currentPath = path
-        self.files = []
-        self.scrollOffset = 0
-        self.cursorFileId = ".."
+        currentPath = path
+        files = []
+        scrollOffset = 0
+        cursorFileId = ".."
     }
 
     /// 当前目录名称

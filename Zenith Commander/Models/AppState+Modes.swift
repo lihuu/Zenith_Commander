@@ -63,6 +63,5 @@ extension AppState {
         commandInput = ""
         filterInput = ""
         filterUseRegex = false
-
     }
 }

@@ -11,12 +11,12 @@ struct ModalView<Content: View>: View {
     @Binding var isPresented: Bool
     @EnvironmentObject var appState: AppState
     let content: Content
-    
+
     init(isPresented: Binding<Bool>, @ViewBuilder content: () -> Content) {
-        self._isPresented = isPresented
+        _isPresented = isPresented
         self.content = content()
     }
-    
+
     var body: some View {
         ZStack {
             if isPresented {
@@ -27,7 +27,7 @@ struct ModalView<Content: View>: View {
                         isPresented = false
                     }
                     .transition(.opacity)
-                
+
                 // Modal Content
                 content
                     .background(Color(NSColor.windowBackgroundColor))

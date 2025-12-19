@@ -13,11 +13,11 @@ struct PermissionRequestView: View {
     let onRequestAccess: () -> Void
     let onOpenSettings: () -> Void
     let onGoBack: () -> Void
-    
+
     var body: some View {
         VStack(spacing: 20) {
             Spacer()
-            
+
             // 图标
             Image(systemName: "lock.shield")
                 .font(.system(size: 56, weight: .light))
@@ -28,18 +28,18 @@ struct PermissionRequestView: View {
                         endPoint: .bottomTrailing
                     )
                 )
-            
+
             // 标题
             Text("Permission Required")
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(Theme.textPrimary)
-            
+
             // 路径显示
             VStack(spacing: 4) {
                 Text("Cannot access folder:")
                     .font(.system(size: 12))
                     .foregroundColor(Theme.textTertiary)
-                
+
                 Text(path.path)
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundColor(Theme.textSecondary)
@@ -47,14 +47,14 @@ struct PermissionRequestView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
             }
-            
+
             // 说明文本
             Text("Zenith Commander needs permission to access this folder.\nYou can grant access or open System Settings.")
                 .font(.system(size: 12))
                 .foregroundColor(Theme.textTertiary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
-            
+
             // 按钮组
             VStack(spacing: 10) {
                 // 主要按钮 - 授权访问
@@ -71,7 +71,7 @@ struct PermissionRequestView: View {
                     .cornerRadius(6)
                 }
                 .buttonStyle(.plain)
-                
+
                 // 次要按钮 - 打开系统设置
                 Button(action: onOpenSettings) {
                     HStack(spacing: 8) {
@@ -90,7 +90,7 @@ struct PermissionRequestView: View {
                     )
                 }
                 .buttonStyle(.plain)
-                
+
                 // 返回按钮
                 Button(action: onGoBack) {
                     HStack(spacing: 4) {
@@ -104,9 +104,9 @@ struct PermissionRequestView: View {
                 .buttonStyle(.plain)
                 .padding(.top, 8)
             }
-            
+
             Spacer()
-            
+
             // 底部提示
             HStack(spacing: 4) {
                 Image(systemName: "info.circle")
@@ -127,27 +127,27 @@ struct PermissionErrorBanner: View {
     let message: String
     let onDismiss: () -> Void
     let onRequestAccess: () -> Void
-    
+
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 14))
                 .foregroundColor(Theme.warning)
-            
+
             Text(message)
                 .font(.system(size: 12))
                 .foregroundColor(Theme.textPrimary)
                 .lineLimit(1)
-            
+
             Spacer()
-            
+
             Button(action: onRequestAccess) {
                 Text("Grant Access")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(Theme.accent)
             }
             .buttonStyle(.plain)
-            
+
             Button(action: onDismiss) {
                 Image(systemName: "xmark")
                     .font(.system(size: 10, weight: .bold))

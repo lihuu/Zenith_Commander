@@ -12,16 +12,16 @@ import UniformTypeIdentifiers
 struct BookmarkBarView: View {
     @ObservedObject private var themeManager = ThemeManager.shared
     @ObservedObject var bookmarkManager: BookmarkManager
-    
+
     /// 点击书签回调
     var onBookmarkClicked: ((BookmarkItem) -> Void)?
-    
+
     /// 编辑模式
     @State private var isEditing = false
-    
+
     /// 当前拖拽的书签
     @State private var draggingBookmark: BookmarkItem?
-    
+
     var body: some View {
         HStack(spacing: 0) {
             // 书签图标
@@ -30,7 +30,7 @@ struct BookmarkBarView: View {
                 .foregroundColor(Theme.textSecondary)
                 .padding(.leading, 8)
                 .padding(.trailing, 4)
-            
+
             // 书签列表
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 4) {
@@ -57,7 +57,7 @@ struct BookmarkBarView: View {
                             draggingItem: $draggingBookmark
                         ))
                     }
-                    
+
                     // 空状态提示
                     if bookmarkManager.bookmarks.isEmpty {
                         Text(LocalizationManager.shared.localized(.bookmarkBarEmpty))
@@ -68,9 +68,9 @@ struct BookmarkBarView: View {
                 }
                 .padding(.horizontal, 4)
             }
-            
+
             Spacer()
-            
+
             // 编辑按钮
             Button(action: {
                 withAnimation(.easeInOut(duration: 0.2)) {
@@ -98,9 +98,9 @@ struct BookmarkItemView: View {
     let isEditing: Bool
     let onClicked: () -> Void
     let onRemove: () -> Void
-    
+
     @State private var isHovering = false
-    
+
     var body: some View {
         HStack(spacing: 4) {
             // 删除按钮（编辑模式）
@@ -112,7 +112,7 @@ struct BookmarkItemView: View {
                 }
                 .buttonStyle(.plain)
             }
-            
+
             // 图标 - 使用 AsyncIconView 保持与 Pane 一致
             AsyncIconView(
                 url: bookmark.path,
@@ -122,7 +122,7 @@ struct BookmarkItemView: View {
             )
             .foregroundColor(iconColor)
             .frame(width: 12, height: 12)
-            
+
             // 名称
             Text(bookmark.name)
                 .font(.system(size: 11))
@@ -147,21 +147,21 @@ struct BookmarkItemView: View {
             Button(LocalizationManager.shared.localized(.contextShowInFinder)) {
                 NSWorkspace.shared.selectFile(bookmark.path.path, inFileViewerRootedAtPath: bookmark.path.deletingLastPathComponent().path)
             }
-            
+
             Button(LocalizationManager.shared.localized(.contextCopyFullPath)) {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(bookmark.path.path, forType: .string)
             }
-            
+
             Divider()
-            
+
             Button(LocalizationManager.shared.localized(.contextRemoveFromBookmarks), role: .destructive) {
                 onRemove()
             }
         }
         .help(bookmark.path.path)
     }
-    
+
     private var iconColor: Color {
         bookmark.type == .folder ? Theme.folder : Theme.file
     }
@@ -172,25 +172,25 @@ struct BookmarkDropDelegate: DropDelegate {
     let item: BookmarkItem
     @Binding var bookmarks: [BookmarkItem]
     @Binding var draggingItem: BookmarkItem?
-    
-    func performDrop(info: DropInfo) -> Bool {
+
+    func performDrop(info _: DropInfo) -> Bool {
         draggingItem = nil
         return true
     }
-    
-    func dropEntered(info: DropInfo) {
-        guard let draggingItem = draggingItem,
+
+    func dropEntered(info _: DropInfo) {
+        guard let draggingItem,
               draggingItem.id != item.id,
               let fromIndex = bookmarks.firstIndex(where: { $0.id == draggingItem.id }),
               let toIndex = bookmarks.firstIndex(where: { $0.id == item.id })
         else { return }
-        
+
         withAnimation(.easeInOut(duration: 0.2)) {
             bookmarks.move(fromOffsets: IndexSet(integer: fromIndex), toOffset: toIndex > fromIndex ? toIndex + 1 : toIndex)
         }
     }
-    
-    func dropUpdated(info: DropInfo) -> DropProposal? {
+
+    func dropUpdated(info _: DropInfo) -> DropProposal? {
         DropProposal(operation: .move)
     }
 }
@@ -198,14 +198,14 @@ struct BookmarkDropDelegate: DropDelegate {
 /// 书签栏预览
 #Preview {
     @Previewable @StateObject var manager = BookmarkManager()
-    
+
     BookmarkBarView(bookmarkManager: manager)
         .frame(width: 600)
         .onAppear {
             manager.bookmarks = [
                 BookmarkItem(name: "Documents", path: URL(fileURLWithPath: "/Users/test/Documents"), type: .folder, iconName: "folder.fill"),
                 BookmarkItem(name: "Downloads", path: URL(fileURLWithPath: "/Users/test/Downloads"), type: .folder, iconName: "folder.fill"),
-                BookmarkItem(name: "config.json", path: URL(fileURLWithPath: "/Users/test/config.json"), type: .file, iconName: "doc.fill")
+                BookmarkItem(name: "config.json", path: URL(fileURLWithPath: "/Users/test/config.json"), type: .file, iconName: "doc.fill"),
             ]
         }
 }

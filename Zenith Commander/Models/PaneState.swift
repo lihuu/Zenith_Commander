@@ -14,22 +14,22 @@ class PaneState: ObservableObject {
     @Published var tabs: [TabState]
     @Published var activeTabIndex: Int
     @Published var viewMode: ViewMode
-    @Published var selections: Set<String>  // 存储选中的文件 ID
-    @Published var gitInfo: GitRepositoryInfo? = nil  // Git 仓库信息
-    var visualAnchor: Int?  // Visual 模式的锚点位置
+    @Published var selections: Set<String> // 存储选中的文件 ID
+    @Published var gitInfo: GitRepositoryInfo? = nil // Git 仓库信息
+    var visualAnchor: Int? // Visual 模式的锚点位置
 
     /// Grid View 每行的列数（用于键盘导航）
-    var gridColumnCount: Int = 4
+    var gridColumnCount = 4
 
     private var tabCancellables: [UUID: AnyCancellable] = [:]
 
     init(side: PaneSide, initialPath: URL, drive: DriveInfo) {
         self.side = side
-        self.tabs = [TabState(drive: drive, path: initialPath)]
-        self.activeTabIndex = 0
-        self.viewMode = .list
-        self.selections = []
-        self.visualAnchor = nil
+        tabs = [TabState(drive: drive, path: initialPath)]
+        activeTabIndex = 0
+        viewMode = .list
+        selections = []
+        visualAnchor = nil
 
         // 订阅初始标签页的变化
         subscribeToTabChanges()
@@ -69,9 +69,9 @@ class PaneState: ObservableObject {
             if let idx = activeTab.files.firstIndex(where: {
                 $0.id == activeTab.cursorFileId
             }) {
-                return idx
+                idx
             } else {
-                return 0
+                0
             }
         }
         set {
@@ -111,7 +111,7 @@ class PaneState: ObservableObject {
 
     /// 切换到指定标签页
     func switchTab(to index: Int) {
-        guard index >= 0 && index < tabs.count else { return }
+        guard index >= 0, index < tabs.count else { return }
         activeTabIndex = index
     }
 
@@ -177,7 +177,7 @@ class PaneState: ObservableObject {
 
         // 清除旧选择，重新选择范围内的文件
         selections.removeAll()
-        for i in start...end {
+        for i in start ... end {
             if i < files.count {
                 let file = files[i]
                 // 父目录项 (..) 不能被选中
@@ -187,12 +187,11 @@ class PaneState: ObservableObject {
             }
         }
     }
-    
-    func refreshActiveTab() async{
+
+    func refreshActiveTab() async {
         let files = await FileSystemService.shared.loadDirectory(
             at: activeTab.currentPath
         )
         activeTab.files = files
     }
-    
 }

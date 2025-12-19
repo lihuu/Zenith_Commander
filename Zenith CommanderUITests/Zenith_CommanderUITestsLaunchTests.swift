@@ -8,7 +8,6 @@
 import XCTest
 
 final class Zenith_CommanderUITestsLaunchTests: XCTestCase {
-
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true
     }

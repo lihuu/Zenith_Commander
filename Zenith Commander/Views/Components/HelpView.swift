@@ -11,12 +11,12 @@ struct HelpView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var themeManager = ThemeManager.shared
     @ObservedObject private var localizationManager = LocalizationManager.shared
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // 标题栏
             HelpTitleBar(onClose: { dismiss() })
-            
+
             // 内容区域
             ScrollView {
                 VStack(spacing: 20) {
@@ -31,7 +31,7 @@ struct HelpView: View {
                         HelpRow(keys: ["Tab"], description: L(.switchPanes))
                         HelpRow(keys: ["Return"], description: L(.openFile))
                     }
-                    
+
                     HelpSection(title: L(.helpModeSwitching), icon: "switch.2") {
                         HelpRow(keys: ["v"], description: L(.enterVisualMode))
                         HelpRow(keys: [":"], description: L(.enterCommandMode))
@@ -40,37 +40,37 @@ struct HelpView: View {
                         HelpRow(keys: ["?"], description: L(.openHelp))
                         HelpRow(keys: ["Esc"], description: L(.exitMode))
                     }
-                    
+
                     HelpSection(title: L(.helpFileOperations), icon: "doc.on.doc") {
                         HelpRow(keys: ["y"], description: L(.copyFiles))
                         HelpRow(keys: ["p"], description: L(.pasteFiles))
                         HelpRow(keys: ["r"], description: L(.refreshDirectory))
                     }
-                    
+
                     HelpSection(title: L(.helpTabs), icon: "rectangle.stack") {
                         HelpRow(keys: ["t"], description: L(.newTab))
                         HelpRow(keys: ["w"], description: L(.closeTab))
                         HelpRow(keys: ["Shift+H"], description: L(.previousTab))
                         HelpRow(keys: ["Shift+L"], description: L(.nextTab))
                     }
-                    
+
                     HelpSection(title: L(.helpBookmarks), icon: "bookmark") {
                         HelpRow(keys: ["b"], description: L(.toggleBookmarkBar))
                         HelpRow(keys: ["⌘B"], description: L(.addToBookmarks))
                     }
-                    
+
                     HelpSection(title: L(.helpSettingsTheme), icon: "gearshape") {
                         HelpRow(keys: ["⌘,"], description: L(.openSettings))
                         HelpRow(keys: ["Ctrl+T"], description: L(.cycleTheme))
                     }
-                    
+
                     HelpSection(title: L(.helpVisualMode), icon: "checkmark.square") {
                         HelpRow(keys: ["↑/↓/j/k"], description: L(.extendSelection))
                         HelpRow(keys: ["a"], description: L(.selectAll))
                         HelpRow(keys: ["r"], description: L(.batchRenameSelected))
                         HelpRow(keys: ["Esc"], description: L(.exitVisualMode))
                     }
-                    
+
                     HelpSection(title: L(.helpCommandMode), icon: "terminal") {
                         HelpRow(keys: [":q"], description: L(.quitApp))
                         HelpRow(keys: [":cd <path>"], description: L(.changeDirectory))
@@ -89,7 +89,7 @@ struct HelpView: View {
         .frame(width: 500, height: 600)
         .background(themeManager.current.background)
     }
-    
+
     private func L(_ key: LocalizedStringKey) -> String {
         localizationManager.localized(key)
     }
@@ -101,23 +101,23 @@ struct HelpTitleBar: View {
     @ObservedObject private var themeManager = ThemeManager.shared
     @ObservedObject private var localizationManager = LocalizationManager.shared
     let onClose: () -> Void
-    
+
     var body: some View {
         HStack {
             Image(systemName: "questionmark.circle.fill")
                 .font(.system(size: 18))
                 .foregroundColor(themeManager.current.accent)
-            
+
             Text(L(.helpKeyboardShortcuts))
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(themeManager.current.textPrimary)
-            
+
             Spacer()
-            
+
             Text(L(.helpPressToClose))
                 .font(.system(size: 11))
                 .foregroundColor(themeManager.current.textMuted)
-            
+
             Button(action: onClose) {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 18))
@@ -130,7 +130,7 @@ struct HelpTitleBar: View {
         .padding(.vertical, 16)
         .background(themeManager.current.backgroundSecondary)
     }
-    
+
     private func L(_ key: LocalizedStringKey) -> String {
         localizationManager.localized(key)
     }
@@ -140,11 +140,11 @@ struct HelpTitleBar: View {
 
 struct HelpSection<Content: View>: View {
     @ObservedObject private var themeManager = ThemeManager.shared
-    
+
     let title: String
     let icon: String
     @ViewBuilder let content: Content
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // 标题
@@ -152,12 +152,12 @@ struct HelpSection<Content: View>: View {
                 Image(systemName: icon)
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(themeManager.current.accent)
-                
+
                 Text(title)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(themeManager.current.textPrimary)
             }
-            
+
             // 内容
             VStack(spacing: 6) {
                 content
@@ -172,10 +172,10 @@ struct HelpSection<Content: View>: View {
 
 struct HelpRow: View {
     @ObservedObject private var themeManager = ThemeManager.shared
-    
+
     let keys: [String]
     let description: String
-    
+
     var body: some View {
         HStack(spacing: 12) {
             // 快捷键
@@ -190,12 +190,12 @@ struct HelpRow: View {
                 }
             }
             .frame(minWidth: 120, alignment: .leading)
-            
+
             // 描述
             Text(description)
                 .font(.system(size: 12))
                 .foregroundColor(themeManager.current.textSecondary)
-            
+
             Spacer()
         }
     }
@@ -205,9 +205,9 @@ struct HelpRow: View {
 
 struct KeyBadge: View {
     @ObservedObject private var themeManager = ThemeManager.shared
-    
+
     let key: String
-    
+
     var body: some View {
         Text(key)
             .font(.system(size: 11, weight: .medium, design: .monospaced))

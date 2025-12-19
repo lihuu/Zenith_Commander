@@ -14,13 +14,13 @@ struct FileRowView: View, Equatable {
     @ObservedObject private var settingsManager = SettingsManager.shared
 
     let file: FileItem
-    let isActive: Bool  // 光标所在
-    let isSelected: Bool  // 被选中
-    let isPaneActive: Bool  // 面板是否激活
-    let rowIndex: Int  // 行索引，用于斑马条纹（可选）
-    let isEditing: Bool  // 是否正在编辑
-    @Binding var editingText: String  // 编辑时的文本
-    @Binding var isDropTarget: Bool  // 是否为拖放目标（由父视图控制）
+    let isActive: Bool // 光标所在
+    let isSelected: Bool // 被选中
+    let isPaneActive: Bool // 面板是否激活
+    let rowIndex: Int // 行索引，用于斑马条纹（可选）
+    let isEditing: Bool // 是否正在编辑
+    @Binding var editingText: String // 编辑时的文本
+    @Binding var isDropTarget: Bool // 是否为拖放目标（由父视图控制）
 
     init(
         file: FileItem,
@@ -38,8 +38,8 @@ struct FileRowView: View, Equatable {
         self.isPaneActive = isPaneActive
         self.rowIndex = rowIndex
         self.isEditing = isEditing
-        self._editingText = editingText
-        self._isDropTarget = isDropTarget
+        _editingText = editingText
+        _isDropTarget = isDropTarget
     }
 
     // 实现 Equatable 以优化重绘
@@ -125,7 +125,7 @@ struct FileRowView: View, Equatable {
 
     private var fileNameView: some View {
         if isEditing {
-            return AnyView(
+            AnyView(
                 TextField("", text: $editingText)
                     .textFieldStyle(.plain)
                     .font(.system(size: nameSize, weight: .medium))
@@ -140,7 +140,7 @@ struct FileRowView: View, Equatable {
                     )
             )
         } else {
-            return AnyView(
+            AnyView(
                 Text(file.name)
                     .font(.system(size: nameSize, weight: .medium))
                     .foregroundColor(textColor)
@@ -152,10 +152,9 @@ struct FileRowView: View, Equatable {
 
     private var fileInfoView: some View {
         HStack(spacing: 8) {
-
             let shouldShowGitStatus: Bool =
                 settingsManager.settings.git.enabled
-                && file.gitStatus.shouldDisplay
+                    && file.gitStatus.shouldDisplay
             // Git 状态标记
             if shouldShowGitStatus {
                 Text(file.gitStatus.displayText)
@@ -211,9 +210,9 @@ struct FileRowView: View, Equatable {
         if isDropTarget {
             // 拖放悬停时的高亮背景
             return Theme.accent.opacity(0.2)
-        } else if isActive && isPaneActive {
+        } else if isActive, isPaneActive {
             return Theme.selection
-        } else if isActive && !isPaneActive {
+        } else if isActive, !isPaneActive {
             return Theme.selectionInactive.opacity(0.3)
         } else if isSelected {
             return Theme.selection.opacity(0.5)
@@ -222,7 +221,7 @@ struct FileRowView: View, Equatable {
     }
 
     private var cursorBorderColor: Color {
-        if isActive && !isPaneActive {
+        if isActive, !isPaneActive {
             return Theme.accent.opacity(0.5)
         }
         return .clear
@@ -231,16 +230,16 @@ struct FileRowView: View, Equatable {
     private var iconColor: Color {
         switch file.type {
         case .folder:
-            return Theme.folder
+            Theme.folder
         case .file:
-            return colorForExtension(file.fileExtension)
+            colorForExtension(file.fileExtension)
         default:
-            return Theme.file
+            Theme.file
         }
     }
 
     private var textColor: Color {
-        if isActive && isPaneActive {
+        if isActive, isPaneActive {
             return .white
         } else if isSelected {
             return Theme.accent
@@ -259,18 +258,18 @@ struct FileRowView: View, Equatable {
     private func colorForExtension(_ ext: String) -> Color {
         switch ext.lowercased() {
         case "swift", "m", "h", "c", "cpp", "py", "js", "ts", "java", "rb",
-            "go", "rs":
-            return Theme.code
+             "go", "rs":
+            Theme.code
         case "jpg", "jpeg", "png", "gif", "bmp", "tiff", "heic", "webp", "svg":
-            return Theme.image
+            Theme.image
         case "mp4", "mov", "avi", "mkv", "wmv":
-            return Theme.video
+            Theme.video
         case "mp3", "wav", "aac", "flac", "m4a":
-            return Theme.audio
+            Theme.audio
         case "zip", "tar", "gz", "rar", "7z":
-            return Theme.archive
+            Theme.archive
         default:
-            return Theme.file
+            Theme.file
         }
     }
 }

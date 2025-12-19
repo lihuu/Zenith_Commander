@@ -11,7 +11,6 @@ import os.log
 extension AppState {
     /// 显示文件的 Git 历史
     func showGitHistoryForFile(_ file: FileItem) {
-
         // 先在主线程复制需要的值，避免在后台线程访问可能触发 UI 更新的属性
         let filePath = file.path
 

@@ -28,10 +28,10 @@ extension AppState {
             // mkdir <name> - 在当前目录创建文件夹
             let (_, folderName) = CommandParser.validateMkdir(command)
             do {
-                let _ = try await FileSystemService.shared.createDirectory(
+                _ = try await FileSystemService.shared.createDirectory(
                     at: currentPath,
                     name: folderName,
-                    undoManager: self.undoManager
+                    undoManager: undoManager
                 )
                 await refreshCurrentPane()
             } catch {
@@ -47,10 +47,10 @@ extension AppState {
             // touch <name> - 在当前目录创建文件
             let (_, fileName) = CommandParser.validateTouch(command)
             do {
-                let _ = try await FileSystemService.shared.createFile(
+                _ = try await FileSystemService.shared.createFile(
                     at: currentPath,
                     name: fileName,
-                    undoManager: self.undoManager
+                    undoManager: undoManager
                 )
                 await refreshCurrentPane()
             } catch {
@@ -107,12 +107,13 @@ extension AppState {
                     command.rawInput
                 )
             )
+
         case .rsync:
             let (valid, _, error) = CommandParser.validateRsync(command)
 
             if valid {
                 presentRsyncSheet(sourceIsLeft: true)
-            } else if let error = error {
+            } else if let error {
                 showToast(error)
             }
         }
@@ -123,8 +124,8 @@ extension AppState {
     func deleteSelectedFiles() async {
         let pane = currentPane
         if pane.selections.isEmpty,
-            let file = pane.activeTab.files[safe: pane.cursorIndex],
-            file.isParentDirectory
+           let file = pane.activeTab.files[safe: pane.cursorIndex],
+           file.isParentDirectory
         {
             showToast(
                 LocalizationManager.shared.localized(.toastCannotDeleteParent)
@@ -144,7 +145,7 @@ extension AppState {
         do {
             try await FileSystemService.shared.trashFiles(
                 filesToDelete,
-                undoManager: self.undoManager
+                undoManager: undoManager
             )
             showToast(
                 LocalizationManager.shared.localized(
@@ -169,7 +170,7 @@ extension AppState {
         if selections.isEmpty {
             // 如果没有选中，返回当前光标所在的文件
             if let file = pane.activeTab.files[safe: pane.cursorIndex],
-                !file.isParentDirectory
+               !file.isParentDirectory
             {
                 return [file]
             }
@@ -185,7 +186,7 @@ extension AppState {
     func currentFile() -> FileItem? {
         let pane = currentPane
         guard let file = pane.activeTab.files[safe: pane.cursorIndex],
-            !file.isParentDirectory
+              !file.isParentDirectory
         else {
             return nil
         }
@@ -235,7 +236,7 @@ extension AppState {
                 try await FileSystemService.shared.moveFiles(
                     selectedFiles,
                     to: destPath,
-                    undoManager: self.undoManager
+                    undoManager: undoManager
                 )
                 await refreshCurrentPane()
             } catch {
@@ -293,7 +294,7 @@ extension AppState {
                 try await FileSystemService.shared.copyFiles(
                     selectedFiles,
                     to: destPath,
-                    undoManager: self.undoManager
+                    undoManager: undoManager
                 )
                 await refreshCurrentPane()
             } catch {
@@ -350,7 +351,7 @@ extension AppState {
             do {
                 try await FileSystemService.shared.trashFiles(
                     selectedFiles,
-                    undoManager: self.undoManager
+                    undoManager: undoManager
                 )
                 await refreshCurrentPane()
                 showToast(

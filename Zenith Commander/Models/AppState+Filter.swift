@@ -8,6 +8,7 @@
 import Foundation
 
 // MARK: - 过滤功能扩展
+
 extension AppState {
     func applyFilter() {
         let pane = currentPane
@@ -15,7 +16,7 @@ extension AppState {
         let filter = filterInput
 
         // 首次过滤时保存原始文件列表
-        if tab.unfilteredFiles.isEmpty && !tab.files.isEmpty {
+        if tab.unfilteredFiles.isEmpty, !tab.files.isEmpty {
             tab.unfilteredFiles = tab.files
         }
 

@@ -9,7 +9,7 @@ import SwiftUI
 
 struct ToastView: View {
     let message: String
-    
+
     var body: some View {
         Text(message)
             .font(.system(size: 13, weight: .medium))
@@ -31,12 +31,12 @@ struct ToastView: View {
 /// Toast 修饰器
 struct ToastModifier: ViewModifier {
     let message: String?
-    
+
     func body(content: Content) -> some View {
         ZStack {
             content
-            
-            if let message = message {
+
+            if let message {
                 VStack {
                     ToastView(message: message)
                         .transition(.move(edge: .top).combined(with: .opacity))

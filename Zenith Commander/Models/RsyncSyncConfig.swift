@@ -5,54 +5,54 @@
 //  Rsync synchronization configuration and supporting types
 //
 
-import Foundation
 import Combine
+import Foundation
 
 // MARK: - Enums
 
 /// Rsync synchronization modes
 enum RsyncMode: String, Codable, CaseIterable {
-    case update = "update"  // Skip newer files (default)
-    case mirror = "mirror"  // Delete extras in destination
-    case copyAll = "copyAll"  // Overwrite all existing files
-    case custom = "custom"  // User-defined custom flags
+    case update // Skip newer files (default)
+    case mirror // Delete extras in destination
+    case copyAll // Overwrite all existing files
+    case custom // User-defined custom flags
 
     var displayName: String {
         switch self {
-        case .update: return "Update (Skip newer files)"
-        case .mirror: return "Mirror (Delete extras)"
-        case .copyAll: return "Copy All (Overwrite existing)"
-        case .custom: return "Custom"
+        case .update: "Update (Skip newer files)"
+        case .mirror: "Mirror (Delete extras)"
+        case .copyAll: "Copy All (Overwrite existing)"
+        case .custom: "Custom"
         }
     }
 
     func flags() -> Set<String> {
         switch self {
         case .update:
-            return ["-a", "-u"]
+            ["-a", "-u"]
         case .mirror:
-            return ["-a", "--delete"]
+            ["-a", "--delete"]
         case .copyAll:
-            return ["-a", "--ignore-existing"]
+            ["-a", "--ignore-existing"]
         case .custom:
-            return []
+            []
         }
     }
 }
 
 /// Actions that can be performed on files during sync
 enum RsyncAction: String, Codable {
-    case copy = "copy"  // File will be copied to destination
-    case update = "update"  // Existing file will be updated
-    case delete = "delete"  // File will be deleted from destination
-    case skip = "skip"  // File will be skipped
+    case copy // File will be copied to destination
+    case update // Existing file will be updated
+    case delete // File will be deleted from destination
+    case skip // File will be skipped
 
     var displayName: String {
         switch self {
-        case .copy: return "Copy"
-        case .update: return "Update"
-        case .delete: return "Delete"
-        case .skip: return "Skip"
+        case .copy: "Copy"
+        case .update: "Update"
+        case .delete: "Delete"
+        case .skip: "Skip"
         }
     }
 }
@@ -96,9 +96,9 @@ struct RsyncPreviewResult: Codable {
 
 /// Progress information during rsync execution
 struct RsyncProgress: Codable {
-    let message: String  // Current operation message
-    let completed: Int  // Number of operations completed
-    let total: Int  // Total number of operations
+    let message: String // Current operation message
+    let completed: Int // Number of operations completed
+    let total: Int // Total number of operations
 
     var percentage: Double {
         guard total > 0 else { return 0.0 }
@@ -197,7 +197,7 @@ struct RsyncSyncConfig: Codable, Equatable {
         self.deleteExtras = deleteExtras
         self.excludePatterns = excludePatterns
         self.customFlags = customFlags
-        self.flags = mode.flags()
+        flags = mode.flags()
     }
 
     /// Validates that both source and destination are valid directories

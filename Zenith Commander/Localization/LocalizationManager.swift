@@ -5,8 +5,8 @@
 //  国际化管理器 - 管理应用语言设置
 //
 
-import SwiftUI
 import Combine
+import SwiftUI
 
 // MARK: - 支持的语言
 
@@ -21,33 +21,33 @@ enum AppLanguage: String, CaseIterable, Codable, Identifiable {
     // case french = "fr"
     // case german = "de"
     // case spanish = "es"
-    
+
     var id: String { rawValue }
-    
+
     /// 语言显示名称（原生名称）
     var nativeName: String {
         switch self {
-        case .english: return "English"
-        case .chinese: return "简体中文"
+        case .english: "English"
+        case .chinese: "简体中文"
         }
     }
-    
+
     /// 语言显示名称（英文）
     var englishName: String {
         switch self {
-        case .english: return "English"
-        case .chinese: return "Chinese (Simplified)"
+        case .english: "English"
+        case .chinese: "Chinese (Simplified)"
         }
     }
-    
+
     /// 语言图标
     var icon: String {
         switch self {
-        case .english: return "🇺🇸"
-        case .chinese: return "🇨🇳"
+        case .english: "🇺🇸"
+        case .chinese: "🇨🇳"
         }
     }
-    
+
     /// 语言代码（用于 Locale）
     var localeIdentifier: String {
         rawValue
@@ -60,20 +60,20 @@ enum AppLanguage: String, CaseIterable, Codable, Identifiable {
 /// 语言设置跟随系统语言，只支持中文和英文，其他语言默认使用英文
 class LocalizationManager: ObservableObject {
     static let shared = LocalizationManager()
-    
+
     /// 当前语言（只读，跟随系统语言）
     @Published private(set) var currentLanguage: AppLanguage
-    
+
     private init() {
         // 读取系统语言设置
-        self.currentLanguage = Self.detectSystemLanguage()
+        currentLanguage = Self.detectSystemLanguage()
     }
-    
+
     /// 检测系统语言，只支持中文和英文，其他语言默认使用英文
     private static func detectSystemLanguage() -> AppLanguage {
         // 获取系统首选语言列表
         let preferredLanguages = Locale.preferredLanguages
-        
+
         for languageCode in preferredLanguages {
             // 检查是否是中文（简体或繁体都算中文）
             if languageCode.hasPrefix("zh") {
@@ -84,18 +84,18 @@ class LocalizationManager: ObservableObject {
                 return .english
             }
         }
-        
+
         // 默认使用英文
         return .english
     }
-    
+
     /// 刷新语言设置（当系统语言变化时调用）
-    
+
     /// 获取本地化字符串
     func localized(_ key: LocalizedStringKey) -> String {
-        return LocalizedStrings.shared.get(key, for: currentLanguage)
+        LocalizedStrings.shared.get(key, for: currentLanguage)
     }
-    
+
     /// 获取带参数的本地化字符串
     func localized(_ key: LocalizedStringKey, _ args: CVarArg...) -> String {
         let format = LocalizedStrings.shared.get(key, for: currentLanguage)
@@ -109,6 +109,7 @@ class LocalizationManager: ObservableObject {
 /// 添加新的本地化字符串时，在这里添加新的 case
 enum LocalizedStringKey: String, CaseIterable {
     // MARK: - 通用
+
     case appName
     case ok
     case cancel
@@ -124,8 +125,9 @@ enum LocalizedStringKey: String, CaseIterable {
     case loading
     case yes
     case no
-    
+
     // MARK: - 模式名称
+
     case modeNormal
     case modeVisual
     case modeCommand
@@ -135,8 +137,9 @@ enum LocalizedStringKey: String, CaseIterable {
     case modeRename
     case modeSettings
     case modeHelp
-    
+
     // MARK: - 设置页面
+
     case settings
     case settingsAppearance
     case settingsTheme
@@ -159,8 +162,9 @@ enum LocalizedStringKey: String, CaseIterable {
     case settingsRestartMessage
     case settingsRestartNow
     case settingsRestartLater
-    
+
     // MARK: - Git 设置
+
     case settingsGit
     case settingsGitEnabled
     case settingsGitEnabledDescription
@@ -170,15 +174,17 @@ enum LocalizedStringKey: String, CaseIterable {
     case settingsGitShowUntrackedDescription
     case settingsGitShowIgnored
     case settingsGitShowIgnoredDescription
-    
+
     // MARK: - Rsync Settings
+
     case settingsRsync
     case settingsRsyncEnabled
     case settingsRsyncEnabledDescription
     case settingsRsyncInstalled
     case settingsRsyncNotInstalled
-    
+
     // MARK: - Git 状态显示
+
     case gitStatusModified
     case gitStatusAdded
     case gitStatusDeleted
@@ -188,8 +194,9 @@ enum LocalizedStringKey: String, CaseIterable {
     case gitBranch
     case gitAhead
     case gitBehind
-    
+
     // MARK: - 帮助页面
+
     case help
     case helpKeyboardShortcuts
     case helpNavigation
@@ -201,8 +208,9 @@ enum LocalizedStringKey: String, CaseIterable {
     case helpVisualMode
     case helpCommandMode
     case helpPressToClose
-    
+
     // MARK: - 导航
+
     case moveCursorUp
     case moveCursorDown
     case goToParent
@@ -211,16 +219,18 @@ enum LocalizedStringKey: String, CaseIterable {
     case jumpToLast
     case switchPanes
     case openFile
-    
+
     // MARK: - 模式切换
+
     case enterVisualMode
     case enterCommandMode
     case enterFilterMode
     case openDriveSelector
     case openHelp
     case exitMode
-    
+
     // MARK: - 文件操作
+
     case copyFiles
     case pasteFiles
     case refreshDirectory
@@ -234,28 +244,33 @@ enum LocalizedStringKey: String, CaseIterable {
     case openSelected
     case openTerminal
     case quitApp
-    
+
     // MARK: - 标签页
+
     case newTab
     case closeTab
     case previousTab
     case nextTab
-    
+
     // MARK: - 书签
+
     case toggleBookmarkBar
     case addToBookmarks
-    
+
     // MARK: - 主题
+
     case openSettings
     case cycleTheme
-    
+
     // MARK: - Visual 模式
+
     case extendSelection
     case selectAll
     case batchRenameSelected
     case exitVisualMode
-    
+
     // MARK: - 文件列表
+
     case name
     case size
     case dateModified
@@ -263,29 +278,34 @@ enum LocalizedStringKey: String, CaseIterable {
     case noFiles
     case items
     case selected
-    
+
     // MARK: - 状态栏
+
     case freeSpace
     case totalSpace
-    
+
     // MARK: - 批量重命名
+
     case batchRenameTitle
     case batchRenamePattern
     case batchRenamePreview
     case batchRenameApply
     case batchRenameVariables
-    
+
     // MARK: - AI 分析
+
     case aiAnalyzing
     case aiAnalysisResult
     case aiAnalysisError
-    
+
     // MARK: - 权限
+
     case permissionRequired
     case permissionDescription
     case permissionGrant
-    
+
     // MARK: - Toast 消息
+
     case toastCopied
     case toastPasted
     case toastDeleted
@@ -294,8 +314,9 @@ enum LocalizedStringKey: String, CaseIterable {
     case toastRenamed
     case toastBookmarkAdded
     case toastBookmarkRemoved
-    
+
     // MARK: - Git History
+
     case gitHistory
     case gitCommits
     case gitLoadingHistory
@@ -312,15 +333,17 @@ enum LocalizedStringKey: String, CaseIterable {
     case gitCommitParent
     case gitShowDetails
     case gitCopyHash
-    
+
     // MARK: - 错误消息
+
     case errorFileNotFound
     case errorPermissionDenied
     case errorOperationFailed
     case errorInvalidPath
     case errorDirectoryNotEmpty
-    
+
     // MARK: - Context Menu
+
     case contextOpen
     case contextOpenInTerminal
     case contextRemoveFromBookmarks
@@ -334,13 +357,15 @@ enum LocalizedStringKey: String, CaseIterable {
     case contextRefresh
     case contextNewFile
     case contextNewFolder
-    
+
     // MARK: - Bookmark Bar
+
     case bookmarkBarEmpty
     case bookmarkBarEditDone
     case bookmarkBarEdit
-    
+
     // MARK: - Toast Messages (Detailed)
+
     case toastBookmarkBarShown
     case toastBookmarkBarHidden
     case toastAlreadyBookmarked
@@ -383,8 +408,9 @@ enum LocalizedStringKey: String, CaseIterable {
     case toastSelectFileForGitHistory
     case toastNewTabCreated
     case toastRsyncDisabled
-    
+
     // MARK: - 菜单栏
+
     case menuNavigation
     case menuView
     case menuHelp
@@ -402,8 +428,9 @@ enum LocalizedStringKey: String, CaseIterable {
     case menuHideOthers
     case menuShowAll
     case menuQuit
-    
+
     // MARK: - Rsync Sync
+
     case rsyncSync
     case rsyncSyncTitle
     case rsyncSource
@@ -430,8 +457,9 @@ enum LocalizedStringKey: String, CaseIterable {
     case rsyncSkipped
     case rsyncErrors
     case rsyncSummary
-    
+
     // MARK: - Rsync Errors
+
     case rsyncErrorSourceNotFound
     case rsyncErrorSourceNotDirectory
     case rsyncErrorDestinationNotFound
@@ -447,21 +475,21 @@ enum LocalizedStringKey: String, CaseIterable {
 /// 本地化字符串存储 - 包含所有语言的翻译
 class LocalizedStrings {
     static let shared = LocalizedStrings()
-    
+
     private var translations: [AppLanguage: [LocalizedStringKey: String]] = [:]
-    
+
     private init() {
         setupEnglish()
         setupChinese()
     }
-    
+
     /// 获取指定语言的本地化字符串
     func get(_ key: LocalizedStringKey, for language: AppLanguage) -> String {
-        return translations[language]?[key] ?? translations[.english]?[key] ?? key.rawValue
+        translations[language]?[key] ?? translations[.english]?[key] ?? key.rawValue
     }
-    
+
     // MARK: - English Translations
-    
+
     private func setupEnglish() {
         translations[.english] = [
             // 通用
@@ -480,7 +508,7 @@ class LocalizedStrings {
             .loading: "Loading...",
             .yes: "Yes",
             .no: "No",
-            
+
             // 模式名称
             .modeNormal: "NORMAL",
             .modeVisual: "VISUAL",
@@ -491,7 +519,7 @@ class LocalizedStrings {
             .modeRename: "RENAME",
             .modeSettings: "SETTINGS",
             .modeHelp: "HELP",
-            
+
             // 设置页面
             .settings: "Settings",
             .settingsAppearance: "Appearance",
@@ -515,7 +543,7 @@ class LocalizedStrings {
             .settingsRestartMessage: "The app needs to restart for the language change to fully take effect on system menus.",
             .settingsRestartNow: "Restart Now",
             .settingsRestartLater: "Restart Later",
-            
+
             // Git 设置
             .settingsGit: "Git Integration",
             .settingsGitEnabled: "Enable Git Integration",
@@ -526,14 +554,14 @@ class LocalizedStrings {
             .settingsGitShowUntrackedDescription: "Display status for files not tracked by Git",
             .settingsGitShowIgnored: "Show Ignored Files",
             .settingsGitShowIgnoredDescription: "Display status for files in .gitignore",
-            
+
             // Rsync Settings
             .settingsRsync: "Rsync Integration",
             .settingsRsyncEnabled: "Enable Rsync Integration",
             .settingsRsyncEnabledDescription: "Enable Rsync features (Context Menu, Shortcuts)",
             .settingsRsyncInstalled: "Rsync is installed",
             .settingsRsyncNotInstalled: "Rsync is not installed",
-            
+
             // Git 状态显示
             .gitStatusModified: "Modified",
             .gitStatusAdded: "Added",
@@ -544,7 +572,7 @@ class LocalizedStrings {
             .gitBranch: "Branch",
             .gitAhead: "ahead",
             .gitBehind: "behind",
-            
+
             // Git History
             .gitHistory: "Git History",
             .gitCommits: "commits",
@@ -562,7 +590,7 @@ class LocalizedStrings {
             .gitCommitParent: "Parent",
             .gitShowDetails: "Show Details",
             .gitCopyHash: "Copy Hash",
-            
+
             // 帮助页面
             .help: "Help",
             .helpKeyboardShortcuts: "Keyboard Shortcuts",
@@ -575,7 +603,7 @@ class LocalizedStrings {
             .helpVisualMode: "Visual Mode",
             .helpCommandMode: "Command Mode",
             .helpPressToClose: "Press ESC or ? to close",
-            
+
             // 导航
             .moveCursorUp: "Move cursor up",
             .moveCursorDown: "Move cursor down",
@@ -585,7 +613,7 @@ class LocalizedStrings {
             .jumpToLast: "Jump to last item",
             .switchPanes: "Switch between panes",
             .openFile: "Open file/Enter directory",
-            
+
             // 模式切换
             .enterVisualMode: "Enter Visual mode (select multiple)",
             .enterCommandMode: "Enter Command mode",
@@ -593,7 +621,7 @@ class LocalizedStrings {
             .openDriveSelector: "Open Drive selector",
             .openHelp: "Open Help",
             .exitMode: "Exit current mode / Cancel",
-            
+
             // 文件操作
             .copyFiles: "Copy (yank) selected files",
             .pasteFiles: "Paste files",
@@ -608,27 +636,27 @@ class LocalizedStrings {
             .openSelected: "Open selected file",
             .openTerminal: "Open terminal here",
             .quitApp: "Quit application",
-            
+
             // 标签页
             .newTab: "New tab",
             .closeTab: "Close current tab",
             .previousTab: "Previous tab",
             .nextTab: "Next tab",
-            
+
             // 书签
             .toggleBookmarkBar: "Toggle bookmark bar",
             .addToBookmarks: "Add to bookmarks",
-            
+
             // 主题
             .openSettings: "Open Settings",
             .cycleTheme: "Cycle theme (Light/Dark/Auto)",
-            
+
             // Visual 模式
             .extendSelection: "Extend selection",
             .selectAll: "Select all",
             .batchRenameSelected: "Batch rename selected files",
             .exitVisualMode: "Exit Visual mode",
-            
+
             // 文件列表
             .name: "Name",
             .size: "Size",
@@ -637,28 +665,28 @@ class LocalizedStrings {
             .noFiles: "No files",
             .items: "items",
             .selected: "selected",
-            
+
             // 状态栏
             .freeSpace: "Free",
             .totalSpace: "Total",
-            
+
             // 批量重命名
             .batchRenameTitle: "Batch Rename",
             .batchRenamePattern: "Pattern",
             .batchRenamePreview: "Preview",
             .batchRenameApply: "Apply",
             .batchRenameVariables: "Variables",
-            
+
             // AI 分析
             .aiAnalyzing: "Analyzing...",
             .aiAnalysisResult: "Analysis Result",
             .aiAnalysisError: "Analysis failed",
-            
+
             // 权限
             .permissionRequired: "Permission Required",
             .permissionDescription: "Zenith Commander needs access to your files",
             .permissionGrant: "Grant Access",
-            
+
             // Toast 消息
             .toastCopied: "Copied to clipboard",
             .toastPasted: "Pasted successfully",
@@ -668,14 +696,14 @@ class LocalizedStrings {
             .toastRenamed: "Renamed successfully",
             .toastBookmarkAdded: "Bookmark added",
             .toastBookmarkRemoved: "Bookmark removed",
-            
+
             // 错误消息
             .errorFileNotFound: "File not found",
             .errorPermissionDenied: "Permission denied",
             .errorOperationFailed: "Operation failed",
             .errorInvalidPath: "Invalid path",
             .errorDirectoryNotEmpty: "Directory is not empty",
-            
+
             // Context Menu
             .contextOpen: "Open",
             .contextOpenInTerminal: "Open in Terminal",
@@ -690,12 +718,12 @@ class LocalizedStrings {
             .contextRefresh: "Refresh (R)",
             .contextNewFile: "New File",
             .contextNewFolder: "New Folder",
-            
+
             // Bookmark Bar
             .bookmarkBarEmpty: "No bookmarks - Right-click to add",
             .bookmarkBarEditDone: "Done",
             .bookmarkBarEdit: "Edit",
-            
+
             // Toast Messages (Detailed)
             .toastBookmarkBarShown: "Bookmark bar shown",
             .toastBookmarkBarHidden: "Bookmark bar hidden",
@@ -739,7 +767,7 @@ class LocalizedStrings {
             .toastSelectFileForGitHistory: "Select a file to view Git history",
             .toastNewTabCreated: "New tab created",
             .toastRsyncDisabled: "Rsync integration is disabled in Settings",
-            
+
             // Menu Bar
             .menuNavigation: "Navigation",
             .menuView: "View",
@@ -758,7 +786,7 @@ class LocalizedStrings {
             .menuHideOthers: "Hide Others",
             .menuShowAll: "Show All",
             .menuQuit: "Quit Zenith Commander",
-            
+
             // Rsync Sync
             .rsyncSync: "Rsync Sync...",
             .rsyncSyncTitle: "Rsync Synchronization",
@@ -786,7 +814,7 @@ class LocalizedStrings {
             .rsyncSkipped: "Skipped",
             .rsyncErrors: "Errors",
             .rsyncSummary: "Summary",
-            
+
             // Rsync Errors
             .rsyncErrorSourceNotFound: "Source path not found",
             .rsyncErrorSourceNotDirectory: "Source path is not a directory",
@@ -795,12 +823,12 @@ class LocalizedStrings {
             .rsyncErrorSameSourceDestination: "Source and destination cannot be the same",
             .rsyncErrorExecutionFailed: "Rsync execution failed",
             .rsyncErrorInvalidPath: "Invalid path",
-            .rsyncErrorValidation: "Validation failed"
+            .rsyncErrorValidation: "Validation failed",
         ]
     }
-    
+
     // MARK: - Chinese Translations
-    
+
     private func setupChinese() {
         translations[.chinese] = [
             // 通用
@@ -819,7 +847,7 @@ class LocalizedStrings {
             .loading: "加载中...",
             .yes: "是",
             .no: "否",
-            
+
             // 模式名称
             .modeNormal: "普通",
             .modeVisual: "选择",
@@ -830,7 +858,7 @@ class LocalizedStrings {
             .modeRename: "重命名",
             .modeSettings: "设置",
             .modeHelp: "帮助",
-            
+
             // 设置页面
             .settings: "设置",
             .settingsAppearance: "外观",
@@ -854,7 +882,7 @@ class LocalizedStrings {
             .settingsRestartMessage: "需要重启应用才能使系统菜单的语言更改完全生效。",
             .settingsRestartNow: "立即重启",
             .settingsRestartLater: "稍后重启",
-            
+
             // Git 设置
             .settingsGit: "Git 集成",
             .settingsGitEnabled: "启用 Git 集成",
@@ -865,14 +893,14 @@ class LocalizedStrings {
             .settingsGitShowUntrackedDescription: "显示未被 Git 跟踪的文件状态",
             .settingsGitShowIgnored: "显示被忽略文件",
             .settingsGitShowIgnoredDescription: "显示在 .gitignore 中的文件状态",
-            
+
             // Rsync Settings
             .settingsRsync: "Rsync 集成",
             .settingsRsyncEnabled: "启用 Rsync 集成",
             .settingsRsyncEnabledDescription: "启用 Rsync 相关功能（右键菜单、快捷键）",
             .settingsRsyncInstalled: "Rsync 已安装",
             .settingsRsyncNotInstalled: "Rsync 未安装",
-            
+
             // Git 状态显示
             .gitStatusModified: "已修改",
             .gitStatusAdded: "已添加",
@@ -883,7 +911,7 @@ class LocalizedStrings {
             .gitBranch: "分支",
             .gitAhead: "领先",
             .gitBehind: "落后",
-            
+
             // Git History
             .gitHistory: "Git 历史",
             .gitCommits: "次提交",
@@ -901,7 +929,7 @@ class LocalizedStrings {
             .gitCommitParent: "父提交",
             .gitShowDetails: "显示详情",
             .gitCopyHash: "复制哈希",
-            
+
             // 帮助页面
             .help: "帮助",
             .helpKeyboardShortcuts: "键盘快捷键",
@@ -914,7 +942,7 @@ class LocalizedStrings {
             .helpVisualMode: "选择模式",
             .helpCommandMode: "命令模式",
             .helpPressToClose: "按 ESC 或 ? 关闭",
-            
+
             // 导航
             .moveCursorUp: "向上移动光标",
             .moveCursorDown: "向下移动光标",
@@ -924,7 +952,7 @@ class LocalizedStrings {
             .jumpToLast: "跳转到最后一项",
             .switchPanes: "切换面板",
             .openFile: "打开文件/进入目录",
-            
+
             // 模式切换
             .enterVisualMode: "进入选择模式（多选）",
             .enterCommandMode: "进入命令模式",
@@ -932,7 +960,7 @@ class LocalizedStrings {
             .openDriveSelector: "打开驱动器选择器",
             .openHelp: "打开帮助",
             .exitMode: "退出当前模式 / 取消",
-            
+
             // 文件操作
             .copyFiles: "复制选中的文件",
             .pasteFiles: "粘贴文件",
@@ -947,27 +975,27 @@ class LocalizedStrings {
             .openSelected: "打开选中的文件",
             .openTerminal: "在此处打开终端",
             .quitApp: "退出应用",
-            
+
             // 标签页
             .newTab: "新建标签页",
             .closeTab: "关闭当前标签页",
             .previousTab: "上一个标签页",
             .nextTab: "下一个标签页",
-            
+
             // 书签
             .toggleBookmarkBar: "显示/隐藏书签栏",
             .addToBookmarks: "添加到书签",
-            
+
             // 主题
             .openSettings: "打开设置",
             .cycleTheme: "切换主题（浅色/深色/自动）",
-            
+
             // Visual 模式
             .extendSelection: "扩展选择",
             .selectAll: "全选",
             .batchRenameSelected: "批量重命名选中的文件",
             .exitVisualMode: "退出选择模式",
-            
+
             // 文件列表
             .name: "名称",
             .size: "大小",
@@ -976,28 +1004,28 @@ class LocalizedStrings {
             .noFiles: "无文件",
             .items: "项",
             .selected: "已选择",
-            
+
             // 状态栏
             .freeSpace: "可用",
             .totalSpace: "总共",
-            
+
             // 批量重命名
             .batchRenameTitle: "批量重命名",
             .batchRenamePattern: "模式",
             .batchRenamePreview: "预览",
             .batchRenameApply: "应用",
             .batchRenameVariables: "变量",
-            
+
             // AI 分析
             .aiAnalyzing: "分析中...",
             .aiAnalysisResult: "分析结果",
             .aiAnalysisError: "分析失败",
-            
+
             // 权限
             .permissionRequired: "需要权限",
             .permissionDescription: "Zenith Commander 需要访问您的文件",
             .permissionGrant: "授予权限",
-            
+
             // Toast 消息
             .toastCopied: "已复制到剪贴板",
             .toastPasted: "粘贴成功",
@@ -1007,14 +1035,14 @@ class LocalizedStrings {
             .toastRenamed: "重命名成功",
             .toastBookmarkAdded: "已添加书签",
             .toastBookmarkRemoved: "已移除书签",
-            
+
             // 错误消息
             .errorFileNotFound: "文件未找到",
             .errorPermissionDenied: "权限被拒绝",
             .errorOperationFailed: "操作失败",
             .errorInvalidPath: "无效路径",
             .errorDirectoryNotEmpty: "目录不为空",
-            
+
             // Context Menu
             .contextOpen: "打开",
             .contextOpenInTerminal: "在终端中打开",
@@ -1029,12 +1057,12 @@ class LocalizedStrings {
             .contextRefresh: "刷新 (R)",
             .contextNewFile: "新建文件",
             .contextNewFolder: "新建文件夹",
-            
+
             // Bookmark Bar
             .bookmarkBarEmpty: "无书签 - 右键文件添加",
             .bookmarkBarEditDone: "完成编辑",
             .bookmarkBarEdit: "编辑书签",
-            
+
             // Toast Messages (Detailed)
             .toastBookmarkBarShown: "已显示书签栏",
             .toastBookmarkBarHidden: "已隐藏书签栏",
@@ -1078,7 +1106,7 @@ class LocalizedStrings {
             .toastSelectFileForGitHistory: "选择一个文件查看 Git 历史",
             .toastNewTabCreated: "已创建新标签页",
             .toastRsyncDisabled: "Rsync 集成已在设置中禁用",
-            
+
             // 菜单栏
             .menuNavigation: "导航",
             .menuView: "视图",
@@ -1097,7 +1125,7 @@ class LocalizedStrings {
             .menuHideOthers: "隐藏其他",
             .menuShowAll: "显示全部",
             .menuQuit: "退出 Zenith Commander",
-            
+
             // Rsync 同步
             .rsyncSync: "Rsync 同步...",
             .rsyncSyncTitle: "Rsync 同步",
@@ -1125,7 +1153,7 @@ class LocalizedStrings {
             .rsyncSkipped: "已跳过",
             .rsyncErrors: "错误",
             .rsyncSummary: "摘要",
-            
+
             // Rsync 错误
             .rsyncErrorSourceNotFound: "源路径未找到",
             .rsyncErrorSourceNotDirectory: "源路径不是目录",
@@ -1134,7 +1162,7 @@ class LocalizedStrings {
             .rsyncErrorSameSourceDestination: "源和目标不能相同",
             .rsyncErrorExecutionFailed: "Rsync 执行失败",
             .rsyncErrorInvalidPath: "无效路径",
-            .rsyncErrorValidation: "验证失败"
+            .rsyncErrorValidation: "验证失败",
         ]
     }
 }

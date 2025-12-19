@@ -5,7 +5,6 @@
 //  Created by Hu Li on 12/7/25.
 //
 
-
 import SwiftUI
 
 struct FileGridItemView: View {
@@ -13,16 +12,16 @@ struct FileGridItemView: View {
     let isActive: Bool
     let isSelected: Bool
     let isPaneActive: Bool
-    @Binding var isDropTarget: Bool  // 是否为拖放目标
-    
+    @Binding var isDropTarget: Bool // 是否为拖放目标
+
     init(file: FileItem, isActive: Bool, isSelected: Bool, isPaneActive: Bool, isDropTarget: Binding<Bool> = .constant(false)) {
         self.file = file
         self.isActive = isActive
         self.isSelected = isSelected
         self.isPaneActive = isPaneActive
-        self._isDropTarget = isDropTarget
+        _isDropTarget = isDropTarget
     }
-    
+
     var body: some View {
         VStack(spacing: 6) {
             // 图标
@@ -34,7 +33,7 @@ struct FileGridItemView: View {
             )
             .foregroundColor(iconColor)
             .frame(width: 48, height: 48)
-            
+
             // 文件名
             Text(file.name)
                 .font(.system(size: 11, weight: .medium))
@@ -55,7 +54,7 @@ struct FileGridItemView: View {
         .accessibilityLabel(file.name)
         .accessibilityValue(
             (isActive ? "focused" : "") +
-            (isSelected ? ", selected" : "")
+                (isSelected ? ", selected" : "")
         )
         .draggable(file.path) {
             // 拖动预览
@@ -71,31 +70,31 @@ struct FileGridItemView: View {
             .cornerRadius(6)
         }
     }
-    
+
     private var backgroundColor: Color {
         if isDropTarget {
             return Theme.accent.opacity(0.2)
-        } else if isActive && isPaneActive {
+        } else if isActive, isPaneActive {
             return Theme.selection
         } else if isSelected {
             return Theme.selection.opacity(0.5)
         }
         return Theme.backgroundSecondary.opacity(0.5)
     }
-    
+
     private var borderColor: Color {
         if isActive {
             return isPaneActive ? Theme.accent : Theme.accent.opacity(0.5)
         }
         return .clear
     }
-    
+
     private var iconColor: Color {
         file.type == .folder ? Theme.folder : Theme.file
     }
-    
+
     private var textColor: Color {
-        if isActive && isPaneActive {
+        if isActive, isPaneActive {
             return .white
         } else if isSelected {
             return Theme.accent

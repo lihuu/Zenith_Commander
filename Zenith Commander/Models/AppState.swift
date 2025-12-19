@@ -7,65 +7,76 @@
 
 import Combine
 import Foundation
-import SwiftUI
 import os.log
+import SwiftUI
 
 /// 全局应用状态
 @MainActor
 class AppState: ObservableObject {
     // MARK: - 面板状态
+
     @Published var leftPane: PaneState
     @Published var rightPane: PaneState
     @Published var activePane: PaneSide = .left
 
     // MARK: - 订阅管理
+
     private var paneCancellables: Set<AnyCancellable> = []
 
     // MARK: - 模态状态
+
     @Published var mode: AppMode = .normal
     var previousMode: AppMode = .normal
 
     // MARK: - 输入状态
-    @Published var commandInput: String = ""
-    @Published var filterInput: String = ""
-    @Published var filterUseRegex: Bool = false
-    @Published var inputBuffer: String = ""
+
+    @Published var commandInput = ""
+    @Published var filterInput = ""
+    @Published var filterUseRegex = false
+    @Published var inputBuffer = ""
 
     // MARK: - 剪贴板
+
     @Published var clipboard: [FileItem] = []
     @Published var clipboardOperation: ClipboardOperation = .copy
 
     // MARK: - UI 状态
+
     @Published var toastMessage: String?
-    @Published var showDriveSelector: Bool = false
+    @Published var showDriveSelector = false
     @Published var availableDrives: [DriveInfo] = []
 
     // MARK: - AI 状态
-    @Published var aiResult: String = ""
-    @Published var isAiLoading: Bool = false
+
+    @Published var aiResult = ""
+    @Published var isAiLoading = false
 
     // MARK: - 批量重命名状态
-    @Published var showRenameModal: Bool = false
-    @Published var renameFindText: String = ""
-    @Published var renameReplaceText: String = ""
-    @Published var renameUseRegex: Bool = false
+
+    @Published var showRenameModal = false
+    @Published var renameFindText = ""
+    @Published var renameReplaceText = ""
+    @Published var renameUseRegex = false
 
     // MARK: - 单个文件内联编辑状态
-    @Published var editingFileId: String? = nil  // 当前正在编辑的文件ID
-    @Published var editingFileName: String = ""  // 编辑中的文件名
+
+    @Published var editingFileId: String? = nil // 当前正在编辑的文件ID
+    @Published var editingFileName = "" // 编辑中的文件名
+
+    @Published var activeSheet: UIRequest?
 
     var driveSelectorCursor: Int {
         get {
-            let index =  availableDrives.firstIndex(where: {
-                $0.id == currentPane.activeTab.drive.id
+            let index = availableDrives.firstIndex(where: {
+                $0.id == self.currentPane.activeTab.drive.id
             }) ?? 0
-            
+
             Logger.app.debug("Current selected Index: \(index)")
-            
+
             return index
         }
         set {
-            if newValue >= 0 && newValue < availableDrives.count {
+            if newValue >= 0, newValue < availableDrives.count {
                 Logger.app.debug("Current Selected newValue: \(newValue)")
                 let selectedDrive = availableDrives[newValue]
                 currentPane.activeTab.drive = selectedDrive
@@ -74,20 +85,24 @@ class AppState: ObservableObject {
     }
 
     // MARK: - Connection Manager 状态
-    @Published var showConnectionManager: Bool = false
+
+    @Published var showConnectionManager = false
 
     // MARK: - Git History 状态
-    @Published var showGitHistory: Bool = false
+
+    @Published var showGitHistory = false
     @Published var gitHistoryFile: FileItem?
     @Published var gitHistoryCommits: [GitCommit] = []
-    @Published var gitHistoryLoading: Bool = false
+    @Published var gitHistoryLoading = false
 
     // MARK: - 右键菜单状态
+
     @Published var contextMenuPosition: CGPoint?
     @Published var contextMenuFile: FileItem?
 
     // MARK: - Rsync 状态
-    @Published var rsyncUIState: RsyncUIState = RsyncUIState()
+
+    @Published var rsyncUIState = RsyncUIState()
 
     init(testDirectory: URL? = nil) {
         // 获取默认驱动器
@@ -115,7 +130,7 @@ class AppState: ObservableObject {
         } else {
             // 尝试恢复上次的路径
             let (leftPath, rightPath) = Self.restoreLastPaths()
-            
+
             leftPane = PaneState(
                 side: .left,
                 initialPath: leftPath,
@@ -133,6 +148,7 @@ class AppState: ObservableObject {
     }
 
     // MARK: - Undo Support
+
     var undoManager: UndoManager? {
         // Access the undoManager from the key window, which is typically the main window.
         // This is a common pattern in AppKit apps for undo/redo functionality.
@@ -155,45 +171,46 @@ class AppState: ObservableObject {
     }
 
     // MARK: - 路径持久化
-    
+
     /// 保存当前路径到 UserDefaults
     func saveCurrentPaths() {
         let leftPath = leftPane.activeTab.currentPath.path
         let rightPath = rightPane.activeTab.currentPath.path
-        
+
         UserDefaults.standard.set(leftPath, forKey: "lastLeftPanePath")
         UserDefaults.standard.set(rightPath, forKey: "lastRightPanePath")
-        
+
         Logger.app.debug("Saved paths - Left: \(leftPath, privacy: .public), Right: \(rightPath, privacy: .public)")
     }
-    
+
     /// 从 UserDefaults 恢复上次的路径
     /// - Returns: (左面板路径, 右面板路径)
     private static func restoreLastPaths() -> (URL, URL) {
         let homePath = FileManager.default.homeDirectoryForCurrentUser
         let defaultLeftPath = homePath
         let defaultRightPath = homePath.appendingPathComponent("Downloads")
-        
+
         // 读取保存的路径
         guard let leftPathString = UserDefaults.standard.string(forKey: "lastLeftPanePath"),
-              let rightPathString = UserDefaults.standard.string(forKey: "lastRightPanePath") else {
+              let rightPathString = UserDefaults.standard.string(forKey: "lastRightPanePath")
+        else {
             Logger.app.debug("No saved paths found, using defaults")
             return (defaultLeftPath, defaultRightPath)
         }
-        
+
         let leftURL = URL(fileURLWithPath: leftPathString)
         let rightURL = URL(fileURLWithPath: rightPathString)
-        
+
         // 验证路径是否仍然存在
         let fileManager = FileManager.default
         let leftPathExists = fileManager.fileExists(atPath: leftPathString)
         let rightPathExists = fileManager.fileExists(atPath: rightPathString)
-        
+
         let finalLeftPath = leftPathExists ? leftURL : defaultLeftPath
         let finalRightPath = rightPathExists ? rightURL : defaultRightPath
-        
+
         Logger.app.debug("Restored paths - Left: \(finalLeftPath.path, privacy: .public) (exists: \(leftPathExists)), Right: \(finalRightPath.path, privacy: .public) (exists: \(rightPathExists))")
-        
+
         return (finalLeftPath, finalRightPath)
     }
 
@@ -222,7 +239,7 @@ class AppState: ObservableObject {
             let tab = pane.activeTab
             let currentFile =
                 tab.files.isEmpty
-                ? "" : tab.files[safe: pane.cursorIndex]?.name ?? ""
+                    ? "" : tab.files[safe: pane.cursorIndex]?.name ?? ""
             return "\(tab.drive.name) | \(currentFile)"
         }
     }
@@ -310,7 +327,7 @@ class AppState: ObservableObject {
         if mode != .visual {
             // 进入 Visual 模式但不设置锚点（因为我们要做切换选择）
             mode = .visual
-            pane.visualAnchor = nil  // 清除锚点，因为 Command+Click 是独立选择
+            pane.visualAnchor = nil // 清除锚点，因为 Command+Click 是独立选择
         }
 
         // 移动光标到点击位置
@@ -420,6 +437,7 @@ class AppState: ObservableObject {
         clipboardOperation = .cut
         showToast("\(clipboard.count) file(s) cut")
     }
+
     func moveCursor(_ direction: CursorDirection) async {
         let pane = currentPane
         let files = pane.activeTab.files
@@ -457,10 +475,10 @@ class AppState: ObservableObject {
                 currentIndex = min(fileCount - 1, currentIndex + 1)
             case .left:
                 await leaveDirectory()
-                return  // leaveDirectory 已经处理了光标，直接返回
+                return // leaveDirectory 已经处理了光标，直接返回
             case .right:
                 await enterDirectory()
-                return  // enterDirectory 已经处理了光标，直接返回
+                return // enterDirectory 已经处理了光标，直接返回
             }
         }
 
@@ -616,7 +634,7 @@ class AppState: ObservableObject {
     private func refreshOtherPane() async {
         let otherPane =
             activePane == .left
-            ? rightPane : leftPane
+                ? rightPane : leftPane
         let files = await FileSystemService.shared.loadDirectory(
             at: otherPane.activeTab.currentPath
         )
@@ -624,7 +642,7 @@ class AppState: ObservableObject {
     }
 
     func selectDrive(_ drive: DriveInfo) async {
-        self.driveSelectorCursor = availableDrives.firstIndex(of: drive) ?? 0
+        driveSelectorCursor = availableDrives.firstIndex(of: drive) ?? 0
         Logger.app.debug("Selected drive: \(drive.name, privacy: .public)")
         Logger.app.debug("Delected drive index: \(self.driveSelectorCursor)")
         let pane = currentPane
@@ -668,8 +686,9 @@ enum ClipboardOperation {
 }
 
 // MARK: - 安全数组访问扩展
+
 extension Array {
     subscript(safe index: Int) -> Element? {
-        return indices.contains(index) ? self[index] : nil
+        indices.contains(index) ? self[index] : nil
     }
 }

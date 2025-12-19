@@ -5,55 +5,55 @@
 //  Created by Zenith Commander on 2025/12/05.
 //
 
-import Foundation
 import AppKit
+import Foundation
 import mft
 import os.log
 
 /// SFTP 文件系统提供者
 class SFTPFileSystemProvider: FileSystemProvider {
     var scheme: String { "sftp" }
-    
+
     // Cache connections by "user@host:port" key
     private var connections: [String: MFTSftpConnection] = [:]
     private let connectionLock = NSLock()
-    
+
     // MARK: - Connection Management
-    
-    nonisolated private func getConnectionKey(for url: URL) -> String {
+
+    private nonisolated func getConnectionKey(for url: URL) -> String {
         let user = url.user ?? ""
         let host = url.host ?? ""
         let port = url.port ?? 22
         return "\(user)@\(host):\(port)"
     }
-    
-    nonisolated private func getOrCreateConnection(for url: URL) throws -> MFTSftpConnection {
+
+    private nonisolated func getOrCreateConnection(for url: URL) throws -> MFTSftpConnection {
         let key = getConnectionKey(for: url)
-        
+
         connectionLock.lock()
         if let existing = connections[key] {
             connectionLock.unlock()
             return existing
         }
         connectionLock.unlock()
-        
+
         // Create new connection
         guard let host = url.host else {
             throw NSError(domain: "SFTPFileSystemProvider", code: 1, userInfo: [NSLocalizedDescriptionKey: "Missing host"])
         }
-        
+
         let port = url.port ?? 22
         let username = url.user ?? ""
         let password = url.password ?? ""
-        
+
         Logger.fileSystem.debug("Connecting to SFTP: \(username)@\(host):\(port)")
-        
+
         let sftp = MFTSftpConnection(hostname: host, port: port, username: username, password: password)
-        
+
         do {
             try sftp.connect()
             try sftp.authenticate()
-            
+
             connectionLock.lock()
             connections[key] = sftp
             connectionLock.unlock()
@@ -65,24 +65,24 @@ class SFTPFileSystemProvider: FileSystemProvider {
             throw error
         }
     }
-    
+
     // MARK: - FileSystemProvider Implementation
-    
+
     func loadDirectory(at path: URL) async throws -> [FileItem] {
         Logger.fileSystem.debug("Loading SFTP directory: \(path.path)")
         return try await Task.detached { [weak self] in
-            guard let self = self else { return [] }
-            let sftp = try self.getOrCreateConnection(for: path)
-            
+            guard let self else { return [] }
+            let sftp = try getOrCreateConnection(for: path)
+
             let remotePath = path.path
             // mft contentsOfDirectory returns [MFTFileItem] (inferred name, checking README it says 'item.filename')
             // README doesn't specify the type name, but let's assume it's something iterable.
             // "let items = try sftp.contentsOfDirectory(atPath: "/tmp", maxItems: 0)"
-            
+
             let items = try sftp.contentsOfDirectory(atPath: remotePath, maxItems: 0)
-            
+
             var fileItems: [FileItem] = []
-            
+
             for item in items {
                 let name = item.filename
                 if name == "." || name == ".." { continue }
@@ -119,33 +119,33 @@ class SFTPFileSystemProvider: FileSystemProvider {
 
             // Sort: Folders (including dir symlinks via isFolder) first, then name
             var sortedFiles = fileItems.sorted { item1, item2 in
-                if item1.isFolder && !item2.isFolder {
+                if item1.isFolder, !item2.isFolder {
                     return true
-                } else if !item1.isFolder && item2.isFolder {
+                } else if !item1.isFolder, item2.isFolder {
                     return false
                 }
                 return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
             }
-            
+
             // 如果不是根目录，添加父目录项
-            if path.path != "/" && !path.path.isEmpty {
+            if path.path != "/", !path.path.isEmpty {
                 let parentPath = path.deletingLastPathComponent()
                 let parentItem = FileItem.parentDirectoryItem(for: parentPath)
                 sortedFiles.insert(parentItem, at: 0)
             }
-            
+
             return sortedFiles
         }.value
     }
-    
+
     func createDirectory(at path: URL, name: String) async throws -> FileItem {
-        return try await Task.detached { [weak self] in
-            guard let self = self else { throw NSError(domain: "SFTP", code: -1, userInfo: nil) }
-            let sftp = try self.getOrCreateConnection(for: path)
-            
+        try await Task.detached { [weak self] in
+            guard let self else { throw NSError(domain: "SFTP", code: -1, userInfo: nil) }
+            let sftp = try getOrCreateConnection(for: path)
+
             let newPath = path.appendingPathComponent(name)
             try sftp.createDirectory(atPath: newPath.path)
-            
+
             // Return a dummy item or fetch it?
             // Constructing manually to save a roundtrip
             return FileItem(
@@ -162,22 +162,22 @@ class SFTPFileSystemProvider: FileSystemProvider {
             )
         }.value
     }
-    
+
     func createFile(at path: URL, name: String) async throws -> FileItem {
-        return try await Task.detached { [weak self] in
-            guard let self = self else { throw NSError(domain: "SFTP", code: -1, userInfo: nil) }
-            let sftp = try self.getOrCreateConnection(for: path)
-            
+        try await Task.detached { [weak self] in
+            guard let self else { throw NSError(domain: "SFTP", code: -1, userInfo: nil) }
+            let sftp = try getOrCreateConnection(for: path)
+
             let newPath = path.appendingPathComponent(name)
             // Create empty file
             // mft write takes InputStream.
             // Create an empty InputStream?
             let data = Data()
             let stream = InputStream(data: data)
-            
+
             // write(stream:toFileAtPath:append:progress:)
-            try sftp.write(stream: stream, toFileAtPath: newPath.path, append: false) { _ in return true }
-            
+            try sftp.write(stream: stream, toFileAtPath: newPath.path, append: false) { _ in true }
+
             return FileItem(
                 id: newPath.absoluteString,
                 name: name,
@@ -192,13 +192,13 @@ class SFTPFileSystemProvider: FileSystemProvider {
             )
         }.value
     }
-    
+
     func delete(items: [FileItem]) async throws {
         try await Task.detached { [weak self] in
-            guard let self = self else { return }
+            guard let self else { return }
             if let first = items.first {
-                let sftp = try self.getOrCreateConnection(for: first.path)
-                
+                let sftp = try getOrCreateConnection(for: first.path)
+
                 for item in items {
                     if item.type == .folder {
                         try sftp.removeDirectory(atPath: item.path.path)
@@ -209,13 +209,13 @@ class SFTPFileSystemProvider: FileSystemProvider {
             }
         }.value
     }
-    
+
     func move(items: [FileItem], to destination: URL) async throws {
         try await Task.detached { [weak self] in
-            guard let self = self else { return }
+            guard let self else { return }
             if let first = items.first {
-                let sftp = try self.getOrCreateConnection(for: first.path)
-                
+                let sftp = try getOrCreateConnection(for: first.path)
+
                 for item in items {
                     let destPath = destination.appendingPathComponent(item.name).path
                     try sftp.moveItem(atPath: item.path.path, toPath: destPath)
@@ -223,17 +223,17 @@ class SFTPFileSystemProvider: FileSystemProvider {
             }
         }.value
     }
-    
+
     func copy(items: [FileItem], to destination: URL) async throws {
         // SFTP usually doesn't support remote copy directly (depends on extension).
         // mft capabilities say: "Copying items within the same SFTP server"
         // So I assume there is a copyItem method.
-        
+
         try await Task.detached { [weak self] in
-            guard let self = self else { return }
+            guard let self else { return }
             if let first = items.first {
-                let sftp = try self.getOrCreateConnection(for: first.path)
-                
+                let sftp = try getOrCreateConnection(for: first.path)
+
                 for item in items {
                     let destPath = destination.appendingPathComponent(item.name).path
                     // Assuming copyItem exists based on capabilities
@@ -246,31 +246,31 @@ class SFTPFileSystemProvider: FileSystemProvider {
             }
         }.value
     }
-    
+
     func parentDirectory(of path: URL) -> URL {
-        return path.deletingLastPathComponent()
+        path.deletingLastPathComponent()
     }
-    
+
     func openFile(_ file: FileItem) async {
         // Download to temp and open
         do {
             let sftp = try getOrCreateConnection(for: file.path)
-            
+
             let tempDir = FileManager.default.temporaryDirectory
             let localURL = tempDir.appendingPathComponent(file.name)
-            
+
             // Download
             // contents(atPath:toStream:fromPosition:progress:)
             guard let outStream = OutputStream(url: localURL, append: false) else { return }
             outStream.open()
-            
+
             try await Task.detached {
-                try sftp.contents(atPath: file.path.path, toStream: outStream, fromPosition: 0) { _, _ in return true }
+                try sftp.contents(atPath: file.path.path, toStream: outStream, fromPosition: 0) { _, _ in true }
             }.value
-            
+
             outStream.close()
-            
-            let _ = await MainActor.run {
+
+            _ = await MainActor.run {
                 NSWorkspace.shared.open(localURL)
             }
         } catch {

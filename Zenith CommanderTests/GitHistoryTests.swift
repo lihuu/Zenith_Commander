@@ -9,7 +9,6 @@ import XCTest
 @testable import Zenith_Commander
 
 class GitHistoryTests: XCTestCase {
-    
     func testGitCommitInitialization() {
         let date = Date()
         let commit = GitCommit(
@@ -22,7 +21,7 @@ class GitHistoryTests: XCTestCase {
             date: date,
             parentHashes: ["parent1"]
         )
-        
+
         XCTAssertEqual(commit.id, "abc123def456")
         XCTAssertEqual(commit.shortHash, "abc123d")
         XCTAssertEqual(commit.message, "Test commit")
@@ -32,7 +31,7 @@ class GitHistoryTests: XCTestCase {
         XCTAssertEqual(commit.date, date)
         XCTAssertEqual(commit.parentHashes, ["parent1"])
     }
-    
+
     func testIsMergeCommit() {
         let normalCommit = GitCommit(
             id: "1", shortHash: "1", message: "msg", fullMessage: "msg",
@@ -40,14 +39,14 @@ class GitHistoryTests: XCTestCase {
             parentHashes: ["p1"]
         )
         XCTAssertFalse(normalCommit.isMergeCommit)
-        
+
         let mergeCommit = GitCommit(
             id: "2", shortHash: "2", message: "msg", fullMessage: "msg",
             author: "a", authorEmail: "e", date: Date(),
             parentHashes: ["p1", "p2"]
         )
         XCTAssertTrue(mergeCommit.isMergeCommit)
-        
+
         let initialCommit = GitCommit(
             id: "3", shortHash: "3", message: "msg", fullMessage: "msg",
             author: "a", authorEmail: "e", date: Date(),
@@ -55,7 +54,7 @@ class GitHistoryTests: XCTestCase {
         )
         XCTAssertFalse(initialCommit.isMergeCommit)
     }
-    
+
     func testGitRepositoryInfo() {
         let info = GitRepositoryInfo(
             isGitRepository: true,
@@ -66,12 +65,12 @@ class GitHistoryTests: XCTestCase {
             behind: 2,
             hasUncommittedChanges: true
         )
-        
+
         XCTAssertTrue(info.isGitRepository)
         XCTAssertEqual(info.currentBranch, "main")
         XCTAssertEqual(info.branchDisplayText, "main")
         XCTAssertEqual(info.syncStatusText, "↑1 ↓2")
-        
+
         let detachedInfo = GitRepositoryInfo(
             isGitRepository: true,
             rootPath: nil,
@@ -83,7 +82,7 @@ class GitHistoryTests: XCTestCase {
         )
         XCTAssertEqual(detachedInfo.branchDisplayText, "HEAD")
         XCTAssertNil(detachedInfo.syncStatusText)
-        
+
         let notRepo = GitRepositoryInfo.notARepository
         XCTAssertFalse(notRepo.isGitRepository)
         XCTAssertNil(notRepo.branchDisplayText)

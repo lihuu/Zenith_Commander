@@ -5,31 +5,30 @@
 //  Git 历史记录面板视图
 //
 
-import SwiftUI
 import os.log
+import SwiftUI
 
 /// Git 历史面板视图
 struct GitHistoryPanelView: View {
     @ObservedObject private var themeManager = ThemeManager.shared
-    
+
     let fileName: String
     let commits: [GitCommit]
     let isLoading: Bool
     let onClose: () -> Void
     let onCommitSelected: (GitCommit) -> Void
-    
+
     @State private var selectedCommitId: String?
     @State private var hoveredCommitId: String?
     @State private var showingCommitDetail: GitCommit?
-    
+
     var body: some View {
-        
         VStack(spacing: 0) {
             // 标题栏
             headerView
-            
+
             Divider()
-            
+
             // 内容区域
             if isLoading {
                 loadingView
@@ -50,30 +49,30 @@ struct GitHistoryPanelView: View {
             Logger.git.info("GitHistoryPanelView disappeared")
         }
     }
-    
+
     // MARK: - Header
-    
+
     private var headerView: some View {
         HStack {
             Image(systemName: "clock.arrow.circlepath")
                 .foregroundColor(Theme.accent)
-            
+
             Text(L(.gitHistory))
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundColor(Theme.textPrimary)
-            
+
             Text(fileName)
                 .font(.system(size: 12, weight: .regular))
                 .foregroundColor(Theme.textSecondary)
                 .lineLimit(1)
                 .truncationMode(.middle)
-            
+
             Spacer()
-            
+
             Text("\(commits.count) \(L(.gitCommits))")
                 .font(.system(size: 11))
                 .foregroundColor(Theme.textTertiary)
-            
+
             Button(action: onClose) {
                 Image(systemName: "xmark")
                     .font(.system(size: 10, weight: .medium))
@@ -87,9 +86,9 @@ struct GitHistoryPanelView: View {
         .padding(.vertical, 8)
         .background(Theme.backgroundSecondary)
     }
-    
+
     // MARK: - Loading
-    
+
     private var loadingView: some View {
         VStack {
             ProgressView()
@@ -100,30 +99,30 @@ struct GitHistoryPanelView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    
+
     // MARK: - Empty
-    
+
     private var emptyView: some View {
         VStack(spacing: 8) {
             Image(systemName: "doc.text.magnifyingglass")
                 .font(.system(size: 24))
                 .foregroundColor(Theme.textTertiary)
-            
+
             Text(L(.gitNoHistory))
                 .font(.system(size: 12))
                 .foregroundColor(Theme.textSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    
+
     // MARK: - Commit List
-    
+
     private var commitListView: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 ForEach(commits) { commit in
                     makeCommitRow(for: commit)
-                    
+
                     if commit.id != commits.last?.id {
                         Divider()
                             .padding(.leading, 12)
@@ -132,7 +131,7 @@ struct GitHistoryPanelView: View {
             }
         }
     }
-    
+
     @ViewBuilder
     private func makeCommitRow(for commit: GitCommit) -> some View {
         GitCommitRowView(
@@ -149,7 +148,7 @@ struct GitHistoryPanelView: View {
             Button(L(.gitShowDetails)) {
                 showingCommitDetail = commit
             }
-            
+
             Button(L(.gitCopyHash)) {
                 let pasteboard = NSPasteboard.general
                 pasteboard.clearContents()
@@ -168,7 +167,7 @@ struct GitHistoryPanelView: View {
 struct GitCommitDetailView: View {
     let commit: GitCommit
     @Environment(\.presentationMode) var presentationMode
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // 标题栏
@@ -176,9 +175,9 @@ struct GitCommitDetailView: View {
                 Text(L(.gitCommitDetails))
                     .font(.headline)
                     .foregroundColor(Theme.textPrimary)
-                
+
                 Spacer()
-                
+
                 Button(action: {
                     presentationMode.wrappedValue.dismiss()
                 }) {
@@ -190,9 +189,9 @@ struct GitCommitDetailView: View {
             }
             .padding()
             .background(Theme.backgroundSecondary)
-            
+
             Divider()
-            
+
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     // 基本信息
@@ -204,15 +203,15 @@ struct GitCommitDetailView: View {
                             detailRow(icon: "arrow.turn.up.left", title: L(.gitCommitParent), value: commit.parentHashes.joined(separator: ", "))
                         }
                     }
-                    
+
                     Divider()
-                    
+
                     // 提交信息
                     VStack(alignment: .leading, spacing: 8) {
                         Label(L(.gitCommitMessage), systemImage: "text.alignleft")
                             .font(.subheadline)
                             .foregroundColor(Theme.textSecondary)
-                        
+
                         Text(commit.fullMessage)
                             .font(.system(.body, design: .monospaced))
                             .foregroundColor(Theme.textPrimary)
@@ -228,18 +227,18 @@ struct GitCommitDetailView: View {
         .frame(width: 500, height: 400)
         .background(Theme.background)
     }
-    
+
     private func detailRow(icon: String, title: String, value: String) -> some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon)
                 .frame(width: 20)
                 .foregroundColor(Theme.textTertiary)
-            
+
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.caption)
                     .foregroundColor(Theme.textSecondary)
-                
+
                 Text(value)
                     .font(.system(.body, design: .monospaced))
                     .foregroundColor(Theme.textPrimary)
@@ -256,13 +255,13 @@ struct GitCommitRowView: View, Equatable {
     let commit: GitCommit
     let isSelected: Bool
     let isHovered: Bool
-    
+
     static func == (lhs: GitCommitRowView, rhs: GitCommitRowView) -> Bool {
         lhs.commit.id == rhs.commit.id &&
-        lhs.isSelected == rhs.isSelected &&
-        lhs.isHovered == rhs.isHovered
+            lhs.isSelected == rhs.isSelected &&
+            lhs.isHovered == rhs.isHovered
     }
-    
+
     var body: some View {
         HStack(spacing: 10) {
             // Commit hash
@@ -270,28 +269,28 @@ struct GitCommitRowView: View, Equatable {
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
                 .foregroundColor(Theme.accent)
                 .frame(width: 60, alignment: .leading)
-            
+
             // Commit message
             Text(commit.message)
                 .font(.system(size: 12))
                 .foregroundColor(Theme.textPrimary)
                 .lineLimit(1)
                 .truncationMode(.tail)
-            
+
             Spacer()
-            
+
             // Date
             Text(commit.relativeDate)
                 .font(.system(size: 11))
                 .foregroundColor(Theme.textTertiary)
                 .frame(width: 70, alignment: .trailing)
-            
+
             // Author
             HStack(spacing: 4) {
                 Image(systemName: "person.circle.fill")
                     .font(.system(size: 10))
                     .foregroundColor(Theme.textTertiary)
-                
+
                 Text(commit.author)
                     .font(.system(size: 11))
                     .foregroundColor(Theme.textSecondary)
@@ -304,7 +303,7 @@ struct GitCommitRowView: View, Equatable {
         .background(backgroundColor)
         .contentShape(Rectangle())
     }
-    
+
     private var backgroundColor: Color {
         if isSelected {
             return Theme.selection
@@ -324,23 +323,23 @@ struct ResizableBottomPanel<Content: View>: View {
     let minHeight: CGFloat
     let maxHeight: CGFloat
     let content: () -> Content
-    
+
     @State private var isDragging = false
     @State private var dragOffset: CGFloat = 0
     @GestureState private var dragState: CGFloat = 0
-    
+
     // 计算实际显示高度：基础高度 + 拖动偏移
     private var displayHeight: CGFloat {
         let newHeight = height - dragState
         return min(max(newHeight, minHeight), maxHeight)
     }
-    
+
     var body: some View {
         if isVisible {
             VStack(spacing: 0) {
                 // 拖动手柄
                 dragHandle
-                
+
                 // 内容 - 使用 displayHeight 实现流畅拖动
                 content()
                     .frame(height: displayHeight)
@@ -349,7 +348,7 @@ struct ResizableBottomPanel<Content: View>: View {
             .transition(.move(edge: .bottom).combined(with: .opacity))
         }
     }
-    
+
     private var dragHandle: some View {
         Rectangle()
             .fill(isDragging ? Theme.accent : Theme.border)
@@ -420,16 +419,16 @@ struct ResizableBottomPanel<Content: View>: View {
             fullMessage: "Initial commit",
             author: "lihu",
             authorEmail: "lihu@example.com",
-            date: Date().addingTimeInterval(-172800),
+            date: Date().addingTimeInterval(-172_800),
             parentHashes: []
-        )
+        ),
     ]
-    
+
     GitHistoryPanelView(
         fileName: "GitService.swift",
         commits: sampleCommits,
         isLoading: false,
-        onClose: {},
+        onClose: { },
         onCommitSelected: { _ in }
     )
     .frame(height: 200)

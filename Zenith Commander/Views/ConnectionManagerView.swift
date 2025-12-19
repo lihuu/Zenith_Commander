@@ -5,8 +5,8 @@
 //  Created by Zenith Commander on 2025/12/05.
 //
 
-import SwiftUI
 import Combine
+import SwiftUI
 
 struct ConnectionManagerView: View {
     @Binding var isPresented: Bool
@@ -14,7 +14,7 @@ struct ConnectionManagerView: View {
     @ObservedObject var connectionManager = ConnectionManager.shared
     @State private var showingAddSheet = false
     @State private var editingConnection: Connection?
-    
+
     var body: some View {
         ZStack {
             // Background overlay
@@ -24,7 +24,7 @@ struct ConnectionManagerView: View {
                     closeModal()
                 }
                 .transition(.opacity)
-            
+
             // Modal Content
             VStack(spacing: 0) {
                 // Header
@@ -36,7 +36,7 @@ struct ConnectionManagerView: View {
                         Image(systemName: "plus")
                     }
                     .help("Add Connection")
-                    
+
                     Button(action: { closeModal() }) {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundColor(.secondary)
@@ -46,9 +46,9 @@ struct ConnectionManagerView: View {
                 }
                 .padding()
                 .background(Color(NSColor.controlBackgroundColor))
-                
+
                 Divider()
-                
+
                 // List
                 List {
                     ForEach(connectionManager.connections) { connection in
@@ -68,7 +68,7 @@ struct ConnectionManagerView: View {
                     }
                 }
                 .listStyle(PlainListStyle())
-                
+
                 if connectionManager.connections.isEmpty {
                     VStack(spacing: 10) {
                         Image(systemName: "network")
@@ -117,7 +117,7 @@ struct ConnectionManagerView: View {
             appState.enterMode(.modal)
         }
     }
-    
+
     private func closeModal() {
         isPresented = false
         appState.exitMode()
@@ -129,13 +129,13 @@ struct ConnectionRow: View {
     let onConnect: () -> Void
     let onEdit: () -> Void
     let onDelete: () -> Void
-    
+
     var body: some View {
         HStack {
             Image(systemName: iconName)
                 .font(.title2)
                 .frame(width: 30)
-            
+
             VStack(alignment: .leading) {
                 Text(connection.name.isEmpty ? connection.host : connection.name)
                     .font(.headline)
@@ -143,14 +143,14 @@ struct ConnectionRow: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            
+
             Spacer()
-            
+
             Button("Connect") {
                 onConnect()
             }
             .buttonStyle(.borderedProminent)
-            
+
             Menu {
                 Button("Edit") { onEdit() }
                 Button("Delete", role: .destructive) { onDelete() }
@@ -162,11 +162,11 @@ struct ConnectionRow: View {
         }
         .padding(.vertical, 4)
     }
-    
+
     var iconName: String {
         switch connection.protocolType {
-        case .ftp, .sftp: return "server.rack"
-        case .smb: return "externaldrive.connected.to.line.below"
+        case .ftp, .sftp: "server.rack"
+        case .smb: "externaldrive.connected.to.line.below"
         }
     }
 }
@@ -176,18 +176,18 @@ struct ConnectionEditView: View {
     let isNew: Bool
     let onSave: (Connection) -> Void
     @Environment(\.presentationMode) var presentationMode
-    
+
     var body: some View {
         Form {
             Section(header: Text("Connection Details")) {
                 TextField("Name (Optional)", text: $connection.name)
-                
+
                 Picker("Protocol", selection: $connection.protocolType) {
                     ForEach(ConnectionProtocol.allCases) { type in
                         Text(type.displayName).tag(type)
                     }
                 }
-                
+
                 TextField("Host", text: $connection.host)
                 TextField("Port", text: $connection.port)
                     .onChange(of: connection.protocolType) { _, newValue in
@@ -199,12 +199,12 @@ struct ConnectionEditView: View {
                             }
                         }
                     }
-                
+
                 TextField("Username", text: $connection.username)
                 SecureField("Password", text: $connection.password)
                 TextField("Path", text: $connection.path)
             }
-            
+
             HStack {
                 Spacer()
                 Button("Cancel") {
@@ -221,7 +221,7 @@ struct ConnectionEditView: View {
         .padding()
         .frame(width: 350)
         .onAppear {
-            if isNew && connection.port.isEmpty {
+            if isNew, connection.port.isEmpty {
                 // Set default port
                 connection.port = "445" // SMB default
             }

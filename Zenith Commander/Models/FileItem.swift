@@ -87,28 +87,28 @@ struct FileItem: Identifiable, Hashable {
     private func iconForExtension(_ ext: String) -> String {
         switch ext.lowercased() {
         case "swift", "m", "h", "c", "cpp", "py", "js", "ts", "java", "rb",
-            "go", "rs":
-            return "chevron.left.forwardslash.chevron.right"
+             "go", "rs":
+            "chevron.left.forwardslash.chevron.right"
         case "json", "xml", "yaml", "yml", "plist":
-            return "curlybraces"
+            "curlybraces"
         case "md", "txt", "rtf", "doc", "docx":
-            return "doc.text"
+            "doc.text"
         case "pdf":
-            return "doc.richtext"
+            "doc.richtext"
         case "jpg", "jpeg", "png", "gif", "bmp", "tiff", "heic", "webp":
-            return "photo"
+            "photo"
         case "mp3", "wav", "aac", "flac", "m4a":
-            return "music.note"
+            "music.note"
         case "mp4", "mov", "avi", "mkv", "wmv":
-            return "film"
+            "film"
         case "zip", "tar", "gz", "rar", "7z":
-            return "doc.zipper"
+            "doc.zipper"
         case "app":
-            return "app"
+            "app"
         case "dmg":
-            return "externaldrive"
+            "externaldrive"
         default:
-            return "doc"
+            "doc"
         }
     }
 
@@ -130,20 +130,19 @@ struct FileItem: Identifiable, Hashable {
             return nil
         }
 
-        let fileType: FileType
-        if let typeAttr = attributes[.type] as? FileAttributeType {
+        let fileType: FileType = if let typeAttr = attributes[.type] as? FileAttributeType {
             switch typeAttr {
             case .typeDirectory:
-                fileType = .folder
+                .folder
             case .typeSymbolicLink:
-                fileType = .symlink
+                .symlink
             case .typeRegular:
-                fileType = .file
+                .file
             default:
-                fileType = .unknown
+                .unknown
             }
         } else {
-            fileType = .unknown
+            .unknown
         }
 
         let size = (attributes[.size] as? Int64) ?? 0
@@ -156,7 +155,7 @@ struct FileItem: Identifiable, Hashable {
         let isHidden = name.hasPrefix(".")
 
         return FileItem(
-            id: url.path,  // Ensure stable ID using path
+            id: url.path, // Ensure stable ID using path
             name: name,
             path: url,
             type: fileType,
@@ -172,9 +171,8 @@ struct FileItem: Identifiable, Hashable {
     /// 创建父目录项（..）
     /// - Parameter parentPath: 父目录的 URL
     /// - Returns: 代表父目录的 FileItem
-    nonisolated static func parentDirectoryItem(for parentPath: URL) -> FileItem
-    {
-        return FileItem(
+    nonisolated static func parentDirectoryItem(for parentPath: URL) -> FileItem {
+        FileItem(
             id: "..",
             name: "..",
             path: parentPath,
@@ -190,7 +188,7 @@ struct FileItem: Identifiable, Hashable {
 
     /// 是否是父目录项
     var isParentDirectory: Bool {
-        return id == ".." && name == ".."
+        id == ".." && name == ".."
     }
 
     nonisolated var isFolder: Bool {
@@ -206,11 +204,10 @@ struct FileItem: Identifiable, Hashable {
         }
         return false
     }
-    
-    var isSymlink: Bool{
-        return type == .symlink
-    }
 
+    var isSymlink: Bool {
+        type == .symlink
+    }
 }
 
 /// 驱动器/卷信息
@@ -243,13 +240,13 @@ struct DriveInfo: Identifiable, Hashable {
     var iconName: String {
         switch type {
         case .system:
-            return "laptopcomputer"
+            "laptopcomputer"
         case .external:
-            return "externaldrive.fill"
+            "externaldrive.fill"
         case .network:
-            return "network"
+            "network"
         case .removable:
-            return "externaldrive.badge.plus"
+            "externaldrive.badge.plus"
         }
     }
 }

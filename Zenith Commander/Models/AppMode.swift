@@ -11,6 +11,7 @@ import SwiftUI
 enum CursorDirection {
     case up, down, left, right
 }
+
 /// Vim 风格的模态枚举
 enum AppMode: String, CaseIterable {
     case normal = "NORMAL"
@@ -19,37 +20,37 @@ enum AppMode: String, CaseIterable {
     case filter = "FILTER"
     case driveSelect = "DRIVES"
     case aiAnalysis = "AI"
-    case rename = "RENAME"  // 单个文件重命名模式 - 阻止键盘事件传播
-    case batchRename = "BATCH_RENAME"  // 批量重命名模式 - 阻止键盘事件传播
-    case settings = "SETTINGS"  // 设置模式 - 阻止键盘事件传播
-    case help = "HELP"  // 帮助模式 - 阻止键盘事件传播
-    case modal = "MODAL"  // 模态模式 - 阻止键盘事件传播
+    case rename = "RENAME" // 单个文件重命名模式 - 阻止键盘事件传播
+    case batchRename = "BATCH_RENAME" // 批量重命名模式 - 阻止键盘事件传播
+    case settings = "SETTINGS" // 设置模式 - 阻止键盘事件传播
+    case help = "HELP" // 帮助模式 - 阻止键盘事件传播
+    case modal = "MODAL" // 模态模式 - 阻止键盘事件传播
 
     /// 模式显示颜色
     var color: Color {
         switch self {
         case .normal:
-            return .gray
+            .gray
         case .visual:
-            return .orange
+            .orange
         case .command:
-            return .blue
+            .blue
         case .filter:
-            return .green
+            .green
         case .driveSelect:
-            return .purple
+            .purple
         case .aiAnalysis:
-            return .pink
+            .pink
         case .rename:
-            return .cyan
-                case .batchRename:
-                    return .yellow
+            .cyan
+        case .batchRename:
+            .yellow
         case .settings:
-            return .teal
+            .teal
         case .help:
-            return .indigo
+            .indigo
         case .modal:
-            return .gray.opacity(0.5)
+            .gray.opacity(0.5)
         }
     }
 
@@ -63,9 +64,9 @@ enum AppMode: String, CaseIterable {
     var isModalMode: Bool {
         switch self {
         case .rename, .batchRename, .settings, .aiAnalysis, .help, .modal:
-            return true
+            true
         default:
-            return false
+            false
         }
     }
 
@@ -73,27 +74,27 @@ enum AppMode: String, CaseIterable {
     var description: String {
         switch self {
         case .normal:
-            return "Normal mode - navigate and operate"
+            "Normal mode - navigate and operate"
         case .visual:
-            return "Visual mode - select multiple items"
+            "Visual mode - select multiple items"
         case .command:
-            return "Command mode - enter commands"
+            "Command mode - enter commands"
         case .filter:
-            return "Filter mode - filter file list"
+            "Filter mode - filter file list"
         case .driveSelect:
-            return "Drive selection mode"
+            "Drive selection mode"
         case .aiAnalysis:
-            return "AI analysis mode"
+            "AI analysis mode"
         case .rename:
-            return "Rename mode - rename single file inline"
+            "Rename mode - rename single file inline"
         case .batchRename:
-            return "Batch rename mode - rename multiple files"
+            "Batch rename mode - rename multiple files"
         case .settings:
-            return "Settings mode - configure application"
+            "Settings mode - configure application"
         case .help:
-            return "Help mode - view keyboard shortcuts"
+            "Help mode - view keyboard shortcuts"
         case .modal:
-            return "Modal mode - interacting with dialog"
+            "Modal mode - interacting with dialog"
         }
     }
 }
@@ -124,8 +125,8 @@ struct KeyChord: Hashable {
     }
 
     init(from keyPress: KeyPress) {
-        self.key = keyPress.key
-        self.modifiers = keyPress.modifiers
+        key = keyPress.key
+        modifiers = keyPress.modifiers
     }
 
     static func == (lhs: KeyChord, rhs: KeyChord) -> Bool {
@@ -138,7 +139,6 @@ struct KeyChord: Hashable {
         // EventModifiers 是 OptionSet，有 rawValue
         hasher.combine(modifiers.rawValue)
     }
-
 }
 
 enum AppAction {
@@ -154,10 +154,10 @@ enum AppAction {
     case jumpToBottom
 
     /// 鼠标操作 - 统一通过模式系统处理
-    case mouseClick(index: Int, paneSide: PaneSide)  // 普通单击
-    case mouseCommandClick(index: Int, paneSide: PaneSide)  // Command+Click 切换选择
-    case mouseShiftClick(index: Int, paneSide: PaneSide)  // Shift+Click 范围选择
-    case mouseDoubleClick(fileId: String, paneSide: PaneSide)  // 双击
+    case mouseClick(index: Int, paneSide: PaneSide) // 普通单击
+    case mouseCommandClick(index: Int, paneSide: PaneSide) // Command+Click 切换选择
+    case mouseShiftClick(index: Int, paneSide: PaneSide) // Shift+Click 范围选择
+    case mouseDoubleClick(fileId: String, paneSide: PaneSide) // 双击
 
     /// 目录操作
     case enterDirectory
@@ -182,7 +182,7 @@ enum AppAction {
     case paste
     case deleteSelectedFiles
     case batchRename
-    case startRenamingFile(fileName: String, filePath: String)  // 开始单个文件重命名
+    case startRenamingFile(fileName: String, filePath: String) // 开始单个文件重命名
     case refreshCurrentPane
 
     /// 驱动器选择
@@ -204,14 +204,12 @@ enum AppAction {
     case doFilter
 
     case cycleTheme
-
 }
 
 /// 按键映射表，把按键和动作关联起来，方便支持不同模式的快捷键
 /// 动作的处理逻辑，暂时在 MainView 和 AppState 里面
 /// 后面如果，再添加新的按键映射，可以不用修改MainView和AppState的代码，只需要在这里添加新的映射即可，后面可能会在设置里面添加自定义按键映射的功能
 enum AppModeKeyMaps {
-
     static let defaultMap: [KeyChord: AppAction] = [
         KeyChord(.escape): .exitMode,
         KeyChord(",", [.command]): .enterMode(.settings),
@@ -257,7 +255,7 @@ enum AppModeKeyMaps {
             /// 文件操作 (Vim 风格)
             KeyChord("y"): .yank,
             KeyChord("p"): .paste,
-            
+
             /// 文件操作 (macOS 标准)
             KeyChord("c", [.command]): .yank,
             KeyChord("v", [.command]): .paste,
@@ -270,7 +268,7 @@ enum AppModeKeyMaps {
         ]
 
         return normalOverrides.merging(defaultMap) { current, _ in
-            return current
+            current
         }
 
     }()
@@ -286,7 +284,7 @@ enum AppModeKeyMaps {
             KeyChord(.upArrow): .moveVisualCursor(.up),
             KeyChord(.leftArrow): .moveVisualCursor(.left),
             KeyChord(.rightArrow): .moveVisualCursor(.right),
-            
+
             /// 文件操作 (Vim 风格)
             KeyChord("y"): .visualModeYank,
             KeyChord("d"): .deleteSelectedFiles,
@@ -294,19 +292,18 @@ enum AppModeKeyMaps {
             KeyChord("v"): .exitMode,
         ]
 
-
         return visualOverrides.merging(defaultMap) { current, _ in
-            return current
+            current
         }
 
     }()
 
     static let batchRename: [KeyChord: AppAction] = {
         let batchRenameOverrides: [KeyChord: AppAction] = [:]
-            // 批量重命名模式只需要 Escape 退出即可，其他输入由 TextField 处理
+        // 批量重命名模式只需要 Escape 退出即可，其他输入由 TextField 处理
 
         return batchRenameOverrides.merging(defaultMap) { current, _ in
-            return current
+            current
         }
 
     }()
@@ -319,7 +316,7 @@ enum AppModeKeyMaps {
         ]
 
         return commandOverrides.merging(defaultMap) { current, _ in
-            return current
+            current
         }
     }()
 
@@ -333,7 +330,7 @@ enum AppModeKeyMaps {
 
         return filterOverrides.merging(defaultMap) {
             current,
-            _ in return current
+                _ in current
         }
     }()
 
@@ -347,28 +344,27 @@ enum AppModeKeyMaps {
         ]
 
         return driverOverrides.merging(defaultMap) { current, _ in
-            return current
+            current
         }
     }()
 
     static let rename: [KeyChord: AppAction] = defaultMap
 
     static let settings: [KeyChord: AppAction] = [
-        KeyChord(.escape): .exitMode
+        KeyChord(.escape): .exitMode,
     ]
 
     static let help: [KeyChord: AppAction] = {
         let helpOverrides: [KeyChord: AppAction] = [
-            KeyChord(.escape): .closeHelp
+            KeyChord(.escape): .closeHelp,
         ]
 
         return helpOverrides.merging(defaultMap) { current, _ in
-            return current
+            current
         }
     }()
 
     static let modal: [KeyChord: AppAction] = defaultMap
-
 }
 
 /// 不同模式下的键盘映射扩展
@@ -376,38 +372,38 @@ extension AppMode {
     var keyMaps: [KeyChord: AppAction] {
         switch self {
         case .normal:
-            return AppModeKeyMaps.normal
+            AppModeKeyMaps.normal
         case .visual:
-            return AppModeKeyMaps.visual
+            AppModeKeyMaps.visual
         case .command:
-            return AppModeKeyMaps.command
+            AppModeKeyMaps.command
         case .filter:
-            return AppModeKeyMaps.filter
+            AppModeKeyMaps.filter
         case .driveSelect:
-            return AppModeKeyMaps.driver
+            AppModeKeyMaps.driver
         case .rename:
-            return AppModeKeyMaps.rename
-                case .batchRename:
-                    return AppModeKeyMaps.batchRename
+            AppModeKeyMaps.rename
+        case .batchRename:
+            AppModeKeyMaps.batchRename
         case .settings:
-            return AppModeKeyMaps.settings
+            AppModeKeyMaps.settings
         case .help:
-            return AppModeKeyMaps.help
+            AppModeKeyMaps.help
         case .modal:
-            return AppModeKeyMaps.modal  // No key maps for modal mode
+            AppModeKeyMaps.modal // No key maps for modal mode
         default:
-            return [:]
+            [:]
         }
     }
 
     func action(for keyPress: KeyPress) -> AppAction? {
         let chord = KeyChord(from: keyPress)
         let action: AppAction? = keyMaps[chord]
-        if self == .command && action == nil {
+        if self == .command, action == nil {
             return .insertCommand(keyPress.key.character)
         }
 
-        if self == .filter && action == nil {
+        if self == .filter, action == nil {
             return .inputFilterCharacter(keyPress.key.character)
         }
 
@@ -420,14 +416,14 @@ extension AppMode {
             switch pointer {
             case .back:
                 // should return back action
-                return nil
+                nil
 
             case .forward:
                 // should return forward action
-                return nil
+                nil
             }
         default:
-            return nil
+            nil
         }
     }
 }

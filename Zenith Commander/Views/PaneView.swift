@@ -7,8 +7,8 @@
 
 import AppKit
 import Combine
-import SwiftUI
 import os.log
+import SwiftUI
 
 struct PaneView: View {
     @EnvironmentObject var appState: AppState
@@ -19,19 +19,18 @@ struct PaneView: View {
     let side: PaneSide
 
     @State private var permissionDeniedPath: URL? = nil
-    @State private var showPermissionError: Bool = false
+    @State private var showPermissionError = false
     @State private var directoryMonitor: DispatchSourceDirectoryMonitor? = nil
-    @State private var textInput: String = ""
-    @State private var dropTargetFileIds: Set<String> = []  // 跟踪当前拖放目标
+    @State private var textInput = ""
+    @State private var dropTargetFileIds: Set<String> = [] // 跟踪当前拖放目标
 
     var isActivePane: Bool {
         appState.activePane == side
     }
 
     var body: some View {
-
-            VStack(spacing: 0) {
-                // 标签栏
+        VStack(spacing: 0) {
+            // 标签栏
             TabBarView(
                 pane: pane,
                 isActivePane: isActivePane,
@@ -113,7 +112,7 @@ struct PaneView: View {
 
             // 主内容区域
             if let deniedPath = permissionDeniedPath,
-                pane.activeTab.files.isEmpty
+               pane.activeTab.files.isEmpty
             {
                 // 显示权限请求视图
                 PermissionRequestView(
@@ -148,7 +147,7 @@ struct PaneView: View {
         .onDisappear {
             stopDirectoryMonitoring()
         }
-        .onChange(of: pane.activeTab.currentPath) { oldPath, newPath in
+        .onChange(of: pane.activeTab.currentPath) { _, _ in
             // 当目录变化时，重新启动监控
             startDirectoryMonitoring()
         }
@@ -192,7 +191,7 @@ struct PaneView: View {
                                 set: { _ in }
                             )
                         )
-                        .equatable()  // 使用 Equatable 优化重绘
+                        .equatable() // 使用 Equatable 优化重绘
                         .id(file.id)
                         .contentShape(Rectangle())
                         .dropDestination(for: URL.self) { urls, _ in
@@ -201,7 +200,7 @@ struct PaneView: View {
                             return handleDroppedURLs(urls, to: file.path)
                         } isTargeted: { isTargeted in
                             // 控制拖放目标高亮
-                            if isTargeted && file.isFolder {
+                            if isTargeted, file.isFolder {
                                 dropTargetFileIds.insert(file.id)
                             } else {
                                 dropTargetFileIds.remove(file.id)
@@ -259,7 +258,7 @@ struct PaneView: View {
             }
             .dropDestination(for: URL.self) { urls, _ in
                 // 拖放到当前目录
-                return handleDroppedURLs(urls, to: pane.activeTab.currentPath)
+                handleDroppedURLs(urls, to: pane.activeTab.currentPath)
             }
             .onChange(of: pane.activeTab.cursorFileId) { _, newValue in
                 withAnimation(.easeInOut(duration: 0.1)) {
@@ -290,7 +289,7 @@ struct PaneView: View {
                                     maximum: gridItemMaxWidth
                                 ),
                                 spacing: gridSpacing
-                            )
+                            ),
                         ],
                         spacing: gridSpacing
                     ) {
@@ -316,7 +315,7 @@ struct PaneView: View {
                                 return handleDroppedURLs(urls, to: file.path)
                             } isTargeted: { isTargeted in
                                 // 控制拖放目标高亮
-                                if isTargeted && file.isFolder {
+                                if isTargeted, file.isFolder {
                                     dropTargetFileIds.insert(file.id)
                                 } else {
                                     dropTargetFileIds.remove(file.id)
@@ -360,7 +359,7 @@ struct PaneView: View {
                 }
                 .dropDestination(for: URL.self) { urls, _ in
                     // 拖放到当前目录
-                    return handleDroppedURLs(
+                    handleDroppedURLs(
                         urls,
                         to: pane.activeTab.currentPath
                     )
@@ -436,8 +435,7 @@ struct PaneView: View {
                 }
             }
         } else {
-            Button(LocalizationManager.shared.localized(.contextAddToBookmarks))
-            {
+            Button(LocalizationManager.shared.localized(.contextAddToBookmarks)) {
                 bookmarkManager.addBookmark(for: file)
             }
         }
@@ -464,8 +462,8 @@ struct PaneView: View {
         }
 
         // Git History 选项 - 仅在 Git 仓库中且非文件夹时显示
-        if settingsManager.settings.git.enabled
-            && pane.gitInfo?.isGitRepository == true && file.type != .folder
+        if settingsManager.settings.git.enabled,
+           pane.gitInfo?.isGitRepository == true, file.type != .folder
         {
             Divider()
 
@@ -539,8 +537,8 @@ struct PaneView: View {
         }
 
         // Git History 选项 - 仅在 Git 仓库中显示
-        if settingsManager.settings.git.enabled
-            && pane.gitInfo?.isGitRepository == true
+        if settingsManager.settings.git.enabled,
+           pane.gitInfo?.isGitRepository == true
         {
             Divider()
 
@@ -609,7 +607,7 @@ struct PaneView: View {
 
                 // 生成唯一文件名（如果目标已存在）
                 let uniqueDestURL = generateUniqueURL(for: destURL)
-                
+
                 // 如果源和目标在同一个目录，强制复制（因为移动没有意义）
                 let isSameDirectory = url.deletingLastPathComponent() == destination
                 let shouldCopy = optionPressed || isSameDirectory
@@ -620,7 +618,6 @@ struct PaneView: View {
                     try FileManager.default.moveItem(at: url, to: uniqueDestURL)
                 }
             }
-
 
             // 刷新目录
             loadCurrentDirectoryWithPermissionCheck()
@@ -644,7 +641,7 @@ struct PaneView: View {
         while FileManager.default.fileExists(atPath: resultURL.path) {
             let newName =
                 ext.isEmpty
-                ? "\(baseName) \(counter)" : "\(baseName) \(counter).\(ext)"
+                    ? "\(baseName) \(counter)" : "\(baseName) \(counter).\(ext)"
             resultURL = parentDir.appendingPathComponent(newName)
             counter += 1
         }
@@ -704,14 +701,14 @@ struct PaneView: View {
         stopDirectoryMonitoring()
 
         let currentPath = pane.activeTab.currentPath
-        
+
         // 只对本地文件系统启用目录监控
         // SFTP 等远程文件系统不支持 DispatchSource 监控
         guard currentPath.isFileURL else {
             Logger.monitor.debug("Skipping directory monitoring for non-local URL: \(currentPath.absoluteString, privacy: .public)")
             return
         }
-        
+
         let paneRef = pane
         let settingsRef = settingsManager
 
@@ -727,7 +724,7 @@ struct PaneView: View {
                         )
 
                     await MainActor.run {
-                        if case .success(var files) = result {
+                        if case var .success(files) = result {
                             // 获取 Git 状态（如果启用）
                             if settingsRef.settings.git.enabled {
                                 let gitSettings = settingsRef.settings.git
@@ -797,7 +794,7 @@ struct PaneView: View {
                     isDirectory: &isDir
                 )
 
-                if parentExists && isDir.boolValue {
+                if parentExists, isDir.boolValue {
                     paneRef.activeTab.currentPath = parentPath
                     paneRef.cursorIndex = 0
                     paneRef.clearSelections()
@@ -806,7 +803,7 @@ struct PaneView: View {
                         let result = await FileSystemService.shared
                             .loadDirectoryWithPermissionCheck(at: parentPath)
                         await MainActor.run {
-                            if case .success(let files) = result {
+                            if case let .success(files) = result {
                                 paneRef.activeTab.files = files
                             }
                         }
@@ -822,7 +819,7 @@ struct PaneView: View {
                         let result = await FileSystemService.shared
                             .loadDirectoryWithPermissionCheck(at: homeDir)
                         await MainActor.run {
-                            if case .success(let files) = result {
+                            if case let .success(files) = result {
                                 paneRef.activeTab.files = files
                             }
                         }
@@ -852,7 +849,7 @@ struct PaneView: View {
 
     func loadCurrentDirectoryWithPermissionCheck(
         restoreSelection: String? = nil,
-        successCallBack: @escaping () -> Void = {}
+        successCallBack: @escaping () -> Void = { }
     ) {
         Task {
             let result = await FileSystemService.shared
@@ -863,10 +860,10 @@ struct PaneView: View {
             // Update UI on MainActor
             await MainActor.run {
                 switch result {
-                case .success(var files):
+                case var .success(files):
                     // 获取 Git 状态（如果启用）
                     successCallBack()
-                    if pane.activeTab.isLocalPath && settingsManager.settings.git.enabled {
+                    if pane.activeTab.isLocalPath, settingsManager.settings.git.enabled {
                         let gitSettings = settingsManager.settings.git
                         applyGitStatus(to: &files, settings: gitSettings)
                     } else {
@@ -888,13 +885,13 @@ struct PaneView: View {
                         }
                     }
 
-                case .permissionDenied(let path):
+                case let .permissionDenied(path):
                     pane.activeTab.files = []
                     permissionDeniedPath = path
                     showPermissionError = true
                     pane.gitInfo = nil
 
-                case .notFound(let path):
+                case let .notFound(path):
                     pane.activeTab.files = []
                     appState.showToast(
                         LocalizationManager.shared.localized(.toastDirectoryNotFound, path.lastPathComponent)
@@ -905,7 +902,7 @@ struct PaneView: View {
                     // 尝试返回上级目录
                     leaveDirectory()
 
-                case .error(let message):
+                case let .error(message):
                     pane.activeTab.files = []
                     appState.showToast(LocalizationManager.shared.localized(.error) + ": \(message)")
                     permissionDeniedPath = nil
@@ -969,7 +966,7 @@ struct PaneView: View {
                 if grantedURL != nil {
                     // 用户授权成功，重新加载目录
                     DispatchQueue.main.async {
-                        self.loadCurrentDirectoryWithPermissionCheck()
+                        loadCurrentDirectoryWithPermissionCheck()
                     }
                 }
             }
@@ -1050,12 +1047,12 @@ struct PaneView: View {
             return
         }
 
-                    do {
-                        try await FileSystemService.shared.trashFiles(
-                            filesToDelete,
-                            undoManager: appState.undoManager
-                        )
-                    appState.showToast(LocalizationManager.shared.localized(.toastFilesMovedToTrash, filesToDelete.count))
+        do {
+            try await FileSystemService.shared.trashFiles(
+                filesToDelete,
+                undoManager: appState.undoManager
+            )
+            appState.showToast(LocalizationManager.shared.localized(.toastFilesMovedToTrash, filesToDelete.count))
             pane.clearSelections()
             loadCurrentDirectoryWithPermissionCheck()
         } catch {
@@ -1074,15 +1071,15 @@ struct PaneView: View {
         Task { @MainActor in
             do {
                 _ = try await FileSystemService.shared.createFile(
-                    at: self.appState.currentPane.activeTab.currentPath,
+                    at: appState.currentPane.activeTab.currentPath,
                     name: name,
                     undoManager: appState.undoManager
                 )
-                self.textInput = ""
-                self.appState.exitMode()
-                await self.appState.refreshCurrentPane()
+                textInput = ""
+                appState.exitMode()
+                await appState.refreshCurrentPane()
             } catch {
-                self.appState.showToast("Error creating file: \(error.localizedDescription)")
+                appState.showToast("Error creating file: \(error.localizedDescription)")
             }
         }
     }
@@ -1096,13 +1093,13 @@ struct PaneView: View {
         Task { @MainActor in
             do {
                 _ = try await FileSystemService.shared.createDirectory(
-                    at: self.pane.activeTab.currentPath,
+                    at: pane.activeTab.currentPath,
                     name: uniqueName,
                     undoManager: appState.undoManager
                 )
-                self.loadCurrentDirectoryWithPermissionCheck()
+                loadCurrentDirectoryWithPermissionCheck()
             } catch {
-                self.appState.showToast(
+                appState.showToast(
                     LocalizationManager.shared.localized(.toastErrorCreatingFolder, error.localizedDescription)
                 )
             }
@@ -1135,6 +1132,7 @@ struct PaneView: View {
 }
 
 // MARK: - 视图模式切换按钮
+
 struct ViewModeToggle: View {
     @ObservedObject private var themeManager = ThemeManager.shared
     @Binding var viewMode: ViewMode

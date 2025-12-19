@@ -6,8 +6,8 @@
 //
 
 import Combine
-import SwiftUI
 import os.log
+import SwiftUI
 
 struct MainView: View {
     @StateObject private var appState = AppState()
@@ -33,10 +33,10 @@ struct MainView: View {
                 }
             }
         )
-    }  // 帮助视图显示状态
+    } // 帮助视图显示状态
 
-    @State private var showBookmarkBar = true  // 书签栏显示状态
-    @State private var gitHistoryPanelHeight: CGFloat = 250  // Git 历史面板高度（本地状态，避免触发全局刷新）
+    @State private var showBookmarkBar = true // 书签栏显示状态
+    @State private var gitHistoryPanelHeight: CGFloat = 250 // Git 历史面板高度（本地状态，避免触发全局刷新）
 
     var body: some View {
         VStack(spacing: 0) {
@@ -78,7 +78,6 @@ struct MainView: View {
 
                     // Git History 底部面板
                     if appState.showGitHistory {
-
                         ResizableBottomPanel(
                             height: $gitHistoryPanelHeight,
                             isVisible: $appState.showGitHistory,
@@ -151,7 +150,7 @@ struct MainView: View {
                         .ignoresSafeArea()
                         .onTapGesture {
                             appState.showRenameModal = false
-                            appState.exitMode()  // 退出 BATCH_RENAME 模式
+                            appState.exitMode() // 退出 BATCH_RENAME 模式
                         }
 
                     BatchRenameView(
@@ -164,7 +163,7 @@ struct MainView: View {
                             Task { await performBatchRename() }
                         },
                         onDismiss: {
-                            appState.exitMode()  // 退出 BATCH_RENAME 模式
+                            appState.exitMode() // 退出 BATCH_RENAME 模式
                         }
                     )
                 }
@@ -217,11 +216,10 @@ struct MainView: View {
                         .getMountedVolumes()
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: .openSettings))
-        {
-            _ in
-            appState.enterMode(.settings)
-        }
+            .onReceive(NotificationCenter.default.publisher(for: .openSettings)) {
+                _ in
+                appState.enterMode(.settings)
+            }
             .onReceive(NotificationCenter.default.publisher(for: .showHelp)) {
                 _ in
                 appState.enterMode(.help)
@@ -270,7 +268,6 @@ struct MainView: View {
         }
 
         return .handled
-
     }
 
     @MainActor
@@ -278,13 +275,13 @@ struct MainView: View {
         switch action {
         case .none:
             break
-        case .enterMode(let mode):
+        case let .enterMode(mode):
             appState.enterMode(mode)
         case .exitMode:
             appState.exitMode()
-        case .moveCursor(let direction):
+        case let .moveCursor(direction):
             await appState.moveCursor(direction)
-        case .moveVisualCursor(let direction):
+        case let .moveVisualCursor(direction):
             await appState.moveVisualCursor(direction)
         case .jumpToTop:
             appState.jumpToTop()
@@ -292,18 +289,17 @@ struct MainView: View {
             appState.jumpToBottom()
 
         // MARK: - 鼠标操作
-        case .mouseClick(let index, let paneSide):
+        case let .mouseClick(index, paneSide):
             appState.handleMouseClick(at: index, paneSide: paneSide)
-        case .mouseCommandClick(let index, let paneSide):
+        case let .mouseCommandClick(index, paneSide):
             appState.handleMouseCommandClick(at: index, paneSide: paneSide)
-        case .mouseShiftClick(let index, let paneSide):
+        case let .mouseShiftClick(index, paneSide):
             appState.handleMouseShiftClick(at: index, paneSide: paneSide)
-        case .mouseDoubleClick(let fileId, let paneSide):
+        case let .mouseDoubleClick(fileId, paneSide):
             await appState.handleMouseDoubleClick(
                 fileId: fileId,
                 paneSide: paneSide
             )
-
         case .enterDirectory:
             await appState.enterDirectory()
         case .leaveDirectory:
@@ -314,7 +310,6 @@ struct MainView: View {
             await appState.newTab()
         case .closeTab:
             appState.closeTab()
-            break
         case .previousTab:
             appState.currentPane.previousTab()
             await appState.refreshCurrentPane()
@@ -336,16 +331,12 @@ struct MainView: View {
             )
         case .addBookmark:
             addCurrentToBookmark()
-
         case .openHelp:
             appState.enterMode(.help)
-
         case .closeHelp:
             appState.exitMode()
-
         case .openSettings:
             appState.enterMode(.settings)
-
         case .yank:
             appState.yankSelectedFiles()
         case .cut:
@@ -360,10 +351,9 @@ struct MainView: View {
         case .deleteSelectedFiles:
             await appState.deleteSelectedFiles()
             appState.exitMode()
-
         case .batchRename:
             appState.enterMode(.batchRename)
-        case .startRenamingFile(let fileName, let filePath):
+        case let .startRenamingFile(fileName, filePath):
             // 创建临时 FileItem 用于启动编辑
             let fileItem = FileItem(
                 id: UUID().uuidString,
@@ -380,10 +370,9 @@ struct MainView: View {
             appState.startEditingFile(fileItem)
         case .refreshCurrentPane:
             await appState.refreshCurrentPane()
-
         case .enterDriveSelection:
             appState.enterMode(.driveSelect)
-        case .moveDriveCursor(let direction):
+        case let .moveDriveCursor(direction):
             if direction == .up {
                 if appState.driveSelectorCursor > 0 {
                     appState.driveSelectorCursor -= 1
@@ -399,7 +388,6 @@ struct MainView: View {
                     appState.objectWillChange.send()
                 }
             }
-
         case .selectDrive:
             if let drive = appState.availableDrives[
                 safe: appState.driveSelectorCursor
@@ -420,7 +408,7 @@ struct MainView: View {
             }
         case .executeCommand:
             await appState.executeCommand()
-        case .insertCommand(let char):
+        case let .insertCommand(char):
             if char.isLetter || char.isNumber || char.isWhitespace
                 || char.isPunctuation
             {
@@ -432,18 +420,15 @@ struct MainView: View {
                 // 实时更新过滤
                 appState.applyFilter()
             }
-        case .inputFilterCharacter(let char):
+        case let .inputFilterCharacter(char):
             // 普通过滤支持常用字符，正则表达式支持更多特殊字符
-            let isValidChar: Bool
-            if appState.filterUseRegex {
+            let isValidChar: Bool = if appState.filterUseRegex {
                 // 正则表达式模式：支持更多字符
-                isValidChar =
-                    char.isLetter || char.isNumber || char.isWhitespace
+                char.isLetter || char.isNumber || char.isWhitespace
                     || "._-*+?^$[](){}|\\".contains(char)
             } else {
                 // 普通模式：支持基本字符
-                isValidChar =
-                    char.isLetter || char.isNumber || "._- ".contains(char)
+                char.isLetter || char.isNumber || "._- ".contains(char)
             }
 
             if isValidChar {
@@ -451,15 +436,12 @@ struct MainView: View {
                 // 实时过滤
                 appState.applyFilter()
             }
-
         case .doFilter:
             appState.doFilter()
-            
         case .openRsync:
             // Open rsync sync sheet with left pane as source
             appState.presentRsyncSheet(sourceIsLeft: true)
         }
-
     }
 
     /// 导航到书签位置
@@ -629,11 +611,11 @@ struct MainView: View {
 
         let processedReplace =
             replaceText
-            .replacingOccurrences(
-                of: "{n}",
-                with: String(format: "%03d", index + 1)
-            )
-            .replacingOccurrences(of: "{date}", with: dateString)
+                .replacingOccurrences(
+                    of: "{n}",
+                    with: String(format: "%03d", index + 1)
+                )
+                .replacingOccurrences(of: "{date}", with: dateString)
 
         if useRegex {
             if let regex = try? NSRegularExpression(
@@ -659,7 +641,6 @@ struct MainView: View {
             )
         }
     }
-
 }
 
 #Preview {
