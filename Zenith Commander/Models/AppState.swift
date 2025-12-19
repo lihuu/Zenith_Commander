@@ -43,6 +43,7 @@ class AppState: ObservableObject {
     // MARK: - UI 状态
 
     @Published var toastMessage: String?
+    @Published var showBookmarkBar = true
     @Published var showDriveSelector = false
     @Published var availableDrives: [DriveInfo] = []
 
@@ -273,6 +274,189 @@ class AppState: ObservableObject {
             if currentPane.cursorIndex < 0 {
                 currentPane.cursorIndex = 0
             }
+        }
+    }
+
+    // MARK: - Action Dispatch
+
+    func dispatch(_ action: AppAction) async {
+        switch action {
+        case .none:
+            break
+        case .enterMode(let mode):
+            enterMode(mode)
+        case .exitMode:
+            exitMode()
+        case .moveCursor(let direction):
+            await moveCursor(direction)
+        case .moveVisualCursor(let direction):
+            await moveVisualCursor(direction)
+        case .jumpToTop:
+            jumpToTop()
+        case .jumpToBottom:
+            jumpToBottom()
+
+        // MARK: - 鼠标操作
+        case .mouseClick(let index, let paneSide):
+            handleMouseClick(at: index, paneSide: paneSide)
+        case .mouseCommandClick(let index, let paneSide):
+            handleMouseCommandClick(at: index, paneSide: paneSide)
+        case .mouseShiftClick(let index, let paneSide):
+            handleMouseShiftClick(at: index, paneSide: paneSide)
+        case .mouseDoubleClick(let fileId, let paneSide):
+            await handleMouseDoubleClick(
+                fileId: fileId,
+                paneSide: paneSide
+            )
+        case .enterDirectory:
+            await enterDirectory()
+        case .leaveDirectory:
+            await leaveDirectory()
+        case .toggleActivePane:
+            toggleActivePane()
+        case .newTab:
+            await newTab()
+        case .closeTab:
+            closeTab()
+        case .previousTab:
+            currentPane.previousTab()
+            await refreshCurrentPane()
+        case .nextTab:
+            currentPane.nextTab()
+            await refreshCurrentPane()
+        case .toggleBookmarkBar:
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showBookmarkBar.toggle()
+            }
+            showToast(
+                showBookmarkBar
+                    ? LocalizationManager.shared.localized(
+                        .toastBookmarkBarShown
+                    )
+                    : LocalizationManager.shared.localized(
+                        .toastBookmarkBarHidden
+                    )
+            )
+        case .addBookmark:
+            addCurrentToBookmark()
+        case .openHelp:
+            enterMode(.help)
+        case .closeHelp:
+            exitMode()
+        case .openSettings:
+            enterMode(.settings)
+        case .yank:
+            yankSelectedFiles()
+        case .cut:
+            cutSelectedFiles()
+        case .visualModeYank:
+            let pane = currentPane
+            yankSelectedFiles()
+            exitMode()
+            pane.clearSelections()
+        case .paste:
+            await pasteFiles()
+        case .deleteSelectedFiles:
+            await deleteSelectedFiles()
+            exitMode()
+        case .batchRename:
+            enterMode(.batchRename)
+        case .startRenamingFile(let fileName, let filePath):
+            // 创建临时 FileItem 用于启动编辑
+            let fileItem = FileItem(
+                id: UUID().uuidString,
+                name: fileName,
+                path: URL(fileURLWithPath: filePath),
+                type: .file,
+                size: 0,
+                modifiedDate: Date(),
+                createdDate: Date(),
+                isHidden: fileName.hasPrefix("."),
+                permissions: "",
+                fileExtension: (fileName as NSString).pathExtension
+            )
+            startEditingFile(fileItem)
+        case .refreshCurrentPane:
+            await refreshCurrentPane()
+        case .enterDriveSelection:
+            enterMode(.driveSelect)
+        case .moveDriveCursor(let direction):
+            if direction == .up {
+                if driveSelectorCursor > 0 {
+                    driveSelectorCursor -= 1
+                    objectWillChange.send()
+                }
+            }
+
+            if direction == .down {
+                if driveSelectorCursor < availableDrives.count
+                    - 1
+                {
+                    driveSelectorCursor += 1
+                    objectWillChange.send()
+                }
+            }
+        case .selectDrive:
+            if let drive = availableDrives[
+                safe: driveSelectorCursor
+            ] {
+                await selectDrive(drive)
+            }
+        case .cycleTheme:
+            let themeManager = ThemeManager.shared
+            themeManager.cycleTheme()
+            showToast(
+                LocalizationManager.shared.localized(
+                    .toastTheme,
+                    themeManager.mode.displayName
+                )
+            )
+        case .deleteCommand:
+            if !commandInput.isEmpty {
+                commandInput.removeLast()
+            }
+        case .executeCommand:
+            await executeCommand()
+        case .insertCommand(let char):
+            if char.isLetter || char.isNumber || char.isWhitespace
+                || char.isPunctuation
+            {
+                commandInput.append(char)
+            }
+        case .deleteFilterCharacter:
+            if !filterInput.isEmpty {
+                filterInput.removeLast()
+                // 实时更新过滤
+                applyFilter()
+            }
+        case .inputFilterCharacter(let char):
+            // 普通过滤支持常用字符，正则表达式支持更多特殊字符
+            let isValidChar: Bool =
+                if filterUseRegex {
+                    // 正则表达式模式：支持更多字符
+                    char.isLetter || char.isNumber || char.isWhitespace
+                        || "._-*+?^$[](){}|\\".contains(char)
+                } else {
+                    // 普通模式：支持基本字符
+                    char.isLetter || char.isNumber || "._- ".contains(char)
+                }
+
+            if isValidChar {
+                filterInput.append(char)
+                // 实时过滤
+                applyFilter()
+            }
+        case .doFilter:
+            doFilter()
+        case .openRsync:
+            // Open rsync sync sheet with left pane as source
+            presentRsyncSheet(sourceIsLeft: true)
+        case .showSheet:
+            break
+        case .dismissSheet:
+            break
+        case .toast:
+            break
         }
     }
 
@@ -675,6 +859,179 @@ class AppState: ObservableObject {
         let pane = currentPane
         if pane.tabs.count > 1 {
             pane.closeTab(at: pane.activeTabIndex)
+        }
+    }
+
+    /// 添加当前选中项到书签
+    func addCurrentToBookmark() {
+        let pane = currentPane
+        let bookmarkManager = BookmarkManager.shared
+
+        // 如果有选中的文件，添加所有选中项
+        if !pane.selections.isEmpty {
+            var addedCount = 0
+            for fileId in pane.selections {
+                if let file = pane.activeTab.files.first(where: {
+                    $0.id == fileId
+                }) {
+                    if !bookmarkManager.contains(path: file.path) {
+                        bookmarkManager.addBookmark(for: file)
+                        addedCount += 1
+                    }
+                }
+            }
+            if addedCount <= 0 {
+                showToast(
+                    LocalizationManager.shared.localized(
+                        .toastAlreadyBookmarked
+                    )
+                )
+            }
+        } else {
+            // 否则添加当前光标所在的文件
+            let files = pane.activeTab.files
+            guard pane.cursorIndex < files.count else { return }
+
+            let file = files[pane.cursorIndex]
+            if bookmarkManager.contains(path: file.path) {
+                showToast(
+                    LocalizationManager.shared.localized(
+                        .toastAlreadyBookmarked
+                    )
+                )
+            } else {
+                bookmarkManager.addBookmark(for: file)
+                showToast(
+                    LocalizationManager.shared.localized(.toastBookmarkAdded)
+                )
+            }
+        }
+    }
+
+    // MARK: - 批量重命名
+
+    /// 执行批量重命名
+    func performBatchRename() async {
+        let selectedFiles = selectedFiles()
+        guard !selectedFiles.isEmpty else {
+            showToast(
+                LocalizationManager.shared.localized(.toastNoFilesForRename)
+            )
+            return
+        }
+
+        let findText = renameFindText
+        let replaceText = renameReplaceText
+        let useRegex = renameUseRegex
+
+        guard !findText.isEmpty else {
+            showToast(
+                LocalizationManager.shared.localized(.toastFindTextEmpty)
+            )
+            return
+        }
+
+        var successCount = 0
+        var errorMessages: [String] = []
+
+        for (index, file) in selectedFiles.enumerated() {
+            let newName = generateNewName(
+                originalName: file.name,
+                findText: findText,
+                replaceText: replaceText,
+                useRegex: useRegex,
+                index: index
+            )
+
+            // 如果新名称与原名称相同，跳过
+            if newName == file.name {
+                continue
+            }
+
+            let newPath = file.path.deletingLastPathComponent()
+                .appendingPathComponent(newName)
+
+            do {
+                try FileManager.default.moveItem(at: file.path, to: newPath)
+                successCount += 1
+            } catch {
+                errorMessages.append(
+                    "\(file.name): \(error.localizedDescription)"
+                )
+            }
+        }
+
+        // 清空重命名状态
+        renameFindText = ""
+        renameReplaceText = ""
+        renameUseRegex = false
+
+        // 退出 Visual 模式并刷新
+        currentPane.clearSelections()
+        exitMode()
+        await refreshCurrentPane()
+
+        // 显示结果
+        if errorMessages.isEmpty {
+            showToast(
+                LocalizationManager.shared.localized(
+                    .toastFilesRenamed,
+                    successCount
+                )
+            )
+        } else {
+            showToast(
+                LocalizationManager.shared.localized(
+                    .toastRenamedWithErrors,
+                    successCount,
+                    errorMessages.count
+                )
+            )
+        }
+    }
+
+    /// 生成新文件名
+    private func generateNewName(
+        originalName: String,
+        findText: String,
+        replaceText: String,
+        useRegex: Bool,
+        index: Int
+    ) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd"
+        let dateString = formatter.string(from: Date())
+
+        let processedReplace =
+            replaceText
+            .replacingOccurrences(
+                of: "{n}",
+                with: String(format: "%03d", index + 1)
+            )
+            .replacingOccurrences(of: "{date}", with: dateString)
+
+        if useRegex {
+            if let regex = try? NSRegularExpression(
+                pattern: findText,
+                options: []
+            ) {
+                let range = NSRange(
+                    originalName.startIndex...,
+                    in: originalName
+                )
+                return regex.stringByReplacingMatches(
+                    in: originalName,
+                    options: [],
+                    range: range,
+                    withTemplate: processedReplace
+                )
+            }
+            return originalName
+        } else {
+            return originalName.replacingOccurrences(
+                of: findText,
+                with: processedReplace
+            )
         }
     }
 }
