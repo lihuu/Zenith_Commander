@@ -39,13 +39,13 @@ class AppStateDispatchTests: XCTestCase {
     // MARK: - Mode Actions
 
     func testDispatchEnterMode() async {
-        await appState.dispatch(.enterMode(.command))
+        await appState.dispatch(.mode(.enterMode(.command)))
         XCTAssertEqual(appState.mode, .command, "Mode should change to command")
     }
 
     func testDispatchExitMode() async {
         appState.mode = .command
-        await appState.dispatch(.exitMode)
+        await appState.dispatch(.mode(.exitMode))
         XCTAssertEqual(appState.mode, .normal, "Mode should return to normal")
     }
 
@@ -134,7 +134,7 @@ class AppStateDispatchTests: XCTestCase {
         try? "test".write(to: tempFile, atomically: true, encoding: .utf8)
         await appState.refreshCurrentPane()
 
-        let initialMode = appState.mode
+        _ = appState.mode
         if appState.currentPane.activeTab.files.count > 0 {
             await appState.dispatch(
                 .mouseCommandClick(index: 0, paneSide: .left)
@@ -165,7 +165,7 @@ class AppStateDispatchTests: XCTestCase {
 
         await appState.refreshCurrentPane()
         if appState.currentPane.activeTab.files.count > 0 {
-            let initialPath = appState.currentPane.activeTab.currentPath
+            let _ = appState.currentPane.activeTab.currentPath
             await appState.dispatch(.enterDirectory)
             // Path may change or stay same depending on file type
             XCTAssertNotNil(appState.currentPane.activeTab.currentPath)
@@ -173,7 +173,7 @@ class AppStateDispatchTests: XCTestCase {
     }
 
     func testDispatchLeaveDirectory() async {
-        let initialPath = appState.currentPane.activeTab.currentPath
+        let _ = appState.currentPane.activeTab.currentPath
         await appState.dispatch(.leaveDirectory)
         // Should go to parent directory or stay at root
         XCTAssertNotNil(appState.currentPane.activeTab.currentPath)

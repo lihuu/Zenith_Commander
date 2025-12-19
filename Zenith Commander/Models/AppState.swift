@@ -292,15 +292,12 @@ class AppState: ObservableObject {
     func dispatch(_ action: AppAction) async {
         switch action {
         case .mode(let modeAction):
-            break
+                handleAction(modeAction)
         case .pane(let paneAction):
-            break
+                await handleAction(paneAction)
         case .none:
             break
-        case .enterMode(let mode):
-            enterMode(mode)
-        case .exitMode:
-            exitMode()
+   
         case .moveCursor(let direction):
             await moveCursor(direction)
         case .moveVisualCursor(let direction):
@@ -468,8 +465,18 @@ class AppState: ObservableObject {
         }
     }
 
-    func handlePane(action: PaneAction) async{
+    func handleAction(_ action: PaneAction) async{
         // TODO : 实现 PaneAction 处理
+    }
+    
+    func handleAction(_ action: ModeAction) {
+        switch action{
+            case .enterMode(let mode):
+                enterMode(mode)
+            case .exitMode:
+                exitMode()
+        }
+        
     }
 
     /// 显示 Toast 消息

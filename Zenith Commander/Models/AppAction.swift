@@ -10,10 +10,6 @@ import SwiftUI
 
 enum AppAction: Sendable {
     case none
-    /// 模式相关
-    case enterMode(AppMode)
-    case exitMode
-
     /// 光标移动
     case moveCursor(CursorDirection)
     case moveVisualCursor(CursorDirection)
@@ -90,6 +86,10 @@ enum PaneAction{
     case mouseShiftClick(index: Int, paneSide: PaneSide) // Shift+Click 范围选择
     case mouseDoubleClick(fileId: String, paneSide: PaneSide) // 双击
     case refreshCurrentPane
+}
+
+enum UIAction{
+
 }
 
 enum ModeAction{

@@ -5,7 +5,6 @@
 //  Created by Hu Li on 12/19/25.
 //
 
-
 import SwiftUI
 
 /// 不同模式下的键盘映射扩展
@@ -31,7 +30,7 @@ extension AppMode {
         case .help:
             AppModeKeyMaps.help
         case .modal:
-            AppModeKeyMaps.modal // No key maps for modal mode
+            AppModeKeyMaps.modal  // No key maps for modal mode
         default:
             [:]
         }
@@ -69,11 +68,10 @@ extension AppMode {
     }
 }
 
-
 enum AppModeKeyMaps {
     static let defaultMap: [KeyChord: AppAction] = [
-        KeyChord(.escape): .exitMode,
-        KeyChord(",", [.command]): .enterMode(.settings),
+        KeyChord(.escape): .mode(.exitMode),
+        KeyChord(",", [.command]): .mode(.enterMode(.settings)),
     ]
 
     static let normal: [KeyChord: AppAction] = {
@@ -93,9 +91,9 @@ enum AppModeKeyMaps {
             KeyChord(.return): .enterDirectory,
 
             /// 模式切换
-            KeyChord("v"): .enterMode(.visual),
-            KeyChord(":", [.shift]): .enterMode(.command),
-            KeyChord("/"): .enterMode(.filter),
+            KeyChord("v"): .mode(.enterMode(.visual)),
+            KeyChord(":", [.shift]): .mode(.enterMode(.command)),
+            KeyChord("/"): .mode(.enterMode(.filter)),
 
             /// Pane / Tab
             KeyChord(.tab): .toggleActivePane,
@@ -107,7 +105,7 @@ enum AppModeKeyMaps {
             /// Theme
             KeyChord("t", [.control]): .cycleTheme,
 
-            KeyChord("?", [.shift]): .enterMode(.help),
+            KeyChord("?", [.shift]): .mode(.enterMode(.help)),
 
             KeyChord("b"): .toggleBookmarkBar,
             KeyChord("b", [.command]): .addBookmark,
@@ -124,7 +122,7 @@ enum AppModeKeyMaps {
 
             KeyChord("g"): .jumpToTop,
             KeyChord("G", [.shift]): .jumpToBottom,
-            KeyChord("D", [.shift]): .enterMode(.driveSelect),
+            KeyChord("D", [.shift]): .mode(.enterMode(.driveSelect)),
             KeyChord("S", [.shift]): .openRsync,
         ]
 
@@ -149,8 +147,8 @@ enum AppModeKeyMaps {
             /// 文件操作 (Vim 风格)
             KeyChord("y"): .visualModeYank,
             KeyChord("d"): .deleteSelectedFiles,
-            KeyChord("r"): .enterMode(.batchRename),
-            KeyChord("v"): .exitMode,
+            KeyChord("r"): .mode(.enterMode(.batchRename)),
+            KeyChord("v"): .mode(.exitMode),
         ]
 
         return visualOverrides.merging(defaultMap) { current, _ in
@@ -191,7 +189,7 @@ enum AppModeKeyMaps {
 
         return filterOverrides.merging(defaultMap) {
             current,
-                _ in current
+            _ in current
         }
     }()
 
@@ -212,12 +210,12 @@ enum AppModeKeyMaps {
     static let rename: [KeyChord: AppAction] = defaultMap
 
     static let settings: [KeyChord: AppAction] = [
-        KeyChord(.escape): .exitMode,
+        KeyChord(.escape): .mode(.exitMode)
     ]
 
     static let help: [KeyChord: AppAction] = {
         let helpOverrides: [KeyChord: AppAction] = [
-            KeyChord(.escape): .exitMode,
+            KeyChord(.escape): .mode(.exitMode)
         ]
 
         return helpOverrides.merging(defaultMap) { current, _ in
@@ -227,7 +225,6 @@ enum AppModeKeyMaps {
 
     static let modal: [KeyChord: AppAction] = defaultMap
 }
-
 
 struct KeyChord: Hashable {
     let key: KeyEquivalent

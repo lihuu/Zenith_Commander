@@ -258,7 +258,9 @@ struct PaneView: View {
             }
             .dropDestination(for: URL.self) { urls, _ in
                 // 拖放到当前目录
-                handleDroppedURLs(urls, to: pane.activeTab.currentPath)
+                if !handleDroppedURLs(urls, to: pane.activeTab.currentPath) {
+                    Logger.fileSystem.error("Failed to drop files to current directory: \(pane.activeTab.currentPath.path, privacy: .public)")
+                }
             }
             .onChange(of: pane.activeTab.cursorFileId) { _, newValue in
                 withAnimation(.easeInOut(duration: 0.1)) {
