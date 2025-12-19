@@ -1,3 +1,11 @@
+//
+//  AppAction.swift
+//  Zenith Commander
+//
+//  Created by Hu Li on 12/19/25.
+//
+
+
 import SwiftUI
 
 enum AppAction: Sendable {
@@ -30,9 +38,6 @@ enum AppAction: Sendable {
     case nextTab
     case toggleBookmarkBar
     case addBookmark
-    case openSettings
-    case openHelp
-    case closeHelp
 
     /// 文件操作
     case yank
@@ -45,7 +50,6 @@ enum AppAction: Sendable {
     case refreshCurrentPane
 
     /// 驱动器选择
-    case enterDriveSelection
     case moveDriveCursor(CursorDirection)
     case selectDrive
 
@@ -66,4 +70,41 @@ enum AppAction: Sendable {
     case showSheet(UIRequest)
     case dismissSheet
     case toast(String)
+    case pane(PaneAction)
+    case mode(ModeAction)
+}
+
+enum PaneAction{
+    case toggleActivePane
+    case newTab
+    case closeTab
+    case previousTab
+    case nextTab
+    case toggleBookmarkBar
+    case addBookmark
+    case enterDirectory
+    case leaveDirectory
+    /// 鼠标操作 - 统一通过模式系统处理
+    case mouseClick(index: Int, paneSide: PaneSide) // 普通单击
+    case mouseCommandClick(index: Int, paneSide: PaneSide) // Command+Click 切换选择
+    case mouseShiftClick(index: Int, paneSide: PaneSide) // Shift+Click 范围选择
+    case mouseDoubleClick(fileId: String, paneSide: PaneSide) // 双击
+    case refreshCurrentPane
+}
+
+enum ModeAction{
+    case enterMode(AppMode)
+    case exitMode
+}
+
+enum CommandAction{
+    case deleteCommand
+    case executeCommand
+    case insertCommand(Character)
+}
+
+enum FilterAction{
+    case deleteFilterCharacter
+    case inputFilterCharacter(Character)
+    case doFilter
 }

@@ -7,8 +7,8 @@
 
 import Combine
 import Foundation
-import os.log
 import SwiftUI
+import os.log
 
 /// 全局应用状态
 @MainActor
@@ -61,16 +61,17 @@ class AppState: ObservableObject {
 
     // MARK: - 单个文件内联编辑状态
 
-    @Published var editingFileId: String? = nil // 当前正在编辑的文件ID
-    @Published var editingFileName = "" // 编辑中的文件名
+    @Published var editingFileId: String? = nil  // 当前正在编辑的文件ID
+    @Published var editingFileName = ""  // 编辑中的文件名
 
     @Published var activeSheet: UIRequest?
 
     var driveSelectorCursor: Int {
         get {
-            let index = availableDrives.firstIndex(where: {
-                $0.id == self.currentPane.activeTab.drive.id
-            }) ?? 0
+            let index =
+                availableDrives.firstIndex(where: {
+                    $0.id == self.currentPane.activeTab.drive.id
+                }) ?? 0
 
             Logger.app.debug("Current selected Index: \(index)")
 
@@ -181,7 +182,9 @@ class AppState: ObservableObject {
         UserDefaults.standard.set(leftPath, forKey: "lastLeftPanePath")
         UserDefaults.standard.set(rightPath, forKey: "lastRightPanePath")
 
-        Logger.app.debug("Saved paths - Left: \(leftPath, privacy: .public), Right: \(rightPath, privacy: .public)")
+        Logger.app.debug(
+            "Saved paths - Left: \(leftPath, privacy: .public), Right: \(rightPath, privacy: .public)"
+        )
     }
 
     /// 从 UserDefaults 恢复上次的路径
@@ -192,8 +195,13 @@ class AppState: ObservableObject {
         let defaultRightPath = homePath.appendingPathComponent("Downloads")
 
         // 读取保存的路径
-        guard let leftPathString = UserDefaults.standard.string(forKey: "lastLeftPanePath"),
-              let rightPathString = UserDefaults.standard.string(forKey: "lastRightPanePath")
+        guard
+            let leftPathString = UserDefaults.standard.string(
+                forKey: "lastLeftPanePath"
+            ),
+            let rightPathString = UserDefaults.standard.string(
+                forKey: "lastRightPanePath"
+            )
         else {
             Logger.app.debug("No saved paths found, using defaults")
             return (defaultLeftPath, defaultRightPath)
@@ -210,7 +218,9 @@ class AppState: ObservableObject {
         let finalLeftPath = leftPathExists ? leftURL : defaultLeftPath
         let finalRightPath = rightPathExists ? rightURL : defaultRightPath
 
-        Logger.app.debug("Restored paths - Left: \(finalLeftPath.path, privacy: .public) (exists: \(leftPathExists)), Right: \(finalRightPath.path, privacy: .public) (exists: \(rightPathExists))")
+        Logger.app.debug(
+            "Restored paths - Left: \(finalLeftPath.path, privacy: .public) (exists: \(leftPathExists)), Right: \(finalRightPath.path, privacy: .public) (exists: \(rightPathExists))"
+        )
 
         return (finalLeftPath, finalRightPath)
     }
@@ -240,7 +250,7 @@ class AppState: ObservableObject {
             let tab = pane.activeTab
             let currentFile =
                 tab.files.isEmpty
-                    ? "" : tab.files[safe: pane.cursorIndex]?.name ?? ""
+                ? "" : tab.files[safe: pane.cursorIndex]?.name ?? ""
             return "\(tab.drive.name) | \(currentFile)"
         }
     }
@@ -281,6 +291,10 @@ class AppState: ObservableObject {
 
     func dispatch(_ action: AppAction) async {
         switch action {
+        case .mode(let modeAction):
+            break
+        case .pane(let paneAction):
+            break
         case .none:
             break
         case .enterMode(let mode):
@@ -339,12 +353,7 @@ class AppState: ObservableObject {
             )
         case .addBookmark:
             addCurrentToBookmark()
-        case .openHelp:
-            enterMode(.help)
-        case .closeHelp:
-            exitMode()
-        case .openSettings:
-            enterMode(.settings)
+
         case .yank:
             yankSelectedFiles()
         case .cut:
@@ -378,8 +387,7 @@ class AppState: ObservableObject {
             startEditingFile(fileItem)
         case .refreshCurrentPane:
             await refreshCurrentPane()
-        case .enterDriveSelection:
-            enterMode(.driveSelect)
+
         case .moveDriveCursor(let direction):
             if direction == .up {
                 if driveSelectorCursor > 0 {
@@ -460,9 +468,12 @@ class AppState: ObservableObject {
         }
     }
 
-    // MARK: - Toast 通知
+    func handlePane(action: PaneAction) async{
+        // TODO : 实现 PaneAction 处理
+    }
 
     /// 显示 Toast 消息
+    // MARK: - Toast 通知
     func showToast(_ message: String) {
         // 使用异步更新避免在视图更新期间修改 @Published 属性
         DispatchQueue.main.async { [weak self] in
@@ -511,7 +522,7 @@ class AppState: ObservableObject {
         if mode != .visual {
             // 进入 Visual 模式但不设置锚点（因为我们要做切换选择）
             mode = .visual
-            pane.visualAnchor = nil // 清除锚点，因为 Command+Click 是独立选择
+            pane.visualAnchor = nil  // 清除锚点，因为 Command+Click 是独立选择
         }
 
         // 移动光标到点击位置
@@ -659,10 +670,10 @@ class AppState: ObservableObject {
                 currentIndex = min(fileCount - 1, currentIndex + 1)
             case .left:
                 await leaveDirectory()
-                return // leaveDirectory 已经处理了光标，直接返回
+                return  // leaveDirectory 已经处理了光标，直接返回
             case .right:
                 await enterDirectory()
-                return // enterDirectory 已经处理了光标，直接返回
+                return  // enterDirectory 已经处理了光标，直接返回
             }
         }
 
@@ -818,7 +829,7 @@ class AppState: ObservableObject {
     private func refreshOtherPane() async {
         let otherPane =
             activePane == .left
-                ? rightPane : leftPane
+            ? rightPane : leftPane
         let files = await FileSystemService.shared.loadDirectory(
             at: otherPane.activeTab.currentPath
         )

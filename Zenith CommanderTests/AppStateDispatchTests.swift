@@ -8,13 +8,14 @@
 import XCTest
 @testable import Zenith_Commander
 
+@MainActor
 class AppStateDispatchTests: XCTestCase {
     var appState: AppState!
     var testDirectory: URL!
 
     override func setUp() {
         super.setUp()
-        
+
         // Create a temporary test directory
         let tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
@@ -23,7 +24,7 @@ class AppStateDispatchTests: XCTestCase {
             withIntermediateDirectories: true
         )
         testDirectory = tempDir
-        
+
         // Initialize AppState with test directory
         appState = AppState(testDirectory: testDirectory)
     }
@@ -36,7 +37,7 @@ class AppStateDispatchTests: XCTestCase {
     }
 
     // MARK: - Mode Actions
-    
+
     func testDispatchEnterMode() async {
         await appState.dispatch(.enterMode(.command))
         XCTAssertEqual(appState.mode, .command, "Mode should change to command")
@@ -67,11 +68,11 @@ class AppStateDispatchTests: XCTestCase {
         // Ensure there are files to move to
         let tempFile = testDirectory.appendingPathComponent("file1.txt")
         try? "".write(to: tempFile, atomically: true, encoding: .utf8)
-        
+
         await appState.refreshCurrentPane()
         let initialIndex = appState.currentPane.cursorIndex
         await appState.dispatch(.moveCursor(.down))
-        
+
         // Cursor should move down or stay at last position
         XCTAssertGreaterThanOrEqual(
             appState.currentPane.cursorIndex,
@@ -106,7 +107,7 @@ class AppStateDispatchTests: XCTestCase {
         let tempFile = testDirectory.appendingPathComponent("file1.txt")
         try? "".write(to: tempFile, atomically: true, encoding: .utf8)
         await appState.refreshCurrentPane()
-        
+
         appState.leftPane.cursorIndex = 0
         await appState.dispatch(.jumpToBottom)
         let files = appState.currentPane.activeTab.files
@@ -132,7 +133,7 @@ class AppStateDispatchTests: XCTestCase {
         let tempFile = testDirectory.appendingPathComponent("test.txt")
         try? "test".write(to: tempFile, atomically: true, encoding: .utf8)
         await appState.refreshCurrentPane()
-        
+
         let initialMode = appState.mode
         if appState.currentPane.activeTab.files.count > 0 {
             await appState.dispatch(
@@ -147,7 +148,7 @@ class AppStateDispatchTests: XCTestCase {
         let tempFile = testDirectory.appendingPathComponent("test.txt")
         try? "test".write(to: tempFile, atomically: true, encoding: .utf8)
         await appState.refreshCurrentPane()
-        
+
         if appState.currentPane.activeTab.files.count > 0 {
             await appState.dispatch(
                 .mouseShiftClick(index: 0, paneSide: .left)
@@ -161,7 +162,7 @@ class AppStateDispatchTests: XCTestCase {
     func testDispatchEnterDirectory() async {
         let subDir = testDirectory.appendingPathComponent("subdir")
         try? FileManager.default.createDirectory(at: subDir, withIntermediateDirectories: true)
-        
+
         await appState.refreshCurrentPane()
         if appState.currentPane.activeTab.files.count > 0 {
             let initialPath = appState.currentPane.activeTab.currentPath
@@ -204,7 +205,7 @@ class AppStateDispatchTests: XCTestCase {
         // Create multiple tabs first
         await appState.dispatch(.newTab)
         let initialTabCount = appState.currentPane.tabs.count
-        
+
         if initialTabCount > 1 {
             await appState.dispatch(.closeTab)
             XCTAssertEqual(
@@ -218,7 +219,7 @@ class AppStateDispatchTests: XCTestCase {
     func testDispatchPreviousTab() async {
         await appState.dispatch(.newTab)
         let initialIndex = appState.currentPane.activeTabIndex
-        
+
         if initialIndex > 0 {
             await appState.dispatch(.previousTab)
             XCTAssertEqual(
@@ -232,7 +233,7 @@ class AppStateDispatchTests: XCTestCase {
     func testDispatchNextTab() async {
         await appState.dispatch(.newTab)
         let initialIndex = appState.currentPane.activeTabIndex
-        
+
         await appState.dispatch(.nextTab)
         if initialIndex < appState.currentPane.tabs.count - 1 {
             XCTAssertEqual(
@@ -267,7 +268,7 @@ class AppStateDispatchTests: XCTestCase {
         let tempFile = testDirectory.appendingPathComponent("test.txt")
         try? "test".write(to: tempFile, atomically: true, encoding: .utf8)
         await appState.refreshCurrentPane()
-        
+
         await appState.dispatch(.yank)
         XCTAssertTrue(true, "Yank action dispatched")
     }
@@ -276,7 +277,7 @@ class AppStateDispatchTests: XCTestCase {
         let tempFile = testDirectory.appendingPathComponent("test.txt")
         try? "test".write(to: tempFile, atomically: true, encoding: .utf8)
         await appState.refreshCurrentPane()
-        
+
         await appState.dispatch(.cut)
         XCTAssertEqual(
             appState.clipboardOperation,
@@ -290,7 +291,7 @@ class AppStateDispatchTests: XCTestCase {
         let tempFile = testDirectory.appendingPathComponent("test.txt")
         try? "test".write(to: tempFile, atomically: true, encoding: .utf8)
         await appState.refreshCurrentPane()
-        
+
         await appState.dispatch(.visualModeYank)
         XCTAssertEqual(appState.mode, .normal, "Should exit visual mode after yank")
     }
@@ -300,7 +301,7 @@ class AppStateDispatchTests: XCTestCase {
         let sourceFile = testDirectory.appendingPathComponent("source.txt")
         try? "source".write(to: sourceFile, atomically: true, encoding: .utf8)
         await appState.refreshCurrentPane()
-        
+
         // Copy file to clipboard
         appState.clipboard = [
             FileItem(
@@ -317,7 +318,7 @@ class AppStateDispatchTests: XCTestCase {
             )
         ]
         appState.clipboardOperation = .copy
-        
+
         await appState.dispatch(.paste)
         XCTAssertTrue(true, "Paste action dispatched")
     }
@@ -326,7 +327,7 @@ class AppStateDispatchTests: XCTestCase {
         let tempFile = testDirectory.appendingPathComponent("test.txt")
         try? "test".write(to: tempFile, atomically: true, encoding: .utf8)
         await appState.refreshCurrentPane()
-        
+
         appState.mode = .visual
         await appState.dispatch(.deleteSelectedFiles)
         XCTAssertEqual(appState.mode, .normal, "Should exit visual mode after delete")
@@ -367,7 +368,7 @@ class AppStateDispatchTests: XCTestCase {
         appState.driveSelectorCursor = 0
         let tempDir = testDirectory.appendingPathComponent("drive1")
         try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        
+
         let initialCursor = appState.driveSelectorCursor
         await appState.dispatch(.moveDriveCursor(.up))
         // Cursor won't move if already at 0
@@ -462,7 +463,7 @@ class AppStateDispatchTests: XCTestCase {
     // MARK: - Sheet Actions
 
     func testDispatchShowSheet() async {
-        await appState.dispatch(.showSheet)
+        await appState.dispatch(.showSheet(.rsyncSheet))
         XCTAssertTrue(true, "Show sheet action dispatched")
     }
 
@@ -472,7 +473,7 @@ class AppStateDispatchTests: XCTestCase {
     }
 
     func testDispatchToast() async {
-        await appState.dispatch(.toast)
+        await appState.dispatch(.toast("Test message"))
         XCTAssertTrue(true, "Toast action dispatched")
     }
 }
