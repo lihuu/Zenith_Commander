@@ -18,7 +18,8 @@ final class RsyncCommandProvider: CommandProvider {
     }
     
     func invoke(_ command: CommandInvocation) async throws -> CommandResult{
+        await context.dispatch(.showSheet(.rsyncSheet))
+        return .openUI(.rsyncSheet)
     }
-
-
 }
+

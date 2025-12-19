@@ -141,7 +141,7 @@ struct KeyChord: Hashable {
     }
 }
 
-enum AppAction {
+enum AppAction: Sendable {
     case none
     /// 模式相关
     case enterMode(AppMode)
@@ -204,6 +204,9 @@ enum AppAction {
     case doFilter
 
     case cycleTheme
+    case showSheet(UIRequest)
+    case dismissSheet
+    case toast(String)
 }
 
 /// 按键映射表，把按键和动作关联起来，方便支持不同模式的快捷键

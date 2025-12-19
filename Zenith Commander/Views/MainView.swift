@@ -6,8 +6,8 @@
 //
 
 import Combine
-import os.log
 import SwiftUI
+import os.log
 
 struct MainView: View {
     @StateObject private var appState = AppState()
@@ -33,10 +33,10 @@ struct MainView: View {
                 }
             }
         )
-    } // 帮助视图显示状态
+    }  // 帮助视图显示状态
 
-    @State private var showBookmarkBar = true // 书签栏显示状态
-    @State private var gitHistoryPanelHeight: CGFloat = 250 // Git 历史面板高度（本地状态，避免触发全局刷新）
+    @State private var showBookmarkBar = true  // 书签栏显示状态
+    @State private var gitHistoryPanelHeight: CGFloat = 250  // Git 历史面板高度（本地状态，避免触发全局刷新）
 
     var body: some View {
         VStack(spacing: 0) {
@@ -150,7 +150,7 @@ struct MainView: View {
                         .ignoresSafeArea()
                         .onTapGesture {
                             appState.showRenameModal = false
-                            appState.exitMode() // 退出 BATCH_RENAME 模式
+                            appState.exitMode()  // 退出 BATCH_RENAME 模式
                         }
 
                     BatchRenameView(
@@ -163,7 +163,7 @@ struct MainView: View {
                             Task { await performBatchRename() }
                         },
                         onDismiss: {
-                            appState.exitMode() // 退出 BATCH_RENAME 模式
+                            appState.exitMode()  // 退出 BATCH_RENAME 模式
                         }
                     )
                 }
@@ -216,10 +216,11 @@ struct MainView: View {
                         .getMountedVolumes()
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: .openSettings)) {
-                _ in
-                appState.enterMode(.settings)
-            }
+            .onReceive(NotificationCenter.default.publisher(for: .openSettings))
+        {
+            _ in
+            appState.enterMode(.settings)
+        }
             .onReceive(NotificationCenter.default.publisher(for: .showHelp)) {
                 _ in
                 appState.enterMode(.help)
@@ -252,7 +253,11 @@ struct MainView: View {
                 _ in
                 appState.closeTab()
             }
-            .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
+            .onReceive(
+                NotificationCenter.default.publisher(
+                    for: NSApplication.willTerminateNotification
+                )
+            ) { _ in
                 // 应用退出时保存当前路径
                 appState.saveCurrentPaths()
             }
@@ -275,13 +280,13 @@ struct MainView: View {
         switch action {
         case .none:
             break
-        case let .enterMode(mode):
+        case .enterMode(let mode):
             appState.enterMode(mode)
         case .exitMode:
             appState.exitMode()
-        case let .moveCursor(direction):
+        case .moveCursor(let direction):
             await appState.moveCursor(direction)
-        case let .moveVisualCursor(direction):
+        case .moveVisualCursor(let direction):
             await appState.moveVisualCursor(direction)
         case .jumpToTop:
             appState.jumpToTop()
@@ -289,13 +294,13 @@ struct MainView: View {
             appState.jumpToBottom()
 
         // MARK: - 鼠标操作
-        case let .mouseClick(index, paneSide):
+        case .mouseClick(let index, let paneSide):
             appState.handleMouseClick(at: index, paneSide: paneSide)
-        case let .mouseCommandClick(index, paneSide):
+        case .mouseCommandClick(let index, let paneSide):
             appState.handleMouseCommandClick(at: index, paneSide: paneSide)
-        case let .mouseShiftClick(index, paneSide):
+        case .mouseShiftClick(let index, let paneSide):
             appState.handleMouseShiftClick(at: index, paneSide: paneSide)
-        case let .mouseDoubleClick(fileId, paneSide):
+        case .mouseDoubleClick(let fileId, let paneSide):
             await appState.handleMouseDoubleClick(
                 fileId: fileId,
                 paneSide: paneSide
@@ -353,7 +358,7 @@ struct MainView: View {
             appState.exitMode()
         case .batchRename:
             appState.enterMode(.batchRename)
-        case let .startRenamingFile(fileName, filePath):
+        case .startRenamingFile(let fileName, let filePath):
             // 创建临时 FileItem 用于启动编辑
             let fileItem = FileItem(
                 id: UUID().uuidString,
@@ -372,7 +377,7 @@ struct MainView: View {
             await appState.refreshCurrentPane()
         case .enterDriveSelection:
             appState.enterMode(.driveSelect)
-        case let .moveDriveCursor(direction):
+        case .moveDriveCursor(let direction):
             if direction == .up {
                 if appState.driveSelectorCursor > 0 {
                     appState.driveSelectorCursor -= 1
@@ -408,7 +413,7 @@ struct MainView: View {
             }
         case .executeCommand:
             await appState.executeCommand()
-        case let .insertCommand(char):
+        case .insertCommand(let char):
             if char.isLetter || char.isNumber || char.isWhitespace
                 || char.isPunctuation
             {
@@ -420,16 +425,17 @@ struct MainView: View {
                 // 实时更新过滤
                 appState.applyFilter()
             }
-        case let .inputFilterCharacter(char):
+        case .inputFilterCharacter(let char):
             // 普通过滤支持常用字符，正则表达式支持更多特殊字符
-            let isValidChar: Bool = if appState.filterUseRegex {
-                // 正则表达式模式：支持更多字符
-                char.isLetter || char.isNumber || char.isWhitespace
-                    || "._-*+?^$[](){}|\\".contains(char)
-            } else {
-                // 普通模式：支持基本字符
-                char.isLetter || char.isNumber || "._- ".contains(char)
-            }
+            let isValidChar: Bool =
+                if appState.filterUseRegex {
+                    // 正则表达式模式：支持更多字符
+                    char.isLetter || char.isNumber || char.isWhitespace
+                        || "._-*+?^$[](){}|\\".contains(char)
+                } else {
+                    // 普通模式：支持基本字符
+                    char.isLetter || char.isNumber || "._- ".contains(char)
+                }
 
             if isValidChar {
                 appState.filterInput.append(char)
@@ -441,6 +447,13 @@ struct MainView: View {
         case .openRsync:
             // Open rsync sync sheet with left pane as source
             appState.presentRsyncSheet(sourceIsLeft: true)
+        case .showSheet(let req):
+            break
+        case .dismissSheet:
+            break
+        case .toast(let message):
+            break
+
         }
     }
 
@@ -611,11 +624,11 @@ struct MainView: View {
 
         let processedReplace =
             replaceText
-                .replacingOccurrences(
-                    of: "{n}",
-                    with: String(format: "%03d", index + 1)
-                )
-                .replacingOccurrences(of: "{date}", with: dateString)
+            .replacingOccurrences(
+                of: "{n}",
+                with: String(format: "%03d", index + 1)
+            )
+            .replacingOccurrences(of: "{date}", with: dateString)
 
         if useRegex {
             if let regex = try? NSRegularExpression(
