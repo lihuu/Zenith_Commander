@@ -125,7 +125,7 @@ class AppStateDispatchTests: XCTestCase {
 
     func testDispatchMouseClick() async {
         appState.setActivePane(.right)
-        await appState.dispatch(.mouseClick(index: 0, paneSide: .left))
+        await appState.dispatch(.pane(.mouseClick(index: 0, paneSide: .left)))
         XCTAssertEqual(appState.activePane, .left, "Active pane should switch to left")
     }
 
@@ -138,7 +138,7 @@ class AppStateDispatchTests: XCTestCase {
         _ = appState.mode
         if appState.currentPane.activeTab.files.count > 0 {
             await appState.dispatch(
-                .mouseCommandClick(index: 0, paneSide: .left)
+                .pane(.mouseCommandClick(index: 0, paneSide: .left))
             )
             // Should enter visual mode or toggle selection
             XCTAssertTrue(true, "Command+Click handled")
@@ -152,7 +152,7 @@ class AppStateDispatchTests: XCTestCase {
 
         if appState.currentPane.activeTab.files.count > 0 {
             await appState.dispatch(
-                .mouseShiftClick(index: 0, paneSide: .left)
+                .pane(.mouseShiftClick(index: 0, paneSide: .left))
             )
             XCTAssertTrue(true, "Shift+Click handled")
         }
@@ -316,7 +316,7 @@ class AppStateDispatchTests: XCTestCase {
                 isHidden: false,
                 permissions: "644",
                 fileExtension: "txt"
-            ),
+            )
         ]
         appState.clipboardOperation = .copy
 
@@ -371,14 +371,14 @@ class AppStateDispatchTests: XCTestCase {
         try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
         let initialCursor = appState.driveSelectorCursor
-        await appState.dispatch(.moveDriveCursor(.up))
+        await appState.dispatch(.drive(.moveDriveCursor(.up)))
         // Cursor won't move if already at 0
         XCTAssertLessThanOrEqual(appState.driveSelectorCursor, initialCursor)
     }
 
     func testDispatchMoveDriveCursorDown() async {
         let initialCursor = appState.driveSelectorCursor
-        await appState.dispatch(.moveDriveCursor(.down))
+        await appState.dispatch(.drive(.moveDriveCursor(.down)))
         // Cursor may move down or stay at max
         XCTAssertGreaterThanOrEqual(appState.driveSelectorCursor, initialCursor)
     }
@@ -426,7 +426,7 @@ class AppStateDispatchTests: XCTestCase {
 
     func testDispatchDeleteFilterCharacter() async {
         appState.filterInput = "test"
-        await appState.dispatch(.deleteFilterCharacter)
+        await appState.dispatch(.filter(.deleteFilterCharacter))
         XCTAssertEqual(
             appState.filterInput,
             "tes",
@@ -437,7 +437,7 @@ class AppStateDispatchTests: XCTestCase {
     func testDispatchInputFilterCharacterLetter() async {
         appState.mode = .filter
         appState.filterUseRegex = false
-        await appState.dispatch(.inputFilterCharacter("a"))
+        await appState.dispatch(.filter(.inputFilterCharacter("a")))
         XCTAssertTrue(
             appState.filterInput.contains("a"),
             "Filter input should contain letter"
@@ -447,7 +447,7 @@ class AppStateDispatchTests: XCTestCase {
     func testDispatchInputFilterCharacterSpecialRegex() async {
         appState.mode = .filter
         appState.filterUseRegex = true
-        await appState.dispatch(.inputFilterCharacter("*"))
+        await appState.dispatch(.filter(.inputFilterCharacter("*")))
         XCTAssertTrue(
             appState.filterInput.contains("*"),
             "Filter input should contain regex special char"
@@ -457,19 +457,19 @@ class AppStateDispatchTests: XCTestCase {
     // MARK: - Theme and Help
 
     func testDispatchCycleTheme() async {
-        await appState.dispatch(.cycleTheme)
+        await appState.dispatch(.ui(.cycleTheme))
         XCTAssertTrue(true, "Cycle theme action dispatched")
     }
 
     // MARK: - Sheet Actions
 
     func testDispatchShowSheet() async {
-        await appState.dispatch(.showSheet(.rsyncSheet))
+        await appState.dispatch(.ui(.showSheet(.rsyncSheet)))
         XCTAssertTrue(true, "Show sheet action dispatched")
     }
 
     func testDispatchDismissSheet() async {
-        await appState.dispatch(.dismissSheet)
+        await appState.dispatch(.ui(.dismissSheet))
         XCTAssertTrue(true, "Dismiss sheet action dispatched")
     }
 

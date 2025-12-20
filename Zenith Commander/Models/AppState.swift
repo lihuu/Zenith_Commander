@@ -303,16 +303,18 @@ class AppState: ObservableObject {
             await handleAction(fileAction)
         case let .ui(uiAction):
             handleAction(uiAction)
+        case let .command(commandAction):
+            handleAction(commandAction)
+        case let .commandAsync(commandAsyncAction):
+            await handleAction(commandAsyncAction)
+        case let .filter(filterAction):
+            handleAction(filterAction)
+        case let .drive(driveAction):
+            await handleAction(driveAction)
         case let .moveCursor(direction):
             await moveCursor(direction)
         case let .moveVisualCursor(direction):
             await moveVisualCursor(direction)
-        case let .command(commandAction):
-            handleAction(commandAction)
-        case let .commandAsync(dommandAsyncAction):
-            // Currently no CommandAsyncAction defined
-            await handleAction(dommandAsyncAction)
-
         // MARK: - 鼠标操作
         case let .mouseClick(index, paneSide):
             handleMouseClick(at: index, paneSide: paneSide)
@@ -325,141 +327,6 @@ class AppState: ObservableObject {
                 fileId: fileId,
                 paneSide: paneSide
             )
-        case .toggleActivePane:
-            toggleActivePane()
-        case .newTab:
-            await newTab()
-        case .previousTab:
-            currentPane.previousTab()
-            await refreshCurrentPane()
-        case .nextTab:
-            currentPane.nextTab()
-            await refreshCurrentPane()
-        case .toggleBookmarkBar:
-            withAnimation(.easeInOut(duration: 0.2)) {
-                showBookmarkBar.toggle()
-            }
-            showToast(
-                showBookmarkBar
-                    ? LocalizationManager.shared.localized(
-                        .toastBookmarkBarShown
-                    )
-                    : LocalizationManager.shared.localized(
-                        .toastBookmarkBarHidden
-                    )
-            )
-        case .addBookmark:
-            addCurrentToBookmark()
-        case .yank:
-            yankSelectedFiles()
-        case .cut:
-            cutSelectedFiles()
-        case .visualModeYank:
-            let pane = currentPane
-            yankSelectedFiles()
-            exitMode()
-            pane.clearSelections()
-        case .paste:
-            await pasteFiles()
-        case .deleteSelectedFiles:
-            await deleteSelectedFiles()
-            exitMode()
-        case .batchRename:
-            enterMode(.batchRename)
-        case let .startRenamingFile(fileName, filePath):
-            // 创建临时 FileItem 用于启动编辑
-            let fileItem = FileItem(
-                id: UUID().uuidString,
-                name: fileName,
-                path: URL(fileURLWithPath: filePath),
-                type: .file,
-                size: 0,
-                modifiedDate: Date(),
-                createdDate: Date(),
-                isHidden: fileName.hasPrefix("."),
-                permissions: "",
-                fileExtension: (fileName as NSString).pathExtension
-            )
-            startEditingFile(fileItem)
-        case .refreshCurrentPane:
-            await refreshCurrentPane()
-        case let .moveDriveCursor(direction):
-            if direction == .up {
-                if driveSelectorCursor > 0 {
-                    driveSelectorCursor -= 1
-                    objectWillChange.send()
-                }
-            }
-
-            if direction == .down {
-                if driveSelectorCursor < availableDrives.count
-                    - 1
-                {
-                    driveSelectorCursor += 1
-                    objectWillChange.send()
-                }
-            }
-        case .selectDrive:
-            if let drive = availableDrives[
-                safe: driveSelectorCursor
-            ] {
-                await selectDrive(drive)
-            }
-        case .cycleTheme:
-            let themeManager = ThemeManager.shared
-            themeManager.cycleTheme()
-            showToast(
-                LocalizationManager.shared.localized(
-                    .toastTheme,
-                    themeManager.mode.displayName
-                )
-            )
-        case .deleteCommand:
-            if !commandInput.isEmpty {
-                commandInput.removeLast()
-            }
-        case .executeCommand:
-            await executeCommand()
-        case let .insertCommand(char):
-            if char.isLetter || char.isNumber || char.isWhitespace
-                || char.isPunctuation
-            {
-                commandInput.append(char)
-            }
-        case .deleteFilterCharacter:
-            if !filterInput.isEmpty {
-                filterInput.removeLast()
-                // 实时更新过滤
-                applyFilter()
-            }
-        case let .inputFilterCharacter(char):
-            // 普通过滤支持常用字符，正则表达式支持更多特殊字符
-            let isValidChar: Bool =
-                if filterUseRegex {
-                    // 正则表达式模式：支持更多字符
-                    char.isLetter || char.isNumber || char.isWhitespace
-                        || "._-*+?^$[](){}|\\".contains(char)
-                } else {
-                    // 普通模式：支持基本字符
-                    char.isLetter || char.isNumber || "._- ".contains(char)
-                }
-
-            if isValidChar {
-                filterInput.append(char)
-                // 实时过滤
-                applyFilter()
-            }
-        case .doFilter:
-            doFilter()
-        case .openRsync:
-            // Open rsync sync sheet with left pane as source
-            presentRsyncSheet(sourceIsLeft: true)
-        case .showSheet:
-            break
-        case .dismissSheet:
-            break
-        case .toast:
-            break
         }
     }
 
@@ -562,6 +429,79 @@ class AppState: ObservableObject {
         switch action {
         case let .toast(message):
             showToast(message)
+        case .cycleTheme:
+            let themeManager = ThemeManager.shared
+            themeManager.cycleTheme()
+            showToast(
+                LocalizationManager.shared.localized(
+                    .toastTheme,
+                    themeManager.mode.displayName
+                )
+            )
+        case .openRsync:
+            // Open rsync sync sheet with left pane as source
+            presentRsyncSheet(sourceIsLeft: true)
+        case .showSheet:
+            break  // Handled elsewhere
+        case .dismissSheet:
+            break  // Handled elsewhere
+        }
+    }
+
+    func handleAction(_ action: FilterAction) {
+        switch action {
+        case .deleteFilterCharacter:
+            if !filterInput.isEmpty {
+                filterInput.removeLast()
+                // 实时更新过滤
+                applyFilter()
+            }
+        case let .inputFilterCharacter(char):
+            // 普通过滤支持常用字符，正则表达式支持更多特殊字符
+            let isValidChar: Bool =
+                if filterUseRegex {
+                    // 正则表达式模式：支持更多字符
+                    char.isLetter || char.isNumber || char.isWhitespace
+                        || "._-*+?^$[](){}|\\".contains(char)
+                } else {
+                    // 普通模式：支持基本字符
+                    char.isLetter || char.isNumber || "._- ".contains(char)
+                }
+
+            if isValidChar {
+                filterInput.append(char)
+                // 实时过滤
+                applyFilter()
+            }
+        case .doFilter:
+            doFilter()
+        }
+    }
+
+    func handleAction(_ action: DriveAction) async {
+        switch action {
+        case let .moveDriveCursor(direction):
+            if direction == .up {
+                if driveSelectorCursor > 0 {
+                    driveSelectorCursor -= 1
+                    objectWillChange.send()
+                }
+            }
+
+            if direction == .down {
+                if driveSelectorCursor < availableDrives.count
+                    - 1
+                {
+                    driveSelectorCursor += 1
+                    objectWillChange.send()
+                }
+            }
+        case .selectDrive:
+            if let drive = availableDrives[
+                safe: driveSelectorCursor
+            ] {
+                await selectDrive(drive)
+            }
         }
     }
 

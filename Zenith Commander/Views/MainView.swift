@@ -239,17 +239,21 @@ struct MainView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: .switchPane)) {
                 _ in
-                appState.toggleActivePane()
+                Task { @MainActor in
+                    await appState.dispatch(.pane(.toggleActivePane))
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: .newTab)) {
                 _ in
                 Task { @MainActor in
-                    await appState.newTab()
+                    await appState.dispatch(.paneAsync(.newTab))
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .closeTab)) {
                 _ in
-                appState.closeTab()
+                Task { @MainActor in
+                    await appState.dispatch(.pane(.closeTab))
+                }
             }
             .onReceive(
                 NotificationCenter.default.publisher(

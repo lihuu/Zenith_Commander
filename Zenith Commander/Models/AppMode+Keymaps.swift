@@ -40,11 +40,11 @@ extension AppMode {
         let chord = KeyChord(from: keyPress)
         let action: AppAction? = keyMaps[chord]
         if self == .command, action == nil {
-            return .insertCommand(keyPress.key.character)
+            return .command(.insertCommand(keyPress.key.character))
         }
 
         if self == .filter, action == nil {
-            return .inputFilterCharacter(keyPress.key.character)
+            return .filter(.inputFilterCharacter(keyPress.key.character))
         }
 
         return action
@@ -103,12 +103,12 @@ enum AppModeKeyMaps {
             KeyChord("w"): .pane(.closeTab),
 
             /// Theme
-            KeyChord("t", [.control]): .cycleTheme,
+            KeyChord("t", [.control]): .ui(.cycleTheme),
 
             KeyChord("?", [.shift]): .mode(.enterMode(.help)),
 
-            KeyChord("b"): .toggleBookmarkBar,
-            KeyChord("b", [.command]): .addBookmark,
+            KeyChord("b"): .pane(.toggleBookmarkBar),
+            KeyChord("b", [.command]): .pane(.addBookmark),
             KeyChord("r"): .paneAsync(.refreshCurrentPane),
 
             /// 文件操作 (Vim 风格)
@@ -123,7 +123,7 @@ enum AppModeKeyMaps {
             KeyChord("g"): .pane(.jumpToTop),
             KeyChord("G", [.shift]): .pane(.jumpToBottom),
             KeyChord("D", [.shift]): .mode(.enterMode(.driveSelect)),
-            KeyChord("S", [.shift]): .openRsync,
+            KeyChord("S", [.shift]): .ui(.openRsync),
         ]
 
         return normalOverrides.merging(defaultMap) { current, _ in
@@ -169,9 +169,9 @@ enum AppModeKeyMaps {
 
     static let command: [KeyChord: AppAction] = {
         let commandOverrides: [KeyChord: AppAction] = [
-            KeyChord(.delete): .deleteCommand,
-            KeyChord(.deleteForward): .deleteCommand,
-            KeyChord(.return): .executeCommand,
+            KeyChord(.delete): .command(.deleteCommand),
+            KeyChord(.deleteForward): .command(.deleteCommand),
+            KeyChord(.return): .commandAsync(.executeCommand),
         ]
 
         return commandOverrides.merging(defaultMap) { current, _ in
@@ -181,10 +181,10 @@ enum AppModeKeyMaps {
 
     static let filter: [KeyChord: AppAction] = {
         let filterOverrides: [KeyChord: AppAction] = [
-            KeyChord(.delete): .deleteFilterCharacter,
-            KeyChord(.deleteForward): .deleteFilterCharacter,
+            KeyChord(.delete): .filter(.deleteFilterCharacter),
+            KeyChord(.deleteForward): .filter(.deleteFilterCharacter),
             // 这里的输入字符，交给默认处理，然后通过绑定更新过滤字符串
-            KeyChord(.return): .doFilter,
+            KeyChord(.return): .filter(.doFilter),
         ]
 
         return filterOverrides.merging(defaultMap) {
@@ -195,11 +195,11 @@ enum AppModeKeyMaps {
 
     static let driver: [KeyChord: AppAction] = {
         let driverOverrides: [KeyChord: AppAction] = [
-            KeyChord("j"): .moveDriveCursor(.down),
-            KeyChord("k"): .moveDriveCursor(.up),
-            KeyChord(.downArrow): .moveDriveCursor(.down),
-            KeyChord(.upArrow): .moveDriveCursor(.up),
-            KeyChord(.return): .selectDrive,
+            KeyChord("j"): .drive(.moveDriveCursor(.down)),
+            KeyChord("k"): .drive(.moveDriveCursor(.up)),
+            KeyChord(.downArrow): .drive(.moveDriveCursor(.down)),
+            KeyChord(.upArrow): .drive(.moveDriveCursor(.up)),
+            KeyChord(.return): .drive(.selectDrive),
         ]
 
         return driverOverrides.merging(defaultMap) { current, _ in
