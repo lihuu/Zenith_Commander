@@ -30,7 +30,7 @@ extension AppMode {
         case .help:
             AppModeKeyMaps.help
         case .modal:
-            AppModeKeyMaps.modal // No key maps for modal mode
+            AppModeKeyMaps.modal  // No key maps for modal mode
         default:
             [:]
         }
@@ -189,7 +189,7 @@ enum AppModeKeyMaps {
 
         return filterOverrides.merging(defaultMap) {
             current,
-                _ in current
+            _ in current
         }
     }()
 
@@ -210,12 +210,12 @@ enum AppModeKeyMaps {
     static let rename: [KeyChord: AppAction] = defaultMap
 
     static let settings: [KeyChord: AppAction] = [
-        KeyChord(.escape): .mode(.exitMode),
+        KeyChord(.escape): .mode(.exitMode)
     ]
 
     static let help: [KeyChord: AppAction] = {
         let helpOverrides: [KeyChord: AppAction] = [
-            KeyChord(.escape): .mode(.exitMode),
+            KeyChord(.escape): .mode(.exitMode)
         ]
 
         return helpOverrides.merging(defaultMap) { current, _ in

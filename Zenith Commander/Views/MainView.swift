@@ -214,11 +214,10 @@ struct MainView: View {
                         .getMountedVolumes()
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: .openSettings))
-        {
-            _ in
-            appState.enterMode(.settings)
-        }
+            .onReceive(NotificationCenter.default.publisher(for: .openSettings)) {
+                _ in
+                appState.enterMode(.settings)
+            }
             .onReceive(NotificationCenter.default.publisher(for: .showHelp)) {
                 _ in
                 appState.enterMode(.help)

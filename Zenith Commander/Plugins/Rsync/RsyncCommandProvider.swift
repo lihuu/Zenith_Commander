@@ -11,15 +11,13 @@ final class RsyncCommandProvider: CommandProvider {
     init(context: PluginContext) {
         self.context = context
     }
-    
-    
-    var commands: [CommandSpec]{
+
+    var commands: [CommandSpec] {
         [CommandSpec(name: "rsync", help: "Synchronize files and directories")]
     }
-    
-    func invoke(_ command: CommandInvocation) async throws -> CommandResult{
+
+    func invoke(_ command: CommandInvocation) async throws -> CommandResult {
         await context.dispatch(.ui(.showSheet(.rsyncSheet)))
         return .openUI(.rsyncSheet)
     }
 }
-
