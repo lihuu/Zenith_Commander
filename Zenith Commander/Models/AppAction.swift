@@ -5,26 +5,26 @@
 //  Created by Hu Li on 12/19/25.
 //
 
-
 import SwiftUI
 
 enum AppAction: Sendable {
     case none
+    case pane(PaneAction)
+    case paneAsync(PaneAsyncAction)
+    case mode(ModeAction)
+    case file(FileAction)
+    case ui(UIAction)
+    case command(CommandAction)
+    case commandAsync(CommandAsyncAction)
     /// 光标移动
     case moveCursor(CursorDirection)
     case moveVisualCursor(CursorDirection)
-    case jumpToTop
-    case jumpToBottom
 
     /// 鼠标操作 - 统一通过模式系统处理
     case mouseClick(index: Int, paneSide: PaneSide) // 普通单击
     case mouseCommandClick(index: Int, paneSide: PaneSide) // Command+Click 切换选择
     case mouseShiftClick(index: Int, paneSide: PaneSide) // Shift+Click 范围选择
     case mouseDoubleClick(fileId: String, paneSide: PaneSide) // 双击
-
-    /// 目录操作
-    case enterDirectory
-    case leaveDirectory
 
     /// UI / 面板操作
     case toggleActivePane
@@ -66,44 +66,61 @@ enum AppAction: Sendable {
     case showSheet(UIRequest)
     case dismissSheet
     case toast(String)
-    case pane(PaneAction)
-    case mode(ModeAction)
 }
 
-enum PaneAction{
+enum PaneAction {
     case toggleActivePane
-    case newTab
     case closeTab
-    case previousTab
-    case nextTab
     case toggleBookmarkBar
     case addBookmark
-    case enterDirectory
-    case leaveDirectory
     /// 鼠标操作 - 统一通过模式系统处理
     case mouseClick(index: Int, paneSide: PaneSide) // 普通单击
     case mouseCommandClick(index: Int, paneSide: PaneSide) // Command+Click 切换选择
     case mouseShiftClick(index: Int, paneSide: PaneSide) // Shift+Click 范围选择
-    case mouseDoubleClick(fileId: String, paneSide: PaneSide) // 双击
+    case jumpToTop
+    case jumpToBottom
+}
+
+// split async actions and common actions to avoid Sendable issues
+enum PaneAsyncAction {
+    case newTab
+    case nextTab
+    case previousTab
+    case enterDirectory
+    case leaveDirectory
     case refreshCurrentPane
+    case mouseDoubleClick(fileId: String, paneSide: PaneSide) // 双击
 }
 
-enum UIAction{
-
+enum UIAction {
+    case toast(String)
 }
 
-enum ModeAction{
+enum ModeAction {
     case enterMode(AppMode)
     case exitMode
 }
 
-enum CommandAction{
+enum FileAction {
+    case yank
+    case cut
+    case visualModeYank
+    case paste
+    case deleteSelectedFiles
+    case batchRename
+    case startRenamingFile(fileName: String, filePath: String) // 开始单个文件重命名
+}
+
+enum CommandAction {
     case deleteCommand
-    case executeCommand
     case insertCommand(Character)
 }
 
-enum FilterAction{
+enum CommandAsyncAction {
+    case executeCommand
+}
+
+enum FilterAction {
     case deleteFilterCharacter
     case inputFilterCharacter(Character)
     case doFilter

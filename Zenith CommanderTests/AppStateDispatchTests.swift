@@ -6,6 +6,7 @@
 //
 
 import XCTest
+
 @testable import Zenith_Commander
 
 @MainActor
@@ -99,7 +100,7 @@ class AppStateDispatchTests: XCTestCase {
 
     func testDispatchJumpToTop() async {
         appState.leftPane.cursorIndex = 5
-        await appState.dispatch(.jumpToTop)
+        await appState.dispatch(.pane(.jumpToTop))
         XCTAssertEqual(appState.currentPane.cursorIndex, 0, "Cursor should be at top")
     }
 
@@ -109,7 +110,7 @@ class AppStateDispatchTests: XCTestCase {
         await appState.refreshCurrentPane()
 
         appState.leftPane.cursorIndex = 0
-        await appState.dispatch(.jumpToBottom)
+        await appState.dispatch(.pane(.jumpToBottom))
         let files = appState.currentPane.activeTab.files
         if !files.isEmpty {
             XCTAssertEqual(
@@ -165,16 +166,16 @@ class AppStateDispatchTests: XCTestCase {
 
         await appState.refreshCurrentPane()
         if appState.currentPane.activeTab.files.count > 0 {
-            let _ = appState.currentPane.activeTab.currentPath
-            await appState.dispatch(.enterDirectory)
+            _ = appState.currentPane.activeTab.currentPath
+            await appState.dispatch(.paneAsync(.enterDirectory))
             // Path may change or stay same depending on file type
             XCTAssertNotNil(appState.currentPane.activeTab.currentPath)
         }
     }
 
     func testDispatchLeaveDirectory() async {
-        let _ = appState.currentPane.activeTab.currentPath
-        await appState.dispatch(.leaveDirectory)
+        _ = appState.currentPane.activeTab.currentPath
+        await appState.dispatch(.paneAsync(.leaveDirectory))
         // Should go to parent directory or stay at root
         XCTAssertNotNil(appState.currentPane.activeTab.currentPath)
     }
@@ -207,7 +208,7 @@ class AppStateDispatchTests: XCTestCase {
         let initialTabCount = appState.currentPane.tabs.count
 
         if initialTabCount > 1 {
-            await appState.dispatch(.closeTab)
+            await appState.dispatch(.pane(.closeTab))
             XCTAssertEqual(
                 appState.currentPane.tabs.count,
                 initialTabCount - 1,
@@ -315,7 +316,7 @@ class AppStateDispatchTests: XCTestCase {
                 isHidden: false,
                 permissions: "644",
                 fileExtension: "txt"
-            )
+            ),
         ]
         appState.clipboardOperation = .copy
 

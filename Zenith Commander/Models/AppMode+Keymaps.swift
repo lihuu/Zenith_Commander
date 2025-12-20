@@ -30,7 +30,7 @@ extension AppMode {
         case .help:
             AppModeKeyMaps.help
         case .modal:
-            AppModeKeyMaps.modal  // No key maps for modal mode
+            AppModeKeyMaps.modal // No key maps for modal mode
         default:
             [:]
         }
@@ -88,7 +88,7 @@ enum AppModeKeyMaps {
             KeyChord(.leftArrow): .moveCursor(.left),
             KeyChord(.rightArrow): .moveCursor(.right),
 
-            KeyChord(.return): .enterDirectory,
+            KeyChord(.return): .paneAsync(.enterDirectory),
 
             /// 模式切换
             KeyChord("v"): .mode(.enterMode(.visual)),
@@ -96,11 +96,11 @@ enum AppModeKeyMaps {
             KeyChord("/"): .mode(.enterMode(.filter)),
 
             /// Pane / Tab
-            KeyChord(.tab): .toggleActivePane,
-            KeyChord("H", [.shift]): .previousTab,
-            KeyChord("L", [.shift]): .nextTab,
-            KeyChord("t"): .newTab,
-            KeyChord("w"): .closeTab,
+            KeyChord(.tab): .pane(.toggleActivePane),
+            KeyChord("H", [.shift]): .paneAsync(.previousTab),
+            KeyChord("L", [.shift]): .paneAsync(.nextTab),
+            KeyChord("t"): .paneAsync(.newTab),
+            KeyChord("w"): .pane(.closeTab),
 
             /// Theme
             KeyChord("t", [.control]): .cycleTheme,
@@ -109,19 +109,19 @@ enum AppModeKeyMaps {
 
             KeyChord("b"): .toggleBookmarkBar,
             KeyChord("b", [.command]): .addBookmark,
-            KeyChord("r"): .refreshCurrentPane,
+            KeyChord("r"): .paneAsync(.refreshCurrentPane),
 
             /// 文件操作 (Vim 风格)
-            KeyChord("y"): .yank,
-            KeyChord("p"): .paste,
+            KeyChord("y"): .file(.yank),
+            KeyChord("p"): .file(.paste),
 
             /// 文件操作 (macOS 标准)
-            KeyChord("c", [.command]): .yank,
-            KeyChord("v", [.command]): .paste,
-            KeyChord("x", [.command]): .cut,
+            KeyChord("c", [.command]): .file(.yank),
+            KeyChord("v", [.command]): .file(.paste),
+            KeyChord("x", [.command]): .file(.cut),
 
-            KeyChord("g"): .jumpToTop,
-            KeyChord("G", [.shift]): .jumpToBottom,
+            KeyChord("g"): .pane(.jumpToTop),
+            KeyChord("G", [.shift]): .pane(.jumpToBottom),
             KeyChord("D", [.shift]): .mode(.enterMode(.driveSelect)),
             KeyChord("S", [.shift]): .openRsync,
         ]
@@ -145,8 +145,8 @@ enum AppModeKeyMaps {
             KeyChord(.rightArrow): .moveVisualCursor(.right),
 
             /// 文件操作 (Vim 风格)
-            KeyChord("y"): .visualModeYank,
-            KeyChord("d"): .deleteSelectedFiles,
+            KeyChord("y"): .file(.visualModeYank),
+            KeyChord("d"): .file(.deleteSelectedFiles),
             KeyChord("r"): .mode(.enterMode(.batchRename)),
             KeyChord("v"): .mode(.exitMode),
         ]
@@ -189,7 +189,7 @@ enum AppModeKeyMaps {
 
         return filterOverrides.merging(defaultMap) {
             current,
-            _ in current
+                _ in current
         }
     }()
 
@@ -210,12 +210,12 @@ enum AppModeKeyMaps {
     static let rename: [KeyChord: AppAction] = defaultMap
 
     static let settings: [KeyChord: AppAction] = [
-        KeyChord(.escape): .mode(.exitMode)
+        KeyChord(.escape): .mode(.exitMode),
     ]
 
     static let help: [KeyChord: AppAction] = {
         let helpOverrides: [KeyChord: AppAction] = [
-            KeyChord(.escape): .mode(.exitMode)
+            KeyChord(.escape): .mode(.exitMode),
         ]
 
         return helpOverrides.merging(defaultMap) { current, _ in

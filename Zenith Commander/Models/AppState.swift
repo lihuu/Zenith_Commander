@@ -7,8 +7,8 @@
 
 import Combine
 import Foundation
-import SwiftUI
 import os.log
+import SwiftUI
 
 /// 全局应用状态
 @MainActor
@@ -61,8 +61,8 @@ class AppState: ObservableObject {
 
     // MARK: - 单个文件内联编辑状态
 
-    @Published var editingFileId: String? = nil  // 当前正在编辑的文件ID
-    @Published var editingFileName = ""  // 编辑中的文件名
+    @Published var editingFileId: String? = nil // 当前正在编辑的文件ID
+    @Published var editingFileName = "" // 编辑中的文件名
 
     @Published var activeSheet: UIRequest?
 
@@ -250,7 +250,7 @@ class AppState: ObservableObject {
             let tab = pane.activeTab
             let currentFile =
                 tab.files.isEmpty
-                ? "" : tab.files[safe: pane.cursorIndex]?.name ?? ""
+                    ? "" : tab.files[safe: pane.cursorIndex]?.name ?? ""
             return "\(tab.drive.name) | \(currentFile)"
         }
     }
@@ -291,44 +291,44 @@ class AppState: ObservableObject {
 
     func dispatch(_ action: AppAction) async {
         switch action {
-        case .mode(let modeAction):
-                handleAction(modeAction)
-        case .pane(let paneAction):
-                await handleAction(paneAction)
         case .none:
             break
-   
-        case .moveCursor(let direction):
+        case let .mode(modeAction):
+            handleAction(modeAction)
+        case let .pane(paneAction):
+            handleAction(paneAction)
+        case let .paneAsync(paneAsyncAction):
+            await handleAction(paneAsyncAction)
+        case let .file(fileAction):
+            await handleAction(fileAction)
+        case let .ui(uiAction):
+            handleAction(uiAction)
+        case let .moveCursor(direction):
             await moveCursor(direction)
-        case .moveVisualCursor(let direction):
+        case let .moveVisualCursor(direction):
             await moveVisualCursor(direction)
-        case .jumpToTop:
-            jumpToTop()
-        case .jumpToBottom:
-            jumpToBottom()
+        case let .command(commandAction):
+            handleAction(commandAction)
+        case let .commandAsync(dommandAsyncAction):
+            // Currently no CommandAsyncAction defined
+            await handleAction(dommandAsyncAction)
 
         // MARK: - 鼠标操作
-        case .mouseClick(let index, let paneSide):
+        case let .mouseClick(index, paneSide):
             handleMouseClick(at: index, paneSide: paneSide)
-        case .mouseCommandClick(let index, let paneSide):
+        case let .mouseCommandClick(index, paneSide):
             handleMouseCommandClick(at: index, paneSide: paneSide)
-        case .mouseShiftClick(let index, let paneSide):
+        case let .mouseShiftClick(index, paneSide):
             handleMouseShiftClick(at: index, paneSide: paneSide)
-        case .mouseDoubleClick(let fileId, let paneSide):
+        case let .mouseDoubleClick(fileId, paneSide):
             await handleMouseDoubleClick(
                 fileId: fileId,
                 paneSide: paneSide
             )
-        case .enterDirectory:
-            await enterDirectory()
-        case .leaveDirectory:
-            await leaveDirectory()
         case .toggleActivePane:
             toggleActivePane()
         case .newTab:
             await newTab()
-        case .closeTab:
-            closeTab()
         case .previousTab:
             currentPane.previousTab()
             await refreshCurrentPane()
@@ -350,7 +350,6 @@ class AppState: ObservableObject {
             )
         case .addBookmark:
             addCurrentToBookmark()
-
         case .yank:
             yankSelectedFiles()
         case .cut:
@@ -367,7 +366,7 @@ class AppState: ObservableObject {
             exitMode()
         case .batchRename:
             enterMode(.batchRename)
-        case .startRenamingFile(let fileName, let filePath):
+        case let .startRenamingFile(fileName, filePath):
             // 创建临时 FileItem 用于启动编辑
             let fileItem = FileItem(
                 id: UUID().uuidString,
@@ -384,8 +383,7 @@ class AppState: ObservableObject {
             startEditingFile(fileItem)
         case .refreshCurrentPane:
             await refreshCurrentPane()
-
-        case .moveDriveCursor(let direction):
+        case let .moveDriveCursor(direction):
             if direction == .up {
                 if driveSelectorCursor > 0 {
                     driveSelectorCursor -= 1
@@ -422,7 +420,7 @@ class AppState: ObservableObject {
             }
         case .executeCommand:
             await executeCommand()
-        case .insertCommand(let char):
+        case let .insertCommand(char):
             if char.isLetter || char.isNumber || char.isWhitespace
                 || char.isPunctuation
             {
@@ -434,7 +432,7 @@ class AppState: ObservableObject {
                 // 实时更新过滤
                 applyFilter()
             }
-        case .inputFilterCharacter(let char):
+        case let .inputFilterCharacter(char):
             // 普通过滤支持常用字符，正则表达式支持更多特殊字符
             let isValidChar: Bool =
                 if filterUseRegex {
@@ -465,22 +463,148 @@ class AppState: ObservableObject {
         }
     }
 
-    func handleAction(_ action: PaneAction) async{
-        // TODO : 实现 PaneAction 处理
-    }
-    
-    func handleAction(_ action: ModeAction) {
-        switch action{
-            case .enterMode(let mode):
-                enterMode(mode)
-            case .exitMode:
-                exitMode()
+    func deleteCommand() {
+        if !commandInput.isEmpty {
+            commandInput.removeLast()
         }
-        
+    }
+
+    func insertCommand(_ char: Character) {
+        if char.isLetter || char.isNumber || char.isWhitespace
+            || char.isPunctuation
+        {
+            commandInput.append(char)
+        }
+    }
+
+    func handleAction(_ action: CommandAction) {
+        switch action {
+        case .deleteCommand:
+            deleteCommand()
+        case let .insertCommand(char):
+            insertCommand(char)
+        }
+    }
+
+    func handleAction(_ action: CommandAsyncAction) async {
+        switch action {
+        case .executeCommand:
+            await executeCommand()
+        }
+    }
+
+    func handleAction(_ action: PaneAsyncAction) async {
+        switch action {
+        case .newTab:
+            await newTab()
+        case .nextTab:
+            await nextTab()
+        case .previousTab:
+            await previousTab()
+        case .enterDirectory:
+            await enterDirectory()
+        case .leaveDirectory:
+            await leaveDirectory()
+        case .refreshCurrentPane:
+            await refreshCurrentPane()
+        case let .mouseDoubleClick(fileId, paneSide):
+            await handleMouseDoubleClick(
+                fileId: fileId,
+                paneSide: paneSide
+            )
+        }
+    }
+
+    func handleAction(_ action: PaneAction) {
+        switch action {
+        case .toggleActivePane:
+            toggleActivePane()
+        case .closeTab:
+            closeTab()
+        case .addBookmark:
+            addCurrentToBookmark()
+        case .toggleBookmarkBar:
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showBookmarkBar.toggle()
+            }
+            showToast(
+                showBookmarkBar
+                    ? LocalizationManager.shared.localized(
+                        .toastBookmarkBarShown
+                    )
+                    : LocalizationManager.shared.localized(
+                        .toastBookmarkBarHidden
+                    )
+            )
+        case let .mouseClick(index, paneSide):
+            handleMouseClick(at: index, paneSide: paneSide)
+        case let .mouseCommandClick(index, paneSide):
+            handleMouseCommandClick(at: index, paneSide: paneSide)
+        case let .mouseShiftClick(index, paneSide):
+            handleMouseShiftClick(at: index, paneSide: paneSide)
+        case .jumpToTop:
+            jumpToTop()
+        case .jumpToBottom:
+            jumpToBottom()
+        }
+    }
+
+    func handleAction(_ action: ModeAction) {
+        switch action {
+        case let .enterMode(mode):
+            enterMode(mode)
+        case .exitMode:
+            exitMode()
+        }
+    }
+
+    func handleAction(_ action: UIAction) {
+        switch action {
+        case let .toast(message):
+            showToast(message)
+        }
+    }
+
+    func handleAction(_ action: FileAction) async {
+        switch action {
+        case .yank:
+            yankSelectedFiles()
+        case .cut:
+            cutSelectedFiles()
+        case .visualModeYank:
+            let pane = currentPane
+            yankSelectedFiles()
+            exitMode()
+            pane.clearSelections()
+        case .deleteSelectedFiles:
+            Task {
+                await deleteSelectedFiles()
+                exitMode()
+            }
+        case .paste:
+            await pasteFiles()
+        case .batchRename:
+            enterMode(.batchRename)
+        case let .startRenamingFile(fileName, filePath):
+            let fileItem = FileItem(
+                id: UUID().uuidString,
+                name: fileName,
+                path: URL(fileURLWithPath: filePath),
+                type: .file,
+                size: 0,
+                modifiedDate: Date(),
+                createdDate: Date(),
+                isHidden: fileName.hasPrefix("."),
+                permissions: "",
+                fileExtension: (fileName as NSString).pathExtension
+            )
+            startEditingFile(fileItem)
+        }
     }
 
     /// 显示 Toast 消息
     // MARK: - Toast 通知
+
     func showToast(_ message: String) {
         // 使用异步更新避免在视图更新期间修改 @Published 属性
         DispatchQueue.main.async { [weak self] in
@@ -529,7 +653,7 @@ class AppState: ObservableObject {
         if mode != .visual {
             // 进入 Visual 模式但不设置锚点（因为我们要做切换选择）
             mode = .visual
-            pane.visualAnchor = nil  // 清除锚点，因为 Command+Click 是独立选择
+            pane.visualAnchor = nil // 清除锚点，因为 Command+Click 是独立选择
         }
 
         // 移动光标到点击位置
@@ -677,10 +801,10 @@ class AppState: ObservableObject {
                 currentIndex = min(fileCount - 1, currentIndex + 1)
             case .left:
                 await leaveDirectory()
-                return  // leaveDirectory 已经处理了光标，直接返回
+                return // leaveDirectory 已经处理了光标，直接返回
             case .right:
                 await enterDirectory()
-                return  // enterDirectory 已经处理了光标，直接返回
+                return // enterDirectory 已经处理了光标，直接返回
             }
         }
 
@@ -701,6 +825,16 @@ class AppState: ObservableObject {
         pane.addTab()
         await refreshCurrentPane()
         showToast("New tab created")
+    }
+
+    func previousTab() async {
+        currentPane.previousTab()
+        await refreshCurrentPane()
+    }
+
+    func nextTab() async {
+        currentPane.nextTab()
+        await refreshCurrentPane()
     }
 
     func moveVisualCursor(_ direction: CursorDirection) async {
@@ -836,7 +970,7 @@ class AppState: ObservableObject {
     private func refreshOtherPane() async {
         let otherPane =
             activePane == .left
-            ? rightPane : leftPane
+                ? rightPane : leftPane
         let files = await FileSystemService.shared.loadDirectory(
             at: otherPane.activeTab.currentPath
         )
@@ -846,7 +980,6 @@ class AppState: ObservableObject {
     func selectDrive(_ drive: DriveInfo) async {
         driveSelectorCursor = availableDrives.firstIndex(of: drive) ?? 0
         Logger.app.debug("Selected drive: \(drive.name, privacy: .public)")
-        Logger.app.debug("Delected drive index: \(self.driveSelectorCursor)")
         let pane = currentPane
         pane.activeTab.drive = drive
         pane.activeTab.currentPath = drive.path
@@ -1022,11 +1155,11 @@ class AppState: ObservableObject {
 
         let processedReplace =
             replaceText
-            .replacingOccurrences(
-                of: "{n}",
-                with: String(format: "%03d", index + 1)
-            )
-            .replacingOccurrences(of: "{date}", with: dateString)
+                .replacingOccurrences(
+                    of: "{n}",
+                    with: String(format: "%03d", index + 1)
+                )
+                .replacingOccurrences(of: "{date}", with: dateString)
 
         if useRegex {
             if let regex = try? NSRegularExpression(

@@ -8,7 +8,6 @@
 
 import SwiftUI
 
-
 /// Vim 风格的模态枚举
 enum AppMode: String, CaseIterable {
     case normal = "NORMAL"
@@ -111,7 +110,6 @@ enum ViewMode: String, CaseIterable {
     case list
     case grid
 }
-
 
 enum PointerButton {
     case back
