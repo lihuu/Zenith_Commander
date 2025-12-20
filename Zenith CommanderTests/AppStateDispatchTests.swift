@@ -184,7 +184,7 @@ class AppStateDispatchTests: XCTestCase {
 
     func testDispatchToggleActivePane() async {
         let initialPane = appState.activePane
-        await appState.dispatch(.toggleActivePane)
+        await appState.dispatch(.pane(.toggleActivePane))
         XCTAssertEqual(
             appState.activePane,
             initialPane.opposite,
@@ -194,7 +194,7 @@ class AppStateDispatchTests: XCTestCase {
 
     func testDispatchNewTab() async {
         let initialTabCount = appState.currentPane.tabs.count
-        await appState.dispatch(.newTab)
+        await appState.dispatch(.paneAsync(.newTab))
         XCTAssertEqual(
             appState.currentPane.tabs.count,
             initialTabCount + 1,
@@ -204,7 +204,7 @@ class AppStateDispatchTests: XCTestCase {
 
     func testDispatchCloseTab() async {
         // Create multiple tabs first
-        await appState.dispatch(.newTab)
+        await appState.dispatch(.paneAsync(.newTab))
         let initialTabCount = appState.currentPane.tabs.count
 
         if initialTabCount > 1 {
@@ -218,11 +218,11 @@ class AppStateDispatchTests: XCTestCase {
     }
 
     func testDispatchPreviousTab() async {
-        await appState.dispatch(.newTab)
+        await appState.dispatch(.paneAsync(.newTab))
         let initialIndex = appState.currentPane.activeTabIndex
 
         if initialIndex > 0 {
-            await appState.dispatch(.previousTab)
+            await appState.dispatch(.paneAsync(.previousTab))
             XCTAssertEqual(
                 appState.currentPane.activeTabIndex,
                 initialIndex - 1,
@@ -232,10 +232,10 @@ class AppStateDispatchTests: XCTestCase {
     }
 
     func testDispatchNextTab() async {
-        await appState.dispatch(.newTab)
+        await appState.dispatch(.paneAsync(.newTab))
         let initialIndex = appState.currentPane.activeTabIndex
 
-        await appState.dispatch(.nextTab)
+        await appState.dispatch(.paneAsync(.nextTab))
         if initialIndex < appState.currentPane.tabs.count - 1 {
             XCTAssertEqual(
                 appState.currentPane.activeTabIndex,
@@ -249,7 +249,7 @@ class AppStateDispatchTests: XCTestCase {
 
     func testDispatchToggleBookmarkBar() async {
         let initialState = appState.showBookmarkBar
-        await appState.dispatch(.toggleBookmarkBar)
+        await appState.dispatch(.pane(.toggleBookmarkBar))
         XCTAssertEqual(
             appState.showBookmarkBar,
             !initialState,
@@ -258,7 +258,7 @@ class AppStateDispatchTests: XCTestCase {
     }
 
     func testDispatchAddBookmark() async {
-        await appState.dispatch(.addBookmark)
+        await appState.dispatch(.pane(.addBookmark))
         // Should show toast and add bookmark if applicable
         XCTAssertTrue(true, "Add bookmark action dispatched")
     }
@@ -270,7 +270,7 @@ class AppStateDispatchTests: XCTestCase {
         try? "test".write(to: tempFile, atomically: true, encoding: .utf8)
         await appState.refreshCurrentPane()
 
-        await appState.dispatch(.yank)
+        await appState.dispatch(.file(.yank))
         XCTAssertTrue(true, "Yank action dispatched")
     }
 
@@ -279,7 +279,7 @@ class AppStateDispatchTests: XCTestCase {
         try? "test".write(to: tempFile, atomically: true, encoding: .utf8)
         await appState.refreshCurrentPane()
 
-        await appState.dispatch(.cut)
+        await appState.dispatch(.file(.cut))
         XCTAssertEqual(
             appState.clipboardOperation,
             .cut,
@@ -293,7 +293,7 @@ class AppStateDispatchTests: XCTestCase {
         try? "test".write(to: tempFile, atomically: true, encoding: .utf8)
         await appState.refreshCurrentPane()
 
-        await appState.dispatch(.visualModeYank)
+        await appState.dispatch(.file(.visualModeYank))
         XCTAssertEqual(appState.mode, .normal, "Should exit visual mode after yank")
     }
 
@@ -320,7 +320,7 @@ class AppStateDispatchTests: XCTestCase {
         ]
         appState.clipboardOperation = .copy
 
-        await appState.dispatch(.paste)
+        await appState.dispatch(.file(.paste))
         XCTAssertTrue(true, "Paste action dispatched")
     }
 
@@ -330,12 +330,12 @@ class AppStateDispatchTests: XCTestCase {
         await appState.refreshCurrentPane()
 
         appState.mode = .visual
-        await appState.dispatch(.deleteSelectedFiles)
+        await appState.dispatch(.file(.deleteSelectedFiles))
         XCTAssertEqual(appState.mode, .normal, "Should exit visual mode after delete")
     }
 
     func testDispatchBatchRename() async {
-        await appState.dispatch(.batchRename)
+        await appState.dispatch(.file(.batchRename))
         XCTAssertEqual(
             appState.mode,
             .batchRename,
@@ -345,7 +345,7 @@ class AppStateDispatchTests: XCTestCase {
 
     func testDispatchStartRenamingFile() async {
         let filePath = testDirectory.appendingPathComponent("test.txt").path
-        await appState.dispatch(.startRenamingFile(fileName: "test.txt", filePath: filePath))
+        await appState.dispatch(.file(.startRenamingFile(fileName: "test.txt", filePath: filePath)))
         XCTAssertEqual(
             appState.editingFileId,
             appState.editingFileId,
@@ -355,7 +355,7 @@ class AppStateDispatchTests: XCTestCase {
 
     func testDispatchRefreshCurrentPane() async {
         let initialPath = appState.currentPane.activeTab.currentPath
-        await appState.dispatch(.refreshCurrentPane)
+        await appState.dispatch(.paneAsync(.refreshCurrentPane))
         XCTAssertEqual(
             appState.currentPane.activeTab.currentPath,
             initialPath,
@@ -387,7 +387,7 @@ class AppStateDispatchTests: XCTestCase {
 
     func testDispatchDeleteCommand() async {
         appState.commandInput = "test"
-        await appState.dispatch(.deleteCommand)
+        await appState.dispatch(.command(.deleteCommand))
         XCTAssertEqual(
             appState.commandInput,
             "tes",
@@ -397,7 +397,7 @@ class AppStateDispatchTests: XCTestCase {
 
     func testDispatchInsertCommandWithLetter() async {
         appState.mode = .command
-        await appState.dispatch(.insertCommand("a"))
+        await appState.dispatch(.command(.insertCommand("a")))
         XCTAssertTrue(
             appState.commandInput.contains("a"),
             "Command input should contain letter"
@@ -406,7 +406,7 @@ class AppStateDispatchTests: XCTestCase {
 
     func testDispatchInsertCommandWithNumber() async {
         appState.mode = .command
-        await appState.dispatch(.insertCommand("5"))
+        await appState.dispatch(.command(.insertCommand("5")))
         XCTAssertTrue(
             appState.commandInput.contains("5"),
             "Command input should contain number"
@@ -415,7 +415,7 @@ class AppStateDispatchTests: XCTestCase {
 
     func testDispatchInsertCommandWithPunctuation() async {
         appState.mode = .command
-        await appState.dispatch(.insertCommand("."))
+        await appState.dispatch(.command(.insertCommand(".")))
         XCTAssertTrue(
             appState.commandInput.contains("."),
             "Command input should contain punctuation"
@@ -474,7 +474,7 @@ class AppStateDispatchTests: XCTestCase {
     }
 
     func testDispatchToast() async {
-        await appState.dispatch(.toast("Test message"))
+        await appState.dispatch(.ui(.toast("Test message")))
         XCTAssertTrue(true, "Toast action dispatched")
     }
 }
