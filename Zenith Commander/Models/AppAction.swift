@@ -29,29 +29,7 @@ enum AppAction: Sendable {
     case mouseDoubleClick(fileId: String, paneSide: PaneSide)  // 双击
 }
 
-enum PaneAction {
-    case toggleActivePane
-    case closeTab
-    case toggleBookmarkBar
-    case addBookmark
-    /// 鼠标操作 - 统一通过模式系统处理
-    case mouseClick(index: Int, paneSide: PaneSide)  // 普通单击
-    case mouseCommandClick(index: Int, paneSide: PaneSide)  // Command+Click 切换选择
-    case mouseShiftClick(index: Int, paneSide: PaneSide)  // Shift+Click 范围选择
-    case jumpToTop
-    case jumpToBottom
-}
 
-// split async actions and common actions to avoid Sendable issues
-enum PaneAsyncAction {
-    case newTab
-    case nextTab
-    case previousTab
-    case enterDirectory
-    case leaveDirectory
-    case refreshCurrentPane
-    case mouseDoubleClick(fileId: String, paneSide: PaneSide)  // 双击
-}
 
 enum UIAction {
     case toast(String)
@@ -61,10 +39,7 @@ enum UIAction {
     case dismissSheet
 }
 
-enum ModeAction {
-    case enterMode(AppMode)
-    case exitMode
-}
+
 
 enum FileAction {
     case yank

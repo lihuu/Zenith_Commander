@@ -65,3 +65,9 @@ extension AppState {
         filterUseRegex = false
     }
 }
+
+
+enum ModeAction {
+    case enterMode(AppMode)
+    case exitMode
+}

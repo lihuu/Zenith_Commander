@@ -318,27 +318,7 @@ class AppState: ObservableObject {
         }
     }
 
-    func handleAction(_ action: PaneAsyncAction) async {
-        switch action {
-        case .newTab:
-            await newTab()
-        case .nextTab:
-            await nextTab()
-        case .previousTab:
-            await previousTab()
-        case .enterDirectory:
-            await enterDirectory()
-        case .leaveDirectory:
-            await leaveDirectory()
-        case .refreshCurrentPane:
-            await refreshCurrentPane()
-        case .mouseDoubleClick(let fileId, let paneSide):
-            await handleMouseDoubleClick(
-                fileId: fileId,
-                paneSide: paneSide
-            )
-        }
-    }
+    
 
     func handleAction(_ action: ModeAction) {
         switch action {

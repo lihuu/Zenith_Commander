@@ -5,6 +5,7 @@
 //  面板操作相关的 AppState 扩展
 //
 
+import Combine
 import Foundation
 import SwiftUI
 
@@ -417,4 +418,83 @@ extension AppState {
             pane.updateVisualSelection()
         }
     }
+
+    /// 处理双击
+    /// - 文件夹：进入目录
+    /// - 文件：使用默认应用打开
+    func handleMouseDoubleClick(fileId: String, paneSide: PaneSide) async {
+        setActivePane(paneSide)
+        let pane = paneSide == .left ? leftPane : rightPane
+
+        guard let file = pane.activeTab.files.first(where: { $0.id == fileId })
+        else { return }
+
+        if file.isFolder {
+            // 进入目录
+            let newPath = file.path
+            let files = await FileSystemService.shared.loadDirectory(
+                at: newPath
+            )
+
+            pane.activeTab.currentPath = newPath
+            pane.activeTab.files = files
+            pane.cursorIndex = 0
+            pane.clearSelections()
+
+            // 如果在 Visual 模式，退出
+            if mode == .visual {
+                exitMode()
+            }
+        } else {
+            // 打开文件
+            FileSystemService.shared.openFile(file)
+        }
+    }
+
+    func handleAction(_ action: PaneAsyncAction) async {
+        switch action {
+        case .newTab:
+            await newTab()
+        case .nextTab:
+            await nextTab()
+        case .previousTab:
+            await previousTab()
+        case .enterDirectory:
+            await enterDirectory()
+        case .leaveDirectory:
+            await leaveDirectory()
+        case .refreshCurrentPane:
+            await refreshCurrentPane()
+        case .mouseDoubleClick(let fileId, let paneSide):
+            await handleMouseDoubleClick(
+                fileId: fileId,
+                paneSide: paneSide
+            )
+        }
+    }
+}
+
+
+enum PaneAction {
+    case toggleActivePane
+    case closeTab
+    case toggleBookmarkBar
+    case addBookmark
+    /// 鼠标操作 - 统一通过模式系统处理
+    case mouseClick(index: Int, paneSide: PaneSide)  // 普通单击
+    case mouseCommandClick(index: Int, paneSide: PaneSide)  // Command+Click 切换选择
+    case mouseShiftClick(index: Int, paneSide: PaneSide)  // Shift+Click 范围选择
+    case jumpToTop
+    case jumpToBottom
+}
+
+// split async actions and common actions to avoid Sendable issues
+enum PaneAsyncAction {
+    case newTab
+    case nextTab
+    case previousTab
+    case enterDirectory
+    case leaveDirectory
+    case refreshCurrentPane
+    case mouseDoubleClick(fileId: String, paneSide: PaneSide)  // 双击
 }
