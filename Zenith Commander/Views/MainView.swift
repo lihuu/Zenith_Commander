@@ -109,10 +109,12 @@ struct MainView: View {
                             minHeight: 100,
                             maxHeight: geometry.size.height * 0.6
                         ) {
-                            if let gitPanelView = pluginManager.view(for: .gitPanel) {
-                                gitPanelView
-                            } else {
-                                Text("Error: Git Panel Plugin not found")
+                            Group {
+                                if let gitPanelView = pluginManager.view(for: .gitPanel) {
+                                    gitPanelView
+                                } else {
+                                    AnyView(Text("Error: Git Panel Plugin not found"))
+                                }
                             }
                         }
                     }
