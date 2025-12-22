@@ -1,10 +1,5 @@
 import Foundation
 
-enum RsycError: Error, Sendable {
-    case binaryNotFound
-    case failed(exitCode: Int32)
-}
-
 struct RsyncNewConfig: Sendable {
     var sourcePath: String
     var targetPath: String
@@ -15,11 +10,7 @@ struct RsyncNewConfig: Sendable {
 }
 
 final class RsyncNewService: Sendable {
-    private let toolRunner: ToolRunner
-
-    init(toolRunner: ToolRunner) {
-        self.toolRunner = toolRunner
-    }
+    static let shared = RsyncNewService()
 
     func bindArgs(config: RsyncNewConfig) -> [String] {
         var args: [String] = []
@@ -45,7 +36,7 @@ final class RsyncNewService: Sendable {
         return args
     }
 
-    func preview(config: RsyncNewConfig) async throws -> ToolResponse {
+    func preview(config: RsyncNewConfig, toolRunner: ToolRunner) async throws -> ToolResponse {
         let req = ToolRequest(
             executable: "rsync",
             args: bindArgs(config: config),
@@ -55,7 +46,7 @@ final class RsyncNewService: Sendable {
         return try await toolRunner.run(req)
     }
 
-    func run(config: RsyncNewConfig) async throws -> ToolResponse {
+    func run(config: RsyncNewConfig, toolRunner: ToolRunner) async throws -> ToolResponse {
         var args = bindArgs(config: config)
         if config.dryRun {
             args.removeAll { $0 == "--dry-run" }

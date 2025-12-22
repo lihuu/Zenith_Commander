@@ -17,8 +17,6 @@ class RsyncService {
     // Singleton instance
     static let shared = RsyncService()
 
-    private init() { }
-
     // MARK: - Public API
 
     /// Checks if rsync is installed on the system
@@ -62,13 +60,9 @@ class RsyncService {
         return parseDryRunOutput(output)
     }
 
-    /// Executes the actual rsync operation with progress streaming
-    /// - Parameters:
-    ///   - config: Configuration for the rsync operation
-    ///   - progressContinuation: Continuation to send progress updates
-    /// - Returns: Final result with summary and any errors
-    /// - Throws: Error if validation fails or rsync execution fails
-    func run(config: RsyncSyncConfig, progressContinuation: AsyncStream<RsyncProgress>.Continuation) async throws -> RsyncRunResult {
+    func run(config: RsyncSyncConfig, progressContinuation: AsyncStream<RsyncProgress>.Continuation)
+        async throws -> RsyncRunResult
+    {
         // Validate paths
         try validatePaths(config: config)
 
@@ -82,11 +76,12 @@ class RsyncService {
         var summary = (copy: 0, update: 0, delete: 0, skip: 0)
 
         // Send initial progress update
-        progressContinuation.yield(RsyncProgress(
-            message: L(.rsyncProgress),
-            completed: 0,
-            total: 0
-        ))
+        progressContinuation.yield(
+            RsyncProgress(
+                message: L(.rsyncProgress),
+                completed: 0,
+                total: 0
+            ))
 
         do {
             let output = try await executeRsync(command: command)
@@ -108,14 +103,13 @@ class RsyncService {
             }
 
             // Send final progress update
-            progressContinuation.yield(RsyncProgress(
-                message: L(.rsyncComplete),
-                completed: fileCount,
-                total: fileCount
-            ))
+            progressContinuation.yield(
+                RsyncProgress(
+                    message: L(.rsyncComplete),
+                    completed: fileCount,
+                    total: fileCount
+                ))
 
-            // For now, estimate counts from preview if available
-            // In a full implementation, we'd parse rsync's detailed output
             summary = (copy: 0, update: 0, delete: 0, skip: 0)
 
             progressContinuation.finish()
@@ -147,7 +141,8 @@ class RsyncService {
         var isDestDir: ObjCBool = false
 
         // Check source
-        let sourceExists = fileManager.fileExists(atPath: config.source.path, isDirectory: &isSourceDir)
+        let sourceExists = fileManager.fileExists(
+            atPath: config.source.path, isDirectory: &isSourceDir)
         guard sourceExists else {
             throw RsyncError.sourceNotFound(path: config.source.path)
         }
@@ -156,7 +151,8 @@ class RsyncService {
         }
 
         // Check destination
-        let destExists = fileManager.fileExists(atPath: config.destination.path, isDirectory: &isDestDir)
+        let destExists = fileManager.fileExists(
+            atPath: config.destination.path, isDirectory: &isDestDir)
         guard destExists else {
             throw RsyncError.destinationNotFound(path: config.destination.path)
         }
@@ -180,7 +176,8 @@ class RsyncService {
         command.append(contentsOf: config.effectiveFlags())
 
         // Add source path (with trailing slash for directory contents)
-        let sourcePath = config.source.path.hasSuffix("/") ? config.source.path : config.source.path + "/"
+        let sourcePath =
+            config.source.path.hasSuffix("/") ? config.source.path : config.source.path + "/"
         command.append(sourcePath)
 
         // Add destination path
@@ -206,7 +203,8 @@ class RsyncService {
             // Parse itemized change format: "YXcstpoguax path"
             // Y: update type (>, c, *, ., etc.)
             // X: file type (f=file, d=directory, L=symlink, etc.)
-            let components = line.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
+            let components = line.split(
+                separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
             guard components.count == 2 else { continue }
 
             let changeCode = String(components[0])
@@ -220,7 +218,8 @@ class RsyncService {
                 copied.append(RsyncItem(relativePath: path, action: .copy))
             } else if changeCode.hasPrefix(".f") || changeCode.hasPrefix(".d") {
                 // File exists, checking for changes
-                if changeCode.contains("t") || changeCode.contains("s") || changeCode.contains("p") {
+                if changeCode.contains("t") || changeCode.contains("s") || changeCode.contains("p")
+                {
                     // Time, size, or permissions changed
                     updated.append(RsyncItem(relativePath: path, action: .update))
                 } else {
@@ -269,10 +268,11 @@ class RsyncService {
                 let errorOutput = String(data: errorData, encoding: .utf8) ?? ""
 
                 if process.terminationStatus != 0 {
-                    continuation.resume(throwing: RsyncError.executionFailed(
-                        code: Int(process.terminationStatus),
-                        message: errorOutput
-                    ))
+                    continuation.resume(
+                        throwing: RsyncError.executionFailed(
+                            code: Int(process.terminationStatus),
+                            message: errorOutput
+                        ))
                 } else {
                     continuation.resume(returning: output)
                 }
@@ -296,19 +296,19 @@ enum RsyncError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case let .sourceNotFound(path):
+        case .sourceNotFound(let path):
             String(format: "%@: %@", L(.rsyncErrorSourceNotFound), path)
-        case let .sourceNotDirectory(path):
+        case .sourceNotDirectory(let path):
             String(format: "%@: %@", L(.rsyncErrorSourceNotDirectory), path)
-        case let .destinationNotFound(path):
+        case .destinationNotFound(let path):
             String(format: "%@: %@", L(.rsyncErrorDestinationNotFound), path)
-        case let .destinationNotDirectory(path):
+        case .destinationNotDirectory(let path):
             String(format: "%@: %@", L(.rsyncErrorDestinationNotDirectory), path)
         case .sameSourceAndDestination:
             L(.rsyncErrorSameSourceDestination)
-        case let .executionFailed(code, message):
+        case .executionFailed(let code, let message):
             String(format: "%@ (code: %d): %@", L(.rsyncErrorExecutionFailed), code, message)
-        case let .processError(error):
+        case .processError(let error):
             String(format: "%@: %@", L(.rsyncErrorExecutionFailed), error.localizedDescription)
         }
     }

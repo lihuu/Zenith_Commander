@@ -90,8 +90,8 @@ struct RsyncNewSheetView: View {
         isRunning = true
         output.removeAll(keepingCapacity: true)
         do {
-            let svc = RsyncNewService(toolRunner: context.toolRunner)
-            let resp = try await svc.preview(config: config)
+            let resp = try await RsyncNewService.shared.preview(
+                config: config, toolRunner: context.toolRunner)
             output = (resp.stdout + resp.stderr)
         } catch {
             output = ["[error] \(String(describing: error))"]
@@ -103,8 +103,8 @@ struct RsyncNewSheetView: View {
         isRunning = true
         output.removeAll(keepingCapacity: true)
         do {
-            let svc = RsyncNewService(toolRunner: context.toolRunner)
-            let resp = try await svc.run(config: config)
+            let resp = try await RsyncNewService.shared.run(
+                config: config, toolRunner: context.toolRunner)
             output = (resp.stdout + resp.stderr)
         } catch {
             output = ["[error] \(String(describing: error))"]
