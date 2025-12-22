@@ -18,6 +18,8 @@ struct StatusBarView: View {
     var gitInfo: GitRepositoryInfo?
     var onDriveClick: (() -> Void)?
 
+    @State private var cursorVisible = true
+
     var body: some View {
         HStack(spacing: 8) {
             // 模式指示器
@@ -57,6 +59,9 @@ struct StatusBarView: View {
         .padding(.horizontal, 12)
         .frame(height: 24)
         .background(Theme.backgroundSecondary)
+        .onAppear {
+            startCursorBlink()
+        }
     }
 
     private var keyHint: String {
@@ -84,19 +89,39 @@ struct StatusBarView: View {
         }
     }
 
+    private func startCursorBlink() {
+        // 启动光标闪烁定时器（仅在 filter 或 command 模式下）
+        if mode == .filter || mode == .command {
+            Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+                withAnimation(.easeInOut(duration: 0.1)) {
+                    cursorVisible.toggle()
+                }
+            }
+        }
+    }
+
     /// 状态内容 - 根据模式显示不同内容
     @ViewBuilder
     private var statusContent: some View {
         switch mode {
         case .command, .filter:
             // 命令模式和过滤模式显示输入内容
-            Text(statusText)
-                .accessibilityLabel(statusText)
-                .accessibilityValue(statusText)
-                .accessibilityIdentifier("status_text")
-                .font(.system(size: 11, weight: .medium, design: .monospaced))
-                .foregroundColor(Theme.textSecondary)
-                .lineLimit(1)
+            HStack(spacing: 0) {
+                Text(statusText)
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundColor(Theme.textSecondary)
+                    .lineLimit(1)
+
+                // 闪烁光标
+                if cursorVisible {
+                    Rectangle()
+                        .frame(width: 2, height: 11)
+                        .foregroundColor(Theme.textSecondary)
+                }
+            }
+            .accessibilityLabel(statusText)
+            .accessibilityValue(statusText)
+            .accessibilityIdentifier("status_text")
         default:
             // 普通模式显示可点击的驱动器名称
             HStack(spacing: 0) {

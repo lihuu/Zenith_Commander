@@ -20,6 +20,34 @@
 - Automatically run the build process.
 - Must Ensure the build succeeds; if it fails, revert changes or fix issues before proceeding.
 - Commit the new changes with a descriptive message.
+- Commit message MUST use in english.
+
+### Commit Message Guidelines
+
+#### Format
+
+```markdown
+<type>(<scope>): <subject>
+<blank line>
+
+<body>
+<blank line>
+<footer>
+```
+
+Type,Description
+feat,A new feature for the agent or system
+fix,A bug fix
+docs,Documentation only changes
+style,"Changes that do not affect the meaning of the code (white-space, formatting, etc.)"
+refactor,A code change that neither fixes a bug nor adds a feature
+perf,A code change that improves performance
+test,Adding missing tests or correcting existing tests
+build,Changes that affect the build system or external dependencies
+ci,Changes to our CI configuration files and scripts
+chore,Other changes that don't modify src or test files
+revert,Reverts a previous commit
+Sources
 
 ### Additional Notes
 

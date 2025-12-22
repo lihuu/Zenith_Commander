@@ -318,8 +318,6 @@ class AppState: ObservableObject {
         }
     }
 
-    
-
     func handleAction(_ action: ModeAction) {
         switch action {
         case .enterMode(let mode):
@@ -355,12 +353,17 @@ class AppState: ObservableObject {
     func handleAction(_ action: FilterAction) {
         switch action {
         case .deleteFilterCharacter:
+            print("🔍 Filter: deleteFilterCharacter called, current input: '\(filterInput)'")
             if !filterInput.isEmpty {
                 filterInput.removeLast()
+                print("🔍 Filter: after delete: '\(filterInput)'")
                 // 实时更新过滤
                 applyFilter()
+            } else {
+                print("🔍 Filter: filterInput is empty, nothing to delete")
             }
         case .inputFilterCharacter(let char):
+            print("🔍 Filter: inputFilterCharacter called with: '\(char)'")
             // 普通过滤支持常用字符，正则表达式支持更多特殊字符
             let isValidChar: Bool =
                 if filterUseRegex {
@@ -374,8 +377,11 @@ class AppState: ObservableObject {
 
             if isValidChar {
                 filterInput.append(char)
+                print("🔍 Filter: appended '\(char)', current input: '\(filterInput)'")
                 // 实时过滤
                 applyFilter()
+            } else {
+                print("🔍 Filter: '\(char)' is not valid character")
             }
         case .doFilter:
             doFilter()

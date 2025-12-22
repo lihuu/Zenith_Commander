@@ -265,10 +265,13 @@ struct MainView: View {
     }
 
     private func handleKeyPress(_ keyPress: KeyPress) -> KeyPress.Result {
+        print("🎹 KeyPress: key=\(keyPress.key), mode=\(appState.mode)")
         guard let action = appState.mode.action(for: keyPress) else {
+            print("🎹 KeyPress: no action found for this key in \(appState.mode) mode")
             return .ignored
         }
 
+        print("🎹 KeyPress: action=\(action)")
         Task { @MainActor in
             await appState.dispatch(action)
         }

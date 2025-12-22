@@ -38,12 +38,17 @@ extension AppMode {
 
     func action(for keyPress: KeyPress) -> AppAction? {
         let chord = KeyChord(from: keyPress)
+        print("🔑 action(for:) in \(self) mode, chord.key=\(chord.key)")
         let action: AppAction? = keyMaps[chord]
+        print("🔑 Found action in keyMaps: \(String(describing: action))")
+
         if self == .command, action == nil {
+            print("🔑 Command mode: returning insertCommand")
             return .command(.insertCommand(keyPress.key.character))
         }
 
         if self == .filter, action == nil {
+            print("🔑 Filter mode: returning inputFilterCharacter")
             return .filter(.inputFilterCharacter(keyPress.key.character))
         }
 
@@ -169,8 +174,8 @@ enum AppModeKeyMaps {
 
     static let command: [KeyChord: AppAction] = {
         let commandOverrides: [KeyChord: AppAction] = [
-            KeyChord(.delete): .command(.deleteCommand),
-            KeyChord(.deleteForward): .command(.deleteCommand),
+            KeyChord(KeyEquivalent("\u{7F}")): .command(.deleteCommand),  // Backspace/Delete
+            KeyChord(KeyEquivalent("\u{08}")): .command(.deleteCommand),  // Backspace
             KeyChord(.return): .commandAsync(.executeCommand),
         ]
 
@@ -181,8 +186,8 @@ enum AppModeKeyMaps {
 
     static let filter: [KeyChord: AppAction] = {
         let filterOverrides: [KeyChord: AppAction] = [
-            KeyChord(.delete): .filter(.deleteFilterCharacter),
-            KeyChord(.deleteForward): .filter(.deleteFilterCharacter),
+            KeyChord(KeyEquivalent("\u{7F}")): .filter(.deleteFilterCharacter),  // Backspace/Delete
+            KeyChord(KeyEquivalent("\u{08}")): .filter(.deleteFilterCharacter),  // Backspace
             // 这里的输入字符，交给默认处理，然后通过绑定更新过滤字符串
             KeyChord(.return): .filter(.doFilter),
         ]
