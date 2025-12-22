@@ -22,6 +22,8 @@ enum CommandType: String, CaseIterable {
     case term
     case terminal
     case rsync
+    case help
+    case ls
     case quit
     case q
     case unknown
@@ -66,6 +68,12 @@ enum CommandParser {
     /// - Returns: 解析后的命令
     static func parse(_ input: String) -> ParsedCommand {
         let trimmedInput = input.trimmingCharacters(in: .whitespaces)
+        
+        // 特殊处理 ? 命令
+        if trimmedInput == "?" {
+            return ParsedCommand(type: .help, args: [], rawInput: input)
+        }
+        
         let parts = parseCommandLine(trimmedInput)
 
         guard let commandString = parts.first else {

@@ -100,6 +100,15 @@ extension AppState {
         case .q, .quit:
             NSApp.terminate(nil)
 
+        case .help:
+            // help or ? - 显示帮助
+            enterMode(.help)
+            return  // 不要退出 command 模式，因为 help 会显示为 sheet
+
+        case .ls:
+            // ls - 刷新当前目录（相当于重新加载文件列表）
+            await refreshCurrentPane()
+
         case .unknown:
             showToast(
                 LocalizationManager.shared.localized(

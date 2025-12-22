@@ -38,17 +38,13 @@ extension AppMode {
 
     func action(for keyPress: KeyPress) -> AppAction? {
         let chord = KeyChord(from: keyPress)
-        print("🔑 action(for:) in \(self) mode, chord.key=\(chord.key)")
         let action: AppAction? = keyMaps[chord]
-        print("🔑 Found action in keyMaps: \(String(describing: action))")
-
+        
         if self == .command, action == nil {
-            print("🔑 Command mode: returning insertCommand")
             return .command(.insertCommand(keyPress.key.character))
         }
 
         if self == .filter, action == nil {
-            print("🔑 Filter mode: returning inputFilterCharacter")
             return .filter(.inputFilterCharacter(keyPress.key.character))
         }
 

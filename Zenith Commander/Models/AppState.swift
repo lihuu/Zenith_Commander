@@ -181,10 +181,62 @@ class AppState: ObservableObject {
 
         UserDefaults.standard.set(leftPath, forKey: "lastLeftPanePath")
         UserDefaults.standard.set(rightPath, forKey: "lastRightPanePath")
+        
+        // 保存安全书签以持久化访问权限
+        saveSecurityBookmark(for: leftPane.activeTab.currentPath, key: "leftPaneBookmark")
+        saveSecurityBookmark(for: rightPane.activeTab.currentPath, key: "rightPaneBookmark")
 
         Logger.app.debug(
             "Saved paths - Left: \(leftPath, privacy: .public), Right: \(rightPath, privacy: .public)"
         )
+    }
+    
+    /// 保存安全书签
+    private func saveSecurityBookmark(for url: URL, key: String) {
+        do {
+            let bookmarkData = try url.bookmarkData(
+                options: [.withSecurityScope, .securityScopeAllowOnlyReadAccess],
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            )
+            UserDefaults.standard.set(bookmarkData, forKey: key)
+            Logger.app.debug("Saved security bookmark for: \(url.path, privacy: .public)")
+        } catch {
+            Logger.app.error("Failed to save security bookmark: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+    
+    /// 从安全书签恢复 URL
+    private static func restoreSecurityBookmark(key: String) -> URL? {
+        guard let bookmarkData = UserDefaults.standard.data(forKey: key) else {
+            return nil
+        }
+        
+        do {
+            var isStale = false
+            let url = try URL(
+                resolvingBookmarkData: bookmarkData,
+                options: .withSecurityScope,
+                relativeTo: nil,
+                bookmarkDataIsStale: &isStale
+            )
+            
+            if isStale {
+                Logger.app.warning("Security bookmark is stale for key: \(key, privacy: .public)")
+                // 书签过期，需要重新获取权限
+                return nil
+            }
+            
+            // 开始访问安全作用域资源
+            if url.startAccessingSecurityScopedResource() {
+                Logger.app.debug("Successfully accessed security-scoped resource: \(url.path, privacy: .public)")
+                return url
+            }
+        } catch {
+            Logger.app.error("Failed to resolve security bookmark: \(error.localizedDescription, privacy: .public)")
+        }
+        
+        return nil
     }
 
     /// 从 UserDefaults 恢复上次的路径
@@ -194,7 +246,14 @@ class AppState: ObservableObject {
         let defaultLeftPath = homePath
         let defaultRightPath = homePath.appendingPathComponent("Downloads")
 
-        // 读取保存的路径
+        // 首先尝试从安全书签恢复
+        if let leftURL = restoreSecurityBookmark(key: "leftPaneBookmark"),
+           let rightURL = restoreSecurityBookmark(key: "rightPaneBookmark") {
+            Logger.app.debug("Restored paths from security bookmarks")
+            return (leftURL, rightURL)
+        }
+        
+        // 如果书签失败，尝试从保存的路径字符串恢复
         guard
             let leftPathString = UserDefaults.standard.string(
                 forKey: "lastLeftPanePath"
@@ -353,17 +412,12 @@ class AppState: ObservableObject {
     func handleAction(_ action: FilterAction) {
         switch action {
         case .deleteFilterCharacter:
-            print("🔍 Filter: deleteFilterCharacter called, current input: '\(filterInput)'")
             if !filterInput.isEmpty {
                 filterInput.removeLast()
-                print("🔍 Filter: after delete: '\(filterInput)'")
                 // 实时更新过滤
                 applyFilter()
-            } else {
-                print("🔍 Filter: filterInput is empty, nothing to delete")
             }
         case .inputFilterCharacter(let char):
-            print("🔍 Filter: inputFilterCharacter called with: '\(char)'")
             // 普通过滤支持常用字符，正则表达式支持更多特殊字符
             let isValidChar: Bool =
                 if filterUseRegex {
@@ -377,11 +431,8 @@ class AppState: ObservableObject {
 
             if isValidChar {
                 filterInput.append(char)
-                print("🔍 Filter: appended '\(char)', current input: '\(filterInput)'")
                 // 实时过滤
                 applyFilter()
-            } else {
-                print("🔍 Filter: '\(char)' is not valid character")
             }
         case .doFilter:
             doFilter()
