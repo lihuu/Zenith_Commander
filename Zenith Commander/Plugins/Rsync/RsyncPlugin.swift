@@ -7,17 +7,17 @@
 
 import SwiftUI
 
-struct RsyncPlugin: ZenithPlugin{
-    
+struct RsyncPlugin: ZenithPlugin {
+
     let id = PluginID(rawValue: "rsync")
     let displayName: String = "Rsync"
     let version: String = "1.0.0"
-    
-    
+
     func makeCapabilities(context: PluginContext) -> [any PluginCapability] {
         let cmd = RsyncCommandProvider(context: context)
-        
-        return [cmd]
+        let ui = RsyncUIContribution { req in
+            return AnyView(RsyncNewSheetView(context: context))
+        }
+        return [cmd, ui]
     }
 }
-

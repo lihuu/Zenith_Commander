@@ -405,12 +405,11 @@ class AppState: ObservableObject {
                 )
             )
         case .openRsync:
-            // Open rsync sync sheet with left pane as source
             presentRsyncSheet(sourceIsLeft: true)
-        case .showSheet:
-            break  // Handled elsewhere
+        case .showSheet(let req):
+            activeSheet = req
         case .dismissSheet:
-            break  // Handled elsewhere
+            activeSheet = nil
         }
     }
 
@@ -739,6 +738,14 @@ class AppState: ObservableObject {
                 with: processedReplace
             )
         }
+    }
+    
+    func makePaneSnapshot()->PanesSnapshot{
+        return PanesSnapshot(
+            leftPath: leftPane.activeTab.currentPath.path,
+            rightPath: rightPane.activeTab.currentPath.path,
+            active: activePane == .left ? .left : .right
+        )
     }
 }
 

@@ -48,6 +48,8 @@ extension Logger {
 
     /// Git 操作日志
     static let git = Logger(subsystem: subsystem, category: "git")
+    
+    static let plugin = Logger(subsystem: subsystem, category: "plugin")
 }
 
 // MARK: - 便捷日志函数（可选）

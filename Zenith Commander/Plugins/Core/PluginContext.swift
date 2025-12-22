@@ -19,11 +19,8 @@ struct PanesSnapshot {
 }
 
 public struct PluginContext {
-    public let environment: EnvironmentValues
-
-    let panes: @Sendable () -> PanesSnapshot
+    let panes: @MainActor () -> PanesSnapshot
     let dispatch: @Sendable (AppAction) async -> Void
-    public let logger: Logger
-
+    let logger: Logger
     let toolRunner: ToolRunner
 }

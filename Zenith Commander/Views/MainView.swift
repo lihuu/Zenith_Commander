@@ -10,8 +10,34 @@ import SwiftUI
 import os.log
 
 struct MainView: View {
-    @StateObject private var appState = AppState()
-    @StateObject private var bookmarkManager = BookmarkManager.shared
+    @StateObject private var appState: AppState
+    @StateObject private var bookmarkManager: BookmarkManager
+    private let pluginManager: PluginManager
+
+    init() {
+        let appState = AppState()
+        _appState = StateObject(wrappedValue: appState)
+
+        let bookmarkManager = BookmarkManager.shared
+        _bookmarkManager = StateObject(wrappedValue: bookmarkManager)
+
+        let pluginManager = PluginManager()
+        self.pluginManager = pluginManager
+
+        let plugContext = PluginContext(
+            panes: { @MainActor in
+                appState.makePaneSnapshot()
+            },
+            dispatch: { action in
+                await appState.dispatch(action)
+            },
+            logger: Logger.plugin,
+            toolRunner: ProcessToolRunner()
+        )
+
+        pluginManager.register(RsyncPlugin(), context: plugContext)
+    }
+
     private var showSettings: Binding<Bool> {
         Binding<Bool>(
             get: { appState.mode == .settings },
@@ -202,7 +228,7 @@ struct MainView: View {
                     RsyncSyncSheetView(config: config)
                         .environmentObject(appState)
                 }
-            }
+            }.pluginSheetHost(appState: appState, pluginManager: pluginManager)
             .focusable()
             .onKeyPress { keyPress in
                 handleKeyPress(keyPress)
@@ -214,10 +240,11 @@ struct MainView: View {
                         .getMountedVolumes()
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: .openSettings)) {
-                _ in
-                appState.enterMode(.settings)
-            }
+            .onReceive(NotificationCenter.default.publisher(for: .openSettings))
+        {
+            _ in
+            appState.enterMode(.settings)
+        }
             .onReceive(NotificationCenter.default.publisher(for: .showHelp)) {
                 _ in
                 appState.enterMode(.help)
