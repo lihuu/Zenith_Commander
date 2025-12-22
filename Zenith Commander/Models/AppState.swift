@@ -181,7 +181,7 @@ class AppState: ObservableObject {
 
         UserDefaults.standard.set(leftPath, forKey: "lastLeftPanePath")
         UserDefaults.standard.set(rightPath, forKey: "lastRightPanePath")
-        
+
         // 保存安全书签以持久化访问权限
         saveSecurityBookmark(for: leftPane.activeTab.currentPath, key: "leftPaneBookmark")
         saveSecurityBookmark(for: rightPane.activeTab.currentPath, key: "rightPaneBookmark")
@@ -190,7 +190,7 @@ class AppState: ObservableObject {
             "Saved paths - Left: \(leftPath, privacy: .public), Right: \(rightPath, privacy: .public)"
         )
     }
-    
+
     /// 保存安全书签
     private func saveSecurityBookmark(for url: URL, key: String) {
         do {
@@ -202,16 +202,17 @@ class AppState: ObservableObject {
             UserDefaults.standard.set(bookmarkData, forKey: key)
             Logger.app.debug("Saved security bookmark for: \(url.path, privacy: .public)")
         } catch {
-            Logger.app.error("Failed to save security bookmark: \(error.localizedDescription, privacy: .public)")
+            Logger.app.error(
+                "Failed to save security bookmark: \(error.localizedDescription, privacy: .public)")
         }
     }
-    
+
     /// 从安全书签恢复 URL
     private static func restoreSecurityBookmark(key: String) -> URL? {
         guard let bookmarkData = UserDefaults.standard.data(forKey: key) else {
             return nil
         }
-        
+
         do {
             var isStale = false
             let url = try URL(
@@ -220,22 +221,25 @@ class AppState: ObservableObject {
                 relativeTo: nil,
                 bookmarkDataIsStale: &isStale
             )
-            
+
             if isStale {
                 Logger.app.warning("Security bookmark is stale for key: \(key, privacy: .public)")
                 // 书签过期，需要重新获取权限
                 return nil
             }
-            
+
             // 开始访问安全作用域资源
             if url.startAccessingSecurityScopedResource() {
-                Logger.app.debug("Successfully accessed security-scoped resource: \(url.path, privacy: .public)")
+                Logger.app.debug(
+                    "Successfully accessed security-scoped resource: \(url.path, privacy: .public)")
                 return url
             }
         } catch {
-            Logger.app.error("Failed to resolve security bookmark: \(error.localizedDescription, privacy: .public)")
+            Logger.app.error(
+                "Failed to resolve security bookmark: \(error.localizedDescription, privacy: .public)"
+            )
         }
-        
+
         return nil
     }
 
@@ -248,11 +252,12 @@ class AppState: ObservableObject {
 
         // 首先尝试从安全书签恢复
         if let leftURL = restoreSecurityBookmark(key: "leftPaneBookmark"),
-           let rightURL = restoreSecurityBookmark(key: "rightPaneBookmark") {
+            let rightURL = restoreSecurityBookmark(key: "rightPaneBookmark")
+        {
             Logger.app.debug("Restored paths from security bookmarks")
             return (leftURL, rightURL)
         }
-        
+
         // 如果书签失败，尝试从保存的路径字符串恢复
         guard
             let leftPathString = UserDefaults.standard.string(

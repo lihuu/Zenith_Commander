@@ -68,12 +68,12 @@ enum CommandParser {
     /// - Returns: 解析后的命令
     static func parse(_ input: String) -> ParsedCommand {
         let trimmedInput = input.trimmingCharacters(in: .whitespaces)
-        
+
         // 特殊处理 ? 命令
         if trimmedInput == "?" {
             return ParsedCommand(type: .help, args: [], rawInput: input)
         }
-        
+
         let parts = parseCommandLine(trimmedInput)
 
         guard let commandString = parts.first else {
@@ -154,7 +154,9 @@ enum CommandParser {
 
     /// 验证 move/copy 命令
     /// - Returns: (valid, source, destination) - source 为 nil 表示使用选中文件
-    static func validateMoveOrCopy(_ command: ParsedCommand, currentPath: URL) -> (valid: Bool, source: URL?, destination: URL?, error: String?) {
+    static func validateMoveOrCopy(_ command: ParsedCommand, currentPath: URL) -> (
+        valid: Bool, source: URL?, destination: URL?, error: String?
+    ) {
         if command.argCount >= 2 {
             // move/copy <src> <dest>
             let src = resolvePath(command.args[0], relativeTo: currentPath)
@@ -165,13 +167,18 @@ enum CommandParser {
             let dest = resolvePath(command.args[0], relativeTo: currentPath)
             return (true, nil, dest, nil)
         } else {
-            return (false, nil, nil, "Usage: \(command.type.rawValue) <dest> or \(command.type.rawValue) <src> <dest>")
+            return (
+                false, nil, nil,
+                "Usage: \(command.type.rawValue) <dest> or \(command.type.rawValue) <src> <dest>"
+            )
         }
     }
 
     /// 验证 delete 命令
     /// - Returns: (valid, targetPath) - targetPath 为 nil 表示使用选中文件
-    static func validateDelete(_ command: ParsedCommand, currentPath: URL) -> (valid: Bool, targetPath: URL?) {
+    static func validateDelete(_ command: ParsedCommand, currentPath: URL) -> (
+        valid: Bool, targetPath: URL?
+    ) {
         if command.args.isEmpty {
             // 删除选中文件
             return (true, nil)
@@ -183,7 +190,9 @@ enum CommandParser {
     }
 
     /// 验证 cd 命令
-    static func validateCd(_ command: ParsedCommand, currentPath: URL) -> (valid: Bool, targetPath: URL?, error: String?) {
+    static func validateCd(_ command: ParsedCommand, currentPath: URL) -> (
+        valid: Bool, targetPath: URL?, error: String?
+    ) {
         guard let pathArg = command.firstArg else {
             return (false, nil, "Usage: cd <path>")
         }
@@ -191,7 +200,9 @@ enum CommandParser {
         let targetPath = resolvePath(pathArg, relativeTo: currentPath)
 
         var isDir: ObjCBool = false
-        if FileManager.default.fileExists(atPath: targetPath.path, isDirectory: &isDir), isDir.boolValue {
+        if FileManager.default.fileExists(atPath: targetPath.path, isDirectory: &isDir),
+            isDir.boolValue
+        {
             return (true, targetPath, nil)
         } else {
             return (false, nil, "Directory not found: \(pathArg)")
@@ -201,7 +212,9 @@ enum CommandParser {
     /// 验证和解析 rsync 命令
     /// 支持: rsync 或 rsync update/mirror/copyAll/custom
     /// - Returns: (valid, mode, error)
-    static func validateRsync(_ command: ParsedCommand) -> (valid: Bool, mode: String?, error: String?) {
+    static func validateRsync(_ command: ParsedCommand) -> (
+        valid: Bool, mode: String?, error: String?
+    ) {
         guard let modeArg = command.firstArg else {
             // 无参数，使用默认模式 (update)
             return (true, nil, nil)
@@ -213,7 +226,10 @@ enum CommandParser {
         if validModes.contains(modeLower) {
             return (true, modeLower, nil)
         } else {
-            return (false, nil, "Invalid rsync mode: \(modeArg). Valid modes: update, mirror, copyAll, custom")
+            return (
+                false, nil,
+                "Invalid rsync mode: \(modeArg). Valid modes: update, mirror, copyAll, custom"
+            )
         }
     }
 }

@@ -39,7 +39,7 @@ extension AppMode {
     func action(for keyPress: KeyPress) -> AppAction? {
         let chord = KeyChord(from: keyPress)
         let action: AppAction? = keyMaps[chord]
-        
+
         if self == .command, action == nil {
             return .command(.insertCommand(keyPress.key.character))
         }

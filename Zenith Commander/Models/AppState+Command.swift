@@ -133,8 +133,8 @@ extension AppState {
     func deleteSelectedFiles() async {
         let pane = currentPane
         if pane.selections.isEmpty,
-           let file = pane.activeTab.files[safe: pane.cursorIndex],
-           file.isParentDirectory
+            let file = pane.activeTab.files[safe: pane.cursorIndex],
+            file.isParentDirectory
         {
             showToast(
                 LocalizationManager.shared.localized(.toastCannotDeleteParent)
@@ -179,7 +179,7 @@ extension AppState {
         if selections.isEmpty {
             // 如果没有选中，返回当前光标所在的文件
             if let file = pane.activeTab.files[safe: pane.cursorIndex],
-               !file.isParentDirectory
+                !file.isParentDirectory
             {
                 return [file]
             }
@@ -195,7 +195,7 @@ extension AppState {
     func currentFile() -> FileItem? {
         let pane = currentPane
         guard let file = pane.activeTab.files[safe: pane.cursorIndex],
-              !file.isParentDirectory
+            !file.isParentDirectory
         else {
             return nil
         }
