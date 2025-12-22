@@ -36,6 +36,7 @@ struct MainView: View {
         )
 
         pluginManager.register(RsyncPlugin(), context: plugContext)
+        pluginManager.register(GitPlugin(), context: plugContext)
     }
 
     private var showSettings: Binding<Bool> {
@@ -108,25 +109,11 @@ struct MainView: View {
                             minHeight: 100,
                             maxHeight: geometry.size.height * 0.6
                         ) {
-                            GitHistoryPanelView(
-                                fileName: appState.gitHistoryFile?.name
-                                    ?? LocalizationManager.shared.localized(
-                                        .gitRepoHistory
-                                    ),
-                                commits: appState.gitHistoryCommits,
-                                isLoading: appState.gitHistoryLoading,
-                                onClose: {
-                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                        appState.closeGitHistory()
-                                    }
-                                },
-                                onCommitSelected: { commit in
-                                    Logger.git.debug(
-                                        "Commit selected: \(commit.shortHash, privacy: .public)"
-                                    )
-                                    // TODO: 显示 commit 详情或 diff
-                                }
-                            )
+                            if let gitPanelView = pluginManager.view(for: .gitPanel) {
+                                gitPanelView
+                            } else {
+                                Text("Error: Git Panel Plugin not found")
+                            }
                         }
                     }
                 }
