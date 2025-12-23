@@ -35,8 +35,9 @@ final class ProcessToolRunner: ToolRunner {
         process: Process, stdout: Pipe, stderr: Pipe
     ) {
         let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        p.arguments = [request.executable] + request.args
+        p.executableURL = URL(fileURLWithPath: request.executable)
+        print("[ToolRunner] Executable URL: \(p.executableURL!.path)")
+        p.arguments = request.args
         if let wd = request.workingDirectory {
             p.currentDirectoryURL = URL(fileURLWithPath: wd)
         }
@@ -88,11 +89,30 @@ final class ProcessToolRunner: ToolRunner {
     }
 
     func runSync(_ request: ToolRequest) throws -> ToolResponse {
+        print(
+            "[ToolRunner] Running command: \(request.executable) \(request.args.joined(separator: " "))"
+        )
+        if let wd = request.workingDirectory {
+            print("[ToolRunner] Working directory: \(wd)")
+        }
+
         let (p, out, err) = setupProcess(for: request)
 
         try p.run()
+        print("[ToolRunner] Process started, waiting for exit...")
         p.waitUntilExit()
+        print("[ToolRunner] Process exited with code: \(p.terminationStatus)")
 
-        return parseOutput(stdout: out, stderr: err, exitCode: p.terminationStatus)
+        let response = parseOutput(stdout: out, stderr: err, exitCode: p.terminationStatus)
+        print("[ToolRunner] stdout lines: \(response.stdout.count)")
+        print("[ToolRunner] stderr lines: \(response.stderr.count)")
+        if !response.stdout.isEmpty {
+            print("[ToolRunner] stdout: \(response.stdout.joined(separator: "\\n"))")
+        }
+        if !response.stderr.isEmpty {
+            print("[ToolRunner] stderr: \(response.stderr.joined(separator: "\\n"))")
+        }
+
+        return response
     }
 }
