@@ -170,18 +170,27 @@ class SettingsManager: ObservableObject {
         }
     }
 
+    /// 设置存储目录
+    private let storageDirectory: URL
+    
     /// 设置文件路径
     private var settingsFileURL: URL {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let appFolder = appSupport.appendingPathComponent("ZenithCommander", isDirectory: true)
-
-        // 确保目录存在
-        try? FileManager.default.createDirectory(at: appFolder, withIntermediateDirectories: true)
-
-        return appFolder.appendingPathComponent("settings.json")
+        storageDirectory.appendingPathComponent("settings.json")
     }
 
-    private init() {
+    /// 初始化
+    /// - Parameter storageDirectory: 可选的存储目录，默认使用 Application Support
+    private init(storageDirectory: URL? = nil) {
+        if let storageDirectory = storageDirectory {
+            self.storageDirectory = storageDirectory
+        } else {
+            let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            self.storageDirectory = appSupport.appendingPathComponent("ZenithCommander", isDirectory: true)
+        }
+        
+        // 确保目录存在
+        try? FileManager.default.createDirectory(at: self.storageDirectory, withIntermediateDirectories: true)
+        
         settings = AppSettings.default
         loadSettings()
         applySettings()

@@ -85,19 +85,27 @@ class BookmarkManager: ObservableObject {
     /// 书签列表
     @Published var bookmarks: [BookmarkItem] = []
 
+    /// 书签存储目录
+    private let storageDirectory: URL
+    
     /// 书签文件路径
     private var bookmarksFileURL: URL {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let appFolder = appSupport.appendingPathComponent("ZenithCommander")
-
-        // 确保目录存在
-        try? FileManager.default.createDirectory(at: appFolder, withIntermediateDirectories: true)
-
-        return appFolder.appendingPathComponent("bookmarks.json")
+        storageDirectory.appendingPathComponent("bookmarks.json")
     }
 
     /// 初始化 - 公开以允许在测试中使用
-    init() {
+    /// - Parameter storageDirectory: 可选的存储目录，默认使用 Application Support
+    init(storageDirectory: URL? = nil) {
+        if let storageDirectory = storageDirectory {
+            self.storageDirectory = storageDirectory
+        } else {
+            let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            self.storageDirectory = appSupport.appendingPathComponent("ZenithCommander")
+        }
+        
+        // 确保目录存在
+        try? FileManager.default.createDirectory(at: self.storageDirectory, withIntermediateDirectories: true)
+        
         loadBookmarks()
     }
 

@@ -105,8 +105,14 @@ class AppState: ObservableObject {
     // MARK: - Rsync 状态
 
     @Published var rsyncUIState = RsyncUIState()
+    
+    // MARK: - 依赖注入
+    
+    /// UserDefaults 实例，可以在测试中注入
+    private let userDefaults: UserDefaults
 
-    init(testDirectory: URL? = nil) {
+    init(testDirectory: URL? = nil, userDefaults: UserDefaults = .standard) {
+        self.userDefaults = userDefaults
         // 获取默认驱动器
         let defaultDrive = DriveInfo(
             id: "macintosh-hd",
@@ -131,7 +137,7 @@ class AppState: ObservableObject {
             )
         } else {
             // 尝试恢复上次的路径
-            let (leftPath, rightPath) = Self.restoreLastPaths()
+            let (leftPath, rightPath) = Self.restoreLastPaths(userDefaults: userDefaults)
 
             leftPane = PaneState(
                 side: .left,
@@ -179,8 +185,8 @@ class AppState: ObservableObject {
         let leftPath = leftPane.activeTab.currentPath.path
         let rightPath = rightPane.activeTab.currentPath.path
 
-        UserDefaults.standard.set(leftPath, forKey: "lastLeftPanePath")
-        UserDefaults.standard.set(rightPath, forKey: "lastRightPanePath")
+        userDefaults.set(leftPath, forKey: "lastLeftPanePath")
+        userDefaults.set(rightPath, forKey: "lastRightPanePath")
 
         // 保存安全书签以持久化访问权限
         saveSecurityBookmark(for: leftPane.activeTab.currentPath, key: "leftPaneBookmark")
@@ -199,7 +205,7 @@ class AppState: ObservableObject {
                 includingResourceValuesForKeys: nil,
                 relativeTo: nil
             )
-            UserDefaults.standard.set(bookmarkData, forKey: key)
+            userDefaults.set(bookmarkData, forKey: key)
             Logger.app.debug("Saved security bookmark for: \(url.path, privacy: .public)")
         } catch {
             Logger.app.error(
@@ -208,8 +214,8 @@ class AppState: ObservableObject {
     }
 
     /// 从安全书签恢复 URL
-    private static func restoreSecurityBookmark(key: String) -> URL? {
-        guard let bookmarkData = UserDefaults.standard.data(forKey: key) else {
+    private static func restoreSecurityBookmark(key: String, userDefaults: UserDefaults) -> URL? {
+        guard let bookmarkData = userDefaults.data(forKey: key) else {
             return nil
         }
 
@@ -245,14 +251,14 @@ class AppState: ObservableObject {
 
     /// 从 UserDefaults 恢复上次的路径
     /// - Returns: (左面板路径, 右面板路径)
-    private static func restoreLastPaths() -> (URL, URL) {
+    private static func restoreLastPaths(userDefaults: UserDefaults) -> (URL, URL) {
         let homePath = FileManager.default.homeDirectoryForCurrentUser
         let defaultLeftPath = homePath
         let defaultRightPath = homePath.appendingPathComponent("Downloads")
 
         // 首先尝试从安全书签恢复
-        if let leftURL = restoreSecurityBookmark(key: "leftPaneBookmark"),
-            let rightURL = restoreSecurityBookmark(key: "rightPaneBookmark")
+        if let leftURL = restoreSecurityBookmark(key: "leftPaneBookmark", userDefaults: userDefaults),
+            let rightURL = restoreSecurityBookmark(key: "rightPaneBookmark", userDefaults: userDefaults)
         {
             Logger.app.debug("Restored paths from security bookmarks")
             return (leftURL, rightURL)
@@ -260,10 +266,10 @@ class AppState: ObservableObject {
 
         // 如果书签失败，尝试从保存的路径字符串恢复
         guard
-            let leftPathString = UserDefaults.standard.string(
+            let leftPathString = userDefaults.string(
                 forKey: "lastLeftPanePath"
             ),
-            let rightPathString = UserDefaults.standard.string(
+            let rightPathString = userDefaults.string(
                 forKey: "lastRightPanePath"
             )
         else {

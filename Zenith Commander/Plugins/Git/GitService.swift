@@ -28,9 +28,46 @@ class GitService {
     private lazy var gitExecutableURL: URL? = resolveGitExecutableURL()
 
     /// Git 是否可用（延迟检测）
-    private lazy var isGitAvailable: Bool = self.checkGitAvailable()
+    private var _isGitAvailable: Bool?
+    private var isGitAvailable: Bool {
+        if let cached = _isGitAvailable {
+            return cached
+        }
 
-    private init() {}
+        guard let gitURL = gitExecutableURL else {
+            _isGitAvailable = false
+            return false
+        }
+
+        let request = ToolRequest(
+            executable: gitURL.path,
+            args: ["--version"],
+            workingDirectory: nil
+        )
+
+        let result: Bool
+        do {
+            let response = try toolRunner.runSync(request)
+            result = response.exitCode == 0
+        } catch {
+            result = false
+        }
+
+        _isGitAvailable = result
+        return result
+    }
+
+    /// ToolRunner for executing external commands
+    private let toolRunner: any ToolRunner
+
+    private init() {
+        self.toolRunner = ProcessToolRunner()
+    }
+
+    /// Initialize with custom ToolRunner (for testing)
+    init(toolRunner: any ToolRunner) {
+        self.toolRunner = toolRunner
+    }
 
     // MARK: - Public API
 
@@ -488,67 +525,28 @@ class GitService {
 
     // MARK: - Private Methods
 
-    /// 检查 Git 是否可用
-    private func checkGitAvailable() -> Bool {
-        guard let gitURL = gitExecutableURL else { return false }
-
-        let process = Process()
-        process.executableURL = gitURL
-        process.arguments = ["--version"]
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
-
-        do {
-            try process.run()
-            process.waitUntilExit()
-            return process.terminationStatus == 0
-        } catch {
-            return false
-        }
-    }
-
-    /// 运行 Git 命令（带超时）
+    /// 运行 Git 命令
     private func runGitCommand(_ arguments: [String], at directory: URL) -> String? {
         guard let gitURL = gitExecutableURL else {
             return nil
         }
 
-        let process = Process()
-        let pipe = Pipe()
-
-        process.executableURL = gitURL
-        process.arguments = arguments
-        process.currentDirectoryURL = directory
-        process.standardOutput = pipe
-        process.standardError = FileHandle.nullDevice
-
-        // 设置超时
-        let timeoutWorkItem = DispatchWorkItem {
-            if process.isRunning {
-                process.terminate()
-            }
-        }
+        let request = ToolRequest(
+            executable: gitURL.path,
+            args: arguments,
+            workingDirectory: directory.path
+        )
 
         do {
-            try process.run()
-
-            // 设置超时定时器
-            DispatchQueue.global().asyncAfter(
-                deadline: .now() + commandTimeout, execute: timeoutWorkItem)
-
-            process.waitUntilExit()
-            timeoutWorkItem.cancel()
-
-            guard process.terminationStatus == 0 else {
-                return nil
+            let response = try toolRunner.runSync(request)
+            if response.exitCode == 0 {
+                return response.stdout.joined(separator: "\n")
             }
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            return String(data: data, encoding: .utf8)
         } catch {
             Logger.fileSystem.error("Git command failed: \(error.localizedDescription)")
-            return nil
         }
+
+        return nil
     }
 
     /// 解析 Git 状态字符
@@ -644,8 +642,8 @@ class GitService {
     private func resolveGitExecutableURL() -> URL? {
         let fileManager = FileManager.default
         var candidatePaths: [String] = [
-            "/usr/bin/git",
             "/opt/homebrew/bin/git",
+            "/usr/bin/git",
             "/usr/local/bin/git",
         ]
 
