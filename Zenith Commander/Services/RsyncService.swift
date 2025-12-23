@@ -198,17 +198,18 @@ class RsyncService {
         let lines = output.components(separatedBy: .newlines)
 
         for line in lines {
-            guard !line.isEmpty else { continue }
+            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+            guard !trimmedLine.isEmpty else { continue }
 
             // Parse itemized change format: "YXcstpoguax path"
             // Y: update type (>, c, *, ., etc.)
             // X: file type (f=file, d=directory, L=symlink, etc.)
-            let components = line.split(
+            let components = trimmedLine.split(
                 separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
             guard components.count == 2 else { continue }
 
             let changeCode = String(components[0])
-            let path = String(components[1])
+            let path = String(components[1]).trimmingCharacters(in: .whitespaces)
 
             // Determine action based on change code
             if changeCode.hasPrefix("*deleting") {

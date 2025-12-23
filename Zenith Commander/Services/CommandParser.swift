@@ -220,7 +220,7 @@ enum CommandParser {
             return (true, nil, nil)
         }
 
-        let validModes = ["update", "mirror", "copyAll", "custom"]
+        let validModes = ["update", "mirror", "copyall", "custom"]
         let modeLower = modeArg.lowercased()
 
         if validModes.contains(modeLower) {

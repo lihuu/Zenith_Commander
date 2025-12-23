@@ -28,6 +28,11 @@ class GitPluginTests: XCTestCase {
         
         let capabilities = plugin.makeCapabilities(context: context)
         
+        print("DEBUG: Capabilities count: \(capabilities.count)")
+        for cap in capabilities {
+            print("DEBUG: Capability type: \(cap.type)")
+        }
+        
         XCTAssertEqual(capabilities.count, 2)
         
         let hasCommandProvider = capabilities.contains { $0.type == .commandProvider }

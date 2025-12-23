@@ -54,7 +54,7 @@ final class RsyncServiceTests: XCTestCase {
 
         // Then
         XCTAssertTrue(command.contains("/usr/bin/rsync"))
-        XCTAssertTrue(command.contains("-itemize-changes"))
+        XCTAssertTrue(command.contains("--itemize-changes"))
         XCTAssertTrue(command.contains("-u"))
         XCTAssertTrue(command.contains("/source/"))
         XCTAssertTrue(command.contains("/dest"))

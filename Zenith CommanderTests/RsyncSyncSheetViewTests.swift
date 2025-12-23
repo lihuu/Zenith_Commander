@@ -33,6 +33,8 @@ class RsyncSyncSheetViewTests: XCTestCase {
         let sourceURL = URL(fileURLWithPath: "/Users/test/source")
         let destURL = URL(fileURLWithPath: "/Users/test/dest")
 
+        print("DEBUG: Rsync Enabled: \(SettingsManager.shared.settings.rsync.enabled)")
+        
         let drive = DriveInfo(
             id: "test-drive",
             name: "Test Drive",

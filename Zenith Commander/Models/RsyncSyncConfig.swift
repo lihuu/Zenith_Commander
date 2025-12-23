@@ -222,6 +222,7 @@ struct RsyncSyncConfig: Codable, Equatable {
     func effectiveFlags() -> [String] {
         var flags: [String] = []
 
+        // Start with base flags from mode
         flags.append(contentsOf: mode.flags())
 
         // Add itemize changes for parsing output
@@ -229,13 +230,26 @@ struct RsyncSyncConfig: Codable, Equatable {
 
         // Add dry-run if requested
         if dryRun {
-            flags.append("-n")
+            flags.append("--dry-run")
+        }
+
+        // Add preserve attributes if requested and not already covered by -a
+        if preserveAttributes && !flags.contains("-a") {
+            flags.append("-p")
+        }
+
+        // Add delete extras if requested and not already covered by mirror mode
+        if deleteExtras && !flags.contains("--delete") {
+            flags.append("--delete")
         }
 
         // Add exclude patterns
         for pattern in excludePatterns where !pattern.isEmpty {
             flags.append("--exclude=\(pattern)")
         }
+
+        // Add custom flags
+        flags.append(contentsOf: customFlags)
 
         return flags
     }

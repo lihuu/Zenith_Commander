@@ -186,7 +186,9 @@ class BookmarkManager: ObservableObject {
 
     /// 加载书签
     private func loadBookmarks() {
+        print("DEBUG: Loading bookmarks from \(bookmarksFileURL.path)")
         guard FileManager.default.fileExists(atPath: bookmarksFileURL.path) else {
+            print("DEBUG: No bookmarks file found")
             Logger.app.debug("No bookmarks file found, starting with empty list")
             return
         }
@@ -195,21 +197,26 @@ class BookmarkManager: ObservableObject {
             let data = try Data(contentsOf: bookmarksFileURL)
             let decoder = JSONDecoder()
             bookmarks = try decoder.decode([BookmarkItem].self, from: data)
+            print("DEBUG: Loaded \(self.bookmarks.count) bookmarks")
             Logger.app.info("Loaded \(self.bookmarks.count) bookmarks")
         } catch {
+            print("DEBUG: Failed to load bookmarks: \(error)")
             Logger.app.error("Failed to load bookmarks: \(error.localizedDescription)")
         }
     }
 
     /// 保存书签
     private func saveBookmarks() {
+        print("DEBUG: Saving \(bookmarks.count) bookmarks to \(bookmarksFileURL.path)")
         do {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             let data = try encoder.encode(bookmarks)
             try data.write(to: bookmarksFileURL)
+            print("DEBUG: Saved successfully")
             Logger.app.debug("Saved \(self.bookmarks.count) bookmarks")
         } catch {
+            print("DEBUG: Failed to save bookmarks: \(error)")
             Logger.app.error("Failed to save bookmarks: \(error.localizedDescription)")
         }
     }
