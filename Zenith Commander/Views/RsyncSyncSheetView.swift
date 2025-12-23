@@ -28,15 +28,10 @@ struct RsyncSyncSheetView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // MARK: - Header with Profile Badge
 
             headerView
 
-            // MARK: - Path Visualizer
-
             pathVisualizerView
-
-            // MARK: - Main Content Area
 
             if appState.rsyncUIState.isRunningSync {
                 progressView
@@ -47,8 +42,6 @@ struct RsyncSyncSheetView: View {
             } else {
                 configView
             }
-
-            // MARK: - Footer Controls
 
             footerView
         }

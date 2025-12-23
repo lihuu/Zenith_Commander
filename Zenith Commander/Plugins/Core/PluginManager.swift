@@ -12,6 +12,7 @@ final class PluginManager {
     private var commandProviders: [String: any CommandProvider] = [:]
     private var uiProviders: [any UIContribution] = []
     
+    /// Register  plugins
     func register(_ plugin: any ZenithPlugin, context: PluginContext) {
         for capability in plugin.makeCapabilities(context: context) {
             switch capability.type {

@@ -250,6 +250,10 @@ Zenith Commander/
 │   ├── Bookmark.swift      # 书签模型
 │   ├── FileItem.swift      # 文件项模型
 │   └── Settings.swift      # 设置模型
+├── Plugins/         # 插件系统
+│   ├── Core/               # 核心架构
+│   ├── Git/                # Git 功能插件
+│   └── Rsync/              # Rsync 同步插件
 ├── Services/        # 服务层
 │   ├── CommandParser.swift     # 命令解析器
 │   ├── DirectoryMonitor.swift  # 目录监控

@@ -24,10 +24,13 @@ class GitService {
     /// Git 命令超时时间（秒）
     private let commandTimeout: TimeInterval = 2.0
 
+    /// Git 可执行文件路径（解析后缓存）
+    private lazy var gitExecutableURL: URL? = resolveGitExecutableURL()
+
     /// Git 是否可用（延迟检测）
     private lazy var isGitAvailable: Bool = self.checkGitAvailable()
 
-    private init() { }
+    private init() {}
 
     // MARK: - Public API
 
@@ -116,8 +119,11 @@ class GitService {
         var ahead = 0
         var behind = 0
 
-        if let trackingResult = runGitCommand(["rev-list", "--left-right", "--count", "@{upstream}...HEAD"], at: path) {
-            let parts = trackingResult.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: "\t")
+        if let trackingResult = runGitCommand(
+            ["rev-list", "--left-right", "--count", "@{upstream}...HEAD"], at: path)
+        {
+            let parts = trackingResult.trimmingCharacters(in: .whitespacesAndNewlines).split(
+                separator: "\t")
             if parts.count >= 2 {
                 behind = Int(parts[0]) ?? 0
                 ahead = Int(parts[1]) ?? 0
@@ -125,11 +131,12 @@ class GitService {
         }
 
         // 检查是否有未提交的更改
-        let hasUncommittedChanges: Bool = if let statusResult = runGitCommand(["status", "--porcelain"], at: path) {
-            !statusResult.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        } else {
-            false
-        }
+        let hasUncommittedChanges: Bool =
+            if let statusResult = runGitCommand(["status", "--porcelain"], at: path) {
+                !statusResult.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            } else {
+                false
+            }
 
         return GitRepositoryInfo(
             isGitRepository: true,
@@ -162,7 +169,8 @@ class GitService {
             DispatchQueue.global(qos: .userInitiated).async { [self] in
                 // 获取仓库根目录
                 guard let rootPath = getRepositoryRoot(for: file) else {
-                    Logger.git.warning("Could not find repository root for: \(file.path, privacy: .public)")
+                    Logger.git.warning(
+                        "Could not find repository root for: \(file.path, privacy: .public)")
                     continuation.resume(returning: [])
                     return
                 }
@@ -180,12 +188,14 @@ class GitService {
                     "log",
                     "--format=\(format)",
                     "-n", "\(limit)",
-                    "--follow", // 跟踪文件重命名
+                    "--follow",  // 跟踪文件重命名
                     "--",
                     relativePath,
                 ]
 
-                Logger.git.debug("Running git command with args: \(args.joined(separator: " "), privacy: .public)")
+                Logger.git.debug(
+                    "Running git command with args: \(args.joined(separator: " "), privacy: .public)"
+                )
 
                 guard let output = runGitCommand(args, at: rootPath) else {
                     Logger.git.error("git log command failed or returned nil")
@@ -277,7 +287,9 @@ class GitService {
             let parts = entry.components(separatedBy: "|")
 
             if parts.count < 6 {
-                Logger.git.warning("Entry \(index) has insufficient parts (\(parts.count) < 6), skipping: \(entry.prefix(100), privacy: .public)")
+                Logger.git.warning(
+                    "Entry \(index) has insufficient parts (\(parts.count) < 6), skipping: \(entry.prefix(100), privacy: .public)"
+                )
                 continue
             }
 
@@ -291,7 +303,9 @@ class GitService {
             let parentHashesStr = parts.count > 7 ? parts[7] : ""
             let parentHashes = parentHashesStr.split(separator: " ").map(String.init)
 
-            Logger.git.debug("Parsing commit \(index): \(shortHash, privacy: .public) - \(subject.prefix(50), privacy: .public)")
+            Logger.git.debug(
+                "Parsing commit \(index): \(shortHash, privacy: .public) - \(subject.prefix(50), privacy: .public)"
+            )
 
             let commit = GitCommit(
                 id: hash,
@@ -330,20 +344,21 @@ class GitService {
                 filePath = unescapeGitPath(filePath)
             }
 
-            let status: GitFileStatus = switch statusChar {
-            case "M": .modified
-            case "A": .added
-            case "D": .deleted
-            case "R": .renamed
-            case "C": .copied
-            default: .modified
-            }
+            let status: GitFileStatus =
+                switch statusChar {
+                case "M": .modified
+                case "A": .added
+                case "D": .deleted
+                case "R": .renamed
+                case "C": .copied
+                default: .modified
+                }
 
             let change = GitFileChange(
                 id: filePath,
                 path: filePath,
                 status: status,
-                additions: 0, // 简化版本不获取行数
+                additions: 0,  // 简化版本不获取行数
                 deletions: 0
             )
 
@@ -359,7 +374,9 @@ class GitService {
     ///   - includeUntracked: 是否包含未跟踪文件
     ///   - includeIgnored: 是否包含被忽略文件
     /// - Returns: 文件 URL 到状态的映射
-    func getFileStatuses(in directory: URL, includeUntracked: Bool = true, includeIgnored: Bool = false) -> [URL: GitFileStatus] {
+    func getFileStatuses(
+        in directory: URL, includeUntracked: Bool = true, includeIgnored: Bool = false
+    ) -> [URL: GitFileStatus] {
         guard isGitAvailable else {
             return [:]
         }
@@ -438,10 +455,12 @@ class GitService {
                 _ = parseGitStatus(statusChars)
 
                 // 获取直接子目录
-                let subPath = normalizedFileDir.replacingOccurrences(of: normalizedDirectory + "/", with: "")
+                let subPath = normalizedFileDir.replacingOccurrences(
+                    of: normalizedDirectory + "/", with: "")
                 let directSubDir = subPath.split(separator: "/").first.map(String.init) ?? ""
                 if !directSubDir.isEmpty {
-                    let subDirURL = directory.appendingPathComponent(directSubDir).standardizedFileURL
+                    let subDirURL = directory.appendingPathComponent(directSubDir)
+                        .standardizedFileURL
                     // 子目录有修改的文件，标记为 modified
                     if statuses[subDirURL] == nil {
                         statuses[subDirURL] = .modified
@@ -471,9 +490,11 @@ class GitService {
 
     /// 检查 Git 是否可用
     private func checkGitAvailable() -> Bool {
+        guard let gitURL = gitExecutableURL else { return false }
+
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["git", "--version"]
+        process.executableURL = gitURL
+        process.arguments = ["--version"]
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
 
@@ -488,11 +509,15 @@ class GitService {
 
     /// 运行 Git 命令（带超时）
     private func runGitCommand(_ arguments: [String], at directory: URL) -> String? {
+        guard let gitURL = gitExecutableURL else {
+            return nil
+        }
+
         let process = Process()
         let pipe = Pipe()
 
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["git"] + arguments
+        process.executableURL = gitURL
+        process.arguments = arguments
         process.currentDirectoryURL = directory
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
@@ -508,7 +533,8 @@ class GitService {
             try process.run()
 
             // 设置超时定时器
-            DispatchQueue.global().asyncAfter(deadline: .now() + commandTimeout, execute: timeoutWorkItem)
+            DispatchQueue.global().asyncAfter(
+                deadline: .now() + commandTimeout, execute: timeoutWorkItem)
 
             process.waitUntilExit()
             timeoutWorkItem.cancel()
@@ -598,7 +624,8 @@ class GitService {
                     case "t": result.append("\t")
                     case "\\": result.append("\\")
                     case "\"": result.append("\"")
-                    default: result.append(char)
+                    default:
+                        result.append(char)
                         result.append(nextChar)
                     }
                     index = path.index(after: nextIndex)
@@ -613,6 +640,31 @@ class GitService {
         return result
     }
 
+    /// 获取 Git 可执行文件路径
+    private func resolveGitExecutableURL() -> URL? {
+        let fileManager = FileManager.default
+        var candidatePaths: [String] = [
+            "/usr/bin/git",
+            "/opt/homebrew/bin/git",
+            "/usr/local/bin/git",
+        ]
+
+        if let pathEnv = ProcessInfo.processInfo.environment["PATH"] {
+            let pathCandidates = pathEnv.split(separator: ":").map { path in
+                "\(path)/git"
+            }
+            candidatePaths.append(contentsOf: pathCandidates)
+        }
+
+        for path in candidatePaths {
+            if fileManager.isExecutableFile(atPath: path) {
+                return URL(fileURLWithPath: path)
+            }
+        }
+
+        return nil
+    }
+
     /// 获取缓存条目
     private func getCachedEntry(for directory: URL) -> GitStatusCacheEntry? {
         cacheLock.lock()
@@ -621,7 +673,9 @@ class GitService {
     }
 
     /// 设置缓存条目
-    private func setCacheEntry(for directory: URL, fileStatuses: [String: GitFileStatus], repositoryInfo: GitRepositoryInfo) {
+    private func setCacheEntry(
+        for directory: URL, fileStatuses: [String: GitFileStatus], repositoryInfo: GitRepositoryInfo
+    ) {
         cacheLock.lock()
         defer { cacheLock.unlock() }
         cache[directory] = GitStatusCacheEntry(

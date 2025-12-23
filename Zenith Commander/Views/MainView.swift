@@ -113,7 +113,7 @@ struct MainView: View {
                                 if let gitPanelView = pluginManager.view(for: .gitPanel) {
                                     gitPanelView
                                 } else {
-                                    AnyView(Text("Error: Git Panel Plugin not found"))
+                                    Text("Error: Git Panel Plugin not found")
                                 }
                             }
                         }
