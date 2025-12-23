@@ -488,10 +488,8 @@ class AppState: ObservableObject {
             exitMode()
             pane.clearSelections()
         case .deleteSelectedFiles:
-            Task {
-                await deleteSelectedFiles()
-                exitMode()
-            }
+            await deleteSelectedFiles()
+            exitMode()
         case .paste:
             await pasteFiles()
         case .batchRename:

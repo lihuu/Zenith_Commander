@@ -17,6 +17,8 @@ class RsyncSyncSheetViewTests: XCTestCase {
     override func setUp() {
         super.setUp()
         appState = AppState()
+        // Ensure rsync is enabled for tests
+        SettingsManager.shared.settings.rsync.enabled = true
     }
 
     override func tearDown() {
