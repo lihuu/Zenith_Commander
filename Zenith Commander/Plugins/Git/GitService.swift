@@ -15,6 +15,12 @@ class GitService {
     /// 缓存
     private var cache: [URL: GitStatusCacheEntry] = [:]
 
+    private var candidatePaths: [String] = [
+        "/opt/homebrew/bin/git",
+        "/usr/local/bin/git",
+        "/usr/bin/git",
+    ]
+
     /// 缓存锁
     private let cacheLock = NSLock()
 
@@ -36,26 +42,19 @@ class GitService {
         }
 
         guard let gitURL = gitExecutableURL else {
-            Logger.git.error("Git executable URL not found")
             _isGitAvailable = false
             return false
         }
 
-        Logger.git.info("Checking git availability using: \(gitURL.path, privacy: .public)")
-
         let request = ToolRequest(
-            executable: "/usr/bin/which",
-            args: ["git"],
+            executable: gitURL.path,
+            args: ["--version"],
             workingDirectory: nil
         )
 
         let result: Bool
         do {
-            Logger.git.debug("Running git --version command")
             let response = try toolRunner.runSync(request)
-            Logger.git.info("Git command exit code: \(response.exitCode)")
-            Logger.git.debug(
-                "Git stdout: \(response.stdout.joined(separator: ", "), privacy: .public)")
             if !response.stderr.isEmpty {
                 Logger.git.warning(
                     "Git stderr: \(response.stderr.joined(separator: ", "), privacy: .public)")
@@ -66,7 +65,6 @@ class GitService {
             result = false
         }
 
-        Logger.git.info("Git availability result: \(result)")
         _isGitAvailable = result
         return result
     }
@@ -653,25 +651,17 @@ class GitService {
     }
 
     /// 获取 Git 可执行文件路径
-    /// 获取 Git 可执行文件路径
     private func resolveGitExecutableURL() -> URL? {
         Logger.git.info("Resolving git executable path...")
         let fileManager = FileManager.default
-        var candidatePaths: [String] = [
-            "/opt/homebrew/bin/git",
-            "/usr/bin/git",
-            "/usr/local/bin/git",
-        ]
-
         if let pathEnv = ProcessInfo.processInfo.environment["PATH"] {
             Logger.git.debug("PATH environment: \(pathEnv, privacy: .public)")
             let pathCandidates = pathEnv.split(separator: ":").map { path in
                 "\(path)/git"
             }
-            candidatePaths.append(contentsOf: pathCandidates)
+            self.candidatePaths.append(contentsOf: pathCandidates)
         }
 
-        Logger.git.debug("Checking \(candidatePaths.count) candidate paths...")
         for path in candidatePaths {
             if fileManager.isExecutableFile(atPath: path) {
                 Logger.git.info("Found git executable at: \(path, privacy: .public)")

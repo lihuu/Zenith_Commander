@@ -89,9 +89,6 @@ final class ProcessToolRunner: ToolRunner {
     }
 
     func runSync(_ request: ToolRequest) throws -> ToolResponse {
-        print(
-            "[ToolRunner] Running command: \(request.executable) \(request.args.joined(separator: " "))"
-        )
         if let wd = request.workingDirectory {
             print("[ToolRunner] Working directory: \(wd)")
         }
@@ -99,13 +96,9 @@ final class ProcessToolRunner: ToolRunner {
         let (p, out, err) = setupProcess(for: request)
 
         try p.run()
-        print("[ToolRunner] Process started, waiting for exit...")
         p.waitUntilExit()
-        print("[ToolRunner] Process exited with code: \(p.terminationStatus)")
 
         let response = parseOutput(stdout: out, stderr: err, exitCode: p.terminationStatus)
-        print("[ToolRunner] stdout lines: \(response.stdout.count)")
-        print("[ToolRunner] stderr lines: \(response.stderr.count)")
         if !response.stdout.isEmpty {
             print("[ToolRunner] stdout: \(response.stdout.joined(separator: "\\n"))")
         }
