@@ -25,9 +25,12 @@ class AppStateDispatchTests: XCTestCase {
             withIntermediateDirectories: true
         )
         testDirectory = tempDir
+        let env = AppEnvironment.test(tempRoot: tempDir)
 
         // Initialize AppState with test directory
-        appState = AppState(testDirectory: testDirectory)
+        appState = AppState(
+            environment: env
+        )
     }
 
     override func tearDown() {

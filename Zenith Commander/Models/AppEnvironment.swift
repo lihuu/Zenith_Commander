@@ -90,6 +90,10 @@ struct AppEnvironment {
     var initParam: InitParam
 }
 
+extension AppEnvironment{
+    static var current: AppEnvironment = .live()
+}
+
 struct LiveFileSystem: FileSysteming {
     func homeDirectory() -> URL {
         FileManager.default.homeDirectoryForCurrentUser

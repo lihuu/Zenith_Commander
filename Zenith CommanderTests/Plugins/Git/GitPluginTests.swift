@@ -10,7 +10,21 @@ import XCTest
 @testable import Zenith_Commander
 
 class GitPluginTests: XCTestCase {
-    
+    private var previousEnv: AppEnvironment!
+
+    override func setUp() {
+        super.setUp()
+        previousEnv = AppEnvironment.current
+
+        let base = FileManager.default.temporaryDirectory
+            .appendingPathComponent("zc-tests-\(UUID())")
+        AppEnvironment.current = .test(tempRoot: base)
+    }
+
+    override func tearDown() {
+        AppEnvironment.current = previousEnv
+        super.tearDown()
+    }
 
     func testPluginInitialization() {
         let plugin = GitPlugin()
@@ -23,7 +37,9 @@ class GitPluginTests: XCTestCase {
         let plugin = GitPlugin()
         let toolRunner = ProcessToolRunner()
         let context = PluginContext(
-            panes: { PanesSnapshot(leftPath: "/", rightPath: "/", active: .left) },
+            panes: {
+                PanesSnapshot(leftPath: "/", rightPath: "/", active: .left)
+            },
             dispatch: { _ in },
             logger: .plugin,
             toolRunner: toolRunner
@@ -31,7 +47,9 @@ class GitPluginTests: XCTestCase {
 
         let capabilities = plugin.makeCapabilities(context: context)
         guard
-            let commandProvider = capabilities.first(where: { $0.type == .commandProvider })
+            let commandProvider = capabilities.first(where: {
+                $0.type == .commandProvider
+            })
                 as? CommandProvider
         else {
             XCTFail("Command provider not found")
@@ -45,7 +63,9 @@ class GitPluginTests: XCTestCase {
         let plugin = GitPlugin()
         let toolRunner = ProcessToolRunner()
         let context = PluginContext(
-            panes: { PanesSnapshot(leftPath: "/", rightPath: "/", active: .left) },
+            panes: {
+                PanesSnapshot(leftPath: "/", rightPath: "/", active: .left)
+            },
             dispatch: { _ in },
             logger: .plugin,
             toolRunner: toolRunner
@@ -53,7 +73,9 @@ class GitPluginTests: XCTestCase {
 
         let capabilities = plugin.makeCapabilities(context: context)
         guard
-            let uiContribution = capabilities.first(where: { $0.type == .uiContribution })
+            let uiContribution = capabilities.first(where: {
+                $0.type == .uiContribution
+            })
                 as? UIContribution
         else {
             XCTFail("UI contribution not found")

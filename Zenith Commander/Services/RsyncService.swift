@@ -22,19 +22,17 @@ class RsyncService {
     /// Checks if rsync is installed on the system
     /// - Returns: True if rsync executable is found
     func isRsyncInstalled() -> Bool {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/which")
-        process.arguments = ["rsync"]
-
-        // We don't care about output, just exit code
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
+        let toolRunner = ProcessToolRunner()
 
         do {
-            try process.run()
-            process.waitUntilExit()
-            return process.terminationStatus == 0
+            let response = try toolRunner.runSync(
+                ToolRequest(
+                    executable: "/usr/bin/which",
+                    args: ["rsync"],
+                    workingDirectory: nil
+                )
+            )
+            return response.exitCode == 0
         } catch {
             return false
         }
@@ -60,7 +58,10 @@ class RsyncService {
         return parseDryRunOutput(output)
     }
 
-    func run(config: RsyncSyncConfig, progressContinuation: AsyncStream<RsyncProgress>.Continuation)
+    func run(
+        config: RsyncSyncConfig,
+        progressContinuation: AsyncStream<RsyncProgress>.Continuation
+    )
         async throws -> RsyncRunResult
     {
         // Validate paths
@@ -81,7 +82,8 @@ class RsyncService {
                 message: L(.rsyncProgress),
                 completed: 0,
                 total: 0
-            ))
+            )
+        )
 
         do {
             let output = try await executeRsync(command: command)
@@ -97,7 +99,9 @@ class RsyncService {
                 }
 
                 // Also look for error lines
-                if line.lowercased().contains("error") || line.lowercased().contains("failed") {
+                if line.lowercased().contains("error")
+                    || line.lowercased().contains("failed")
+                {
                     errors.append(line)
                 }
             }
@@ -108,7 +112,8 @@ class RsyncService {
                     message: L(.rsyncComplete),
                     completed: fileCount,
                     total: fileCount
-                ))
+                )
+            )
 
             summary = (copy: 0, update: 0, delete: 0, skip: 0)
 
@@ -142,7 +147,9 @@ class RsyncService {
 
         // Check source
         let sourceExists = fileManager.fileExists(
-            atPath: config.source.path, isDirectory: &isSourceDir)
+            atPath: config.source.path,
+            isDirectory: &isSourceDir
+        )
         guard sourceExists else {
             throw RsyncError.sourceNotFound(path: config.source.path)
         }
@@ -152,12 +159,16 @@ class RsyncService {
 
         // Check destination
         let destExists = fileManager.fileExists(
-            atPath: config.destination.path, isDirectory: &isDestDir)
+            atPath: config.destination.path,
+            isDirectory: &isDestDir
+        )
         guard destExists else {
             throw RsyncError.destinationNotFound(path: config.destination.path)
         }
         guard isDestDir.boolValue else {
-            throw RsyncError.destinationNotDirectory(path: config.destination.path)
+            throw RsyncError.destinationNotDirectory(
+                path: config.destination.path
+            )
         }
 
         // Check for same path
@@ -177,7 +188,8 @@ class RsyncService {
 
         // Add source path (with trailing slash for directory contents)
         let sourcePath =
-            config.source.path.hasSuffix("/") ? config.source.path : config.source.path + "/"
+            config.source.path.hasSuffix("/")
+            ? config.source.path : config.source.path + "/"
         command.append(sourcePath)
 
         // Add destination path
@@ -205,11 +217,16 @@ class RsyncService {
             // Y: update type (>, c, *, ., etc.)
             // X: file type (f=file, d=directory, L=symlink, etc.)
             let components = trimmedLine.split(
-                separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
+                separator: " ",
+                maxSplits: 1,
+                omittingEmptySubsequences: true
+            )
             guard components.count == 2 else { continue }
 
             let changeCode = String(components[0])
-            let path = String(components[1]).trimmingCharacters(in: .whitespaces)
+            let path = String(components[1]).trimmingCharacters(
+                in: .whitespaces
+            )
 
             // Determine action based on change code
             if changeCode.hasPrefix("*deleting") {
@@ -219,10 +236,13 @@ class RsyncService {
                 copied.append(RsyncItem(relativePath: path, action: .copy))
             } else if changeCode.hasPrefix(".f") || changeCode.hasPrefix(".d") {
                 // File exists, checking for changes
-                if changeCode.contains("t") || changeCode.contains("s") || changeCode.contains("p")
+                if changeCode.contains("t") || changeCode.contains("s")
+                    || changeCode.contains("p")
                 {
                     // Time, size, or permissions changed
-                    updated.append(RsyncItem(relativePath: path, action: .update))
+                    updated.append(
+                        RsyncItem(relativePath: path, action: .update)
+                    )
                 } else {
                     // No changes
                     skipped.append(RsyncItem(relativePath: path, action: .skip))
@@ -262,8 +282,10 @@ class RsyncService {
                 try process.run()
                 process.waitUntilExit()
 
-                let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-                let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+                let outputData = outputPipe.fileHandleForReading
+                    .readDataToEndOfFile()
+                let errorData = errorPipe.fileHandleForReading
+                    .readDataToEndOfFile()
 
                 let output = String(data: outputData, encoding: .utf8) ?? ""
                 let errorOutput = String(data: errorData, encoding: .utf8) ?? ""
@@ -273,7 +295,8 @@ class RsyncService {
                         throwing: RsyncError.executionFailed(
                             code: Int(process.terminationStatus),
                             message: errorOutput
-                        ))
+                        )
+                    )
                 } else {
                     continuation.resume(returning: output)
                 }
@@ -304,13 +327,26 @@ enum RsyncError: LocalizedError {
         case .destinationNotFound(let path):
             String(format: "%@: %@", L(.rsyncErrorDestinationNotFound), path)
         case .destinationNotDirectory(let path):
-            String(format: "%@: %@", L(.rsyncErrorDestinationNotDirectory), path)
+            String(
+                format: "%@: %@",
+                L(.rsyncErrorDestinationNotDirectory),
+                path
+            )
         case .sameSourceAndDestination:
             L(.rsyncErrorSameSourceDestination)
         case .executionFailed(let code, let message):
-            String(format: "%@ (code: %d): %@", L(.rsyncErrorExecutionFailed), code, message)
+            String(
+                format: "%@ (code: %d): %@",
+                L(.rsyncErrorExecutionFailed),
+                code,
+                message
+            )
         case .processError(let error):
-            String(format: "%@: %@", L(.rsyncErrorExecutionFailed), error.localizedDescription)
+            String(
+                format: "%@: %@",
+                L(.rsyncErrorExecutionFailed),
+                error.localizedDescription
+            )
         }
     }
 }

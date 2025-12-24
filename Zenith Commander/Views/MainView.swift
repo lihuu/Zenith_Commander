@@ -42,7 +42,7 @@ struct MainView: View {
     }
 
     init() {
-        self.init(environment: .live())
+        self.init(environment: AppEnvironment.current)
     }
 
     private var showSettings: Binding<Bool> {

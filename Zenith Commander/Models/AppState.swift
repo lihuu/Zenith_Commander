@@ -139,7 +139,10 @@ class AppState: ObservableObject {
     }
 
     convenience init(initialDirectory: URL? = nil) {
-        self.init(environment: .live(), initialDirectory: initialDirectory)
+        self.init(
+            environment: AppEnvironment.current,
+            initialDirectory: initialDirectory
+        )
     }
 
     func startRuntime() {

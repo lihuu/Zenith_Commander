@@ -32,9 +32,10 @@ struct Zenith_CommanderApp: App {
         } else {
             environment = AppEnvironment.live()
         }
+        AppEnvironment.current = environment
         _appState = StateObject(
             wrappedValue: AppState(
-                environment: environment
+                environment: AppEnvironment.current
             )
         )
     }

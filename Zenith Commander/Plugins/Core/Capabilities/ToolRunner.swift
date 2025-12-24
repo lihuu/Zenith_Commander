@@ -12,7 +12,7 @@ import Synchronization
 struct ToolRequest {
     let executable: String
     let args: [String]
-    let workingDirectory: String?
+    let workingDirectory: String? 
 }
 
 struct ToolResponse {

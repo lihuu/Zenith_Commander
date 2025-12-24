@@ -403,7 +403,7 @@ extension AppEnvironment {
         toolRunner: ToolRunning = FakeToolRunner(),
         main: MainScheduling = ImmediateMainScheduler(),
         suiteName: String = "ZenithCommanderTests",
-        initPath: URL
+        initPath: URL = URL(fileURLWithPath: "/tmp")
     ) -> AppEnvironment {
         let defaults = UserDefaults(suiteName: suiteName)
         if defaults == nil {

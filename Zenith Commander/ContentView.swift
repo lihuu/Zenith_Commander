@@ -23,7 +23,8 @@ struct ContentView: View {
         .environmentObject(
             AppState(
                 environment: .test(
-                    tempRoot: FileManager.default.temporaryDirectory
+                    tempRoot: FileManager.default.temporaryDirectory,
+                    initPath: FileManager.default.temporaryDirectory
                 )
             )
         )
