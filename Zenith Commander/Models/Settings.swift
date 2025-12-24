@@ -6,8 +6,8 @@
 //
 
 import Combine
-import os.log
 import SwiftUI
+import os.log
 
 // MARK: - 设置数据模型
 
@@ -38,13 +38,18 @@ struct AppSettings: Codable, Equatable {
     // 自定义解码器，处理旧版设置文件缺少字段的情况
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        appearance = try container.decodeIfPresent(AppearanceSettings.self, forKey: .appearance) ?? .default
-        terminal = try container.decodeIfPresent(TerminalSettings.self, forKey: .terminal) ?? .default
+        appearance =
+            try container.decodeIfPresent(AppearanceSettings.self, forKey: .appearance) ?? .default
+        terminal =
+            try container.decodeIfPresent(TerminalSettings.self, forKey: .terminal) ?? .default
         git = try container.decodeIfPresent(GitSettings.self, forKey: .git) ?? .default
         rsync = try container.decodeIfPresent(RsyncSettings.self, forKey: .rsync) ?? .default
     }
 
-    init(appearance: AppearanceSettings, terminal: TerminalSettings, git: GitSettings, rsync: RsyncSettings) {
+    init(
+        appearance: AppearanceSettings, terminal: TerminalSettings, git: GitSettings,
+        rsync: RsyncSettings
+    ) {
         self.appearance = appearance
         self.terminal = terminal
         self.git = git
@@ -90,7 +95,7 @@ struct RsyncSettings: Codable, Equatable {
 /// 外观设置
 struct AppearanceSettings: Codable, Equatable {
     /// 主题模式
-    var themeMode: String // "light", "dark", "auto"
+    var themeMode: String  // "light", "dark", "auto"
 
     /// 字体大小
     var fontSize: Double
@@ -172,7 +177,7 @@ class SettingsManager: ObservableObject {
 
     /// 设置存储目录
     private let storageDirectory: URL
-    
+
     /// 设置文件路径
     private var settingsFileURL: URL {
         storageDirectory.appendingPathComponent("settings.json")
@@ -184,14 +189,20 @@ class SettingsManager: ObservableObject {
         if let storageDirectory = storageDirectory {
             self.storageDirectory = storageDirectory
         } else {
-            let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-            self.storageDirectory = appSupport.appendingPathComponent("ZenithCommander", isDirectory: true)
+            let appSupport = FileManager.default.urls(
+                for: .applicationSupportDirectory, in: .userDomainMask
+            ).first!
+            self.storageDirectory = appSupport.appendingPathComponent(
+                "ZenithCommander", isDirectory: true)
         }
-        
+
         // 确保目录存在
-        try? FileManager.default.createDirectory(at: self.storageDirectory, withIntermediateDirectories: true)
-        
-        settings = AppSettings.default
+        try? FileManager.default.createDirectory(
+            at: self.storageDirectory, withIntermediateDirectories: true)
+
+        // 使用 _settings 直接设置初始值，避免触发 didSet 和 @Published 通知
+        _settings = Published(initialValue: AppSettings.default)
+
         loadSettings()
         applySettings()
     }
@@ -240,9 +251,14 @@ class SettingsManager: ObservableObject {
     func openTerminal(at path: URL? = nil) {
         let terminal = settings.terminal.currentTerminal
 
-        guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: terminal.bundleId) else {
+        guard
+            let appURL = NSWorkspace.shared.urlForApplication(
+                withBundleIdentifier: terminal.bundleId)
+        else {
             // 如果首选终端未安装，尝试使用系统终端
-            if let defaultTerminalURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Terminal") {
+            if let defaultTerminalURL = NSWorkspace.shared.urlForApplication(
+                withBundleIdentifier: "com.apple.Terminal")
+            {
                 NSWorkspace.shared.open(defaultTerminalURL)
             }
             return
