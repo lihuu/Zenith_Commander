@@ -22,7 +22,21 @@ struct Zenith_CommanderApp: App {
                 testDirectory = URL(fileURLWithPath: arguments[index + 1])
             }
         }
-        _appState = StateObject(wrappedValue: AppState(testDirectory: testDirectory))
+        let environment: AppEnvironment
+        if let testDirectory {
+            environment = AppEnvironment.test(
+                tempRoot: testDirectory,
+                suiteName: "ZenithCommanderUITests"
+            )
+        } else {
+            environment = AppEnvironment.live()
+        }
+        _appState = StateObject(
+            wrappedValue: AppState(
+                environment: environment,
+                initialDirectory: testDirectory
+            )
+        )
     }
 
     private func L(_ key: LocalizedStringKey) -> String {

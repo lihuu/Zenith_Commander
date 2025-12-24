@@ -7,6 +7,7 @@
 
 import AppKit
 import Combine
+import Foundation
 import os.log
 import SwiftUI
 
@@ -361,10 +362,13 @@ struct PaneView: View {
                 }
                 .dropDestination(for: URL.self) { urls, _ in
                     // 拖放到当前目录
-                    handleDroppedURLs(
+                   let success =  handleDroppedURLs(
                         urls,
                         to: pane.activeTab.currentPath
                     )
+                    if !success {
+                        Logger.fileSystem.error("Failed to drop files to current directory: \(pane.activeTab.currentPath.path, privacy: .public)")
+                    }
                 }
                 .onChange(
                     of: pane.activeTab.cursorFileId
@@ -1167,7 +1171,11 @@ struct ViewModeToggle: View {
 }
 
 #Preview {
-    let appState = AppState()
+    let appState = AppState(
+        environment: .test(
+            tempRoot: FileManager.default.temporaryDirectory
+        )
+    )
     let bookmarkManager = BookmarkManager()
     PaneView(
         pane: appState.leftPane,

@@ -57,3 +57,17 @@ class TabState: Identifiable, ObservableObject {
         return components
     }
 }
+
+extension TabState {
+    static func stub(
+        drive: DriveInfo,
+        path: URL,
+        files: [FileItem] = [],
+        cursorFileId: String = ".."
+    ) -> TabState {
+        let tab = TabState(drive: drive, path: path)
+        tab.files = files
+        tab.cursorFileId = cursorFileId
+        return tab
+    }
+}

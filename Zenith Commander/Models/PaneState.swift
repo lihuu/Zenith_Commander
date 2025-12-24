@@ -189,10 +189,32 @@ class PaneState: ObservableObject {
         }
     }
 
-    func refreshActiveTab() async {
-        let files = await FileSystemService.shared.loadDirectory(
-            at: activeTab.currentPath
-        )
+    func refresh(using fileSystem: FileSysteming) async {
+        let files = await fileSystem.loadDirectory(at: activeTab.currentPath)
         activeTab.files = files
+    }
+}
+
+extension PaneState {
+    static func stub(
+        side: PaneSide = .left,
+        path: URL = URL(fileURLWithPath: "/"),
+        drive: DriveInfo? = nil,
+        files: [FileItem] = []
+    ) -> PaneState {
+        let fallbackDrive = DriveInfo(
+            id: "stub-drive",
+            name: "Stub Drive",
+            path: path,
+            type: .system,
+            totalCapacity: 0,
+            availableCapacity: 0
+        )
+        let pane = PaneState(side: side, initialPath: path, drive: drive ?? fallbackDrive)
+        pane.activeTab.files = files
+        if let first = files.first {
+            pane.activeTab.cursorFileId = first.id
+        }
+        return pane
     }
 }

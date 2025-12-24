@@ -101,7 +101,8 @@ protocol ThemeColors {
 }
 
 /// 主题管理器
-class ThemeManager: ObservableObject {
+@MainActor
+final class ThemeManager: ObservableObject {
     static let shared = ThemeManager()
 
     /// 当前主题模式
@@ -123,13 +124,16 @@ class ThemeManager: ObservableObject {
 
     private init() {
         // 从 UserDefaults 读取保存的主题模式
-        let savedThemeMode: ThemeMode = if let savedMode = UserDefaults.standard.string(forKey: "themeMode"),
-                                           let themeMode = ThemeMode(rawValue: savedMode)
-        {
-            themeMode
-        } else {
-            .auto
-        }
+        let savedThemeMode: ThemeMode =
+            if let savedMode = UserDefaults.standard.string(
+                forKey: "themeMode"
+            ),
+                let themeMode = ThemeMode(rawValue: savedMode)
+            {
+                themeMode
+            } else {
+                .auto
+            }
 
         // 初始化当前主题 - 必须先初始化所有存储属性
         let initialTheme: ThemeColors
@@ -139,7 +143,9 @@ class ThemeManager: ObservableObject {
         case .dark:
             initialTheme = DarkTheme()
         case .auto:
-            let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            let isDark =
+                NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua])
+                == .darkAqua
             initialTheme = isDark ? DarkTheme() : LightTheme()
         }
 
@@ -159,36 +165,43 @@ class ThemeManager: ObservableObject {
 
     /// 设置系统外观变化监听
     private func setupAppearanceObserver() {
-        appearanceObserver = DistributedNotificationCenter.default().addObserver(
-            forName: Notification.Name("AppleInterfaceThemeChangedNotification"),
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            if self?.mode == .auto {
-                // 延迟更新以避免在视图更新期间发布更改
-                DispatchQueue.main.async {
-                    self?.updateCurrentTheme()
+        appearanceObserver = DistributedNotificationCenter.default()
+            .addObserver(
+                forName: Notification.Name(
+                    "AppleInterfaceThemeChangedNotification"
+                ),
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    guard let self = self, self.mode == .auto else { return }
+                    // 原延迟更新逻辑保留（虽已在主线程，延迟可避免视图更新冲突）
+                    DispatchQueue.main.async { [weak self] in
+                        self?.updateCurrentTheme()
+                    }
                 }
             }
-        }
     }
 
     /// 更新当前主题
     private func updateCurrentTheme() {
-        let newTheme: ThemeColors = switch mode {
-        case .light:
-            LightTheme()
-        case .dark:
-            DarkTheme()
-        case .auto:
-            isSystemDarkMode ? DarkTheme() : LightTheme()
-        }
+        let newTheme: ThemeColors =
+            switch mode {
+            case .light:
+                LightTheme()
+            case .dark:
+                DarkTheme()
+            case .auto:
+                isSystemDarkMode ? DarkTheme() : LightTheme()
+            }
         current = newTheme
     }
 
     /// 检测系统是否为深色模式
     private var isSystemDarkMode: Bool {
-        if let appearance = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) {
+        if let appearance = NSApp.effectiveAppearance.bestMatch(from: [
+            .darkAqua, .aqua,
+        ]) {
             return appearance == .darkAqua
         }
         return false

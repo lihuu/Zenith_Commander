@@ -1244,7 +1244,7 @@ struct BatchRenameTests {
         formatter.dateFormat = "yyyyMMdd"
         let dateString = formatter.string(from: Date())
 
-        var processedReplace = replaceText
+        let processedReplace = replaceText
             .replacingOccurrences(of: "{n}", with: String(format: "%03d", index + 1))
             .replacingOccurrences(of: "{date}", with: dateString)
 
@@ -2340,6 +2340,7 @@ struct ThemeTests {
         #expect(lightTheme.accent != lightTheme.error)
     }
 
+    @MainActor
     @Test func themeManagerSingleton() {
         // 验证 ThemeManager 单例
         let manager1 = ThemeManager.shared

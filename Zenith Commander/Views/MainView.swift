@@ -6,6 +6,7 @@
 //
 
 import Combine
+import Foundation
 import SwiftUI
 import os.log
 
@@ -14,8 +15,8 @@ struct MainView: View {
     @StateObject private var bookmarkManager: BookmarkManager
     private let pluginManager: PluginManager
 
-    init() {
-        let appState = AppState()
+    init(environment: AppEnvironment) {
+        let appState = AppState(environment: environment)
         _appState = StateObject(wrappedValue: appState)
 
         let bookmarkManager = BookmarkManager.shared
@@ -37,6 +38,10 @@ struct MainView: View {
 
         pluginManager.register(RsyncPlugin(), context: plugContext)
         pluginManager.register(GitPlugin(), context: plugContext)
+    }
+
+    init() {
+        self.init(environment: .live())
     }
 
     private var showSettings: Binding<Bool> {
@@ -223,11 +228,7 @@ struct MainView: View {
                 handleKeyPress(keyPress)
             }
             .onAppear {
-                // 加载可用驱动器 - 使用异步更新避免在视图更新期间修改 @Published 属性
-                DispatchQueue.main.async {
-                    appState.availableDrives = FileSystemService.shared
-                        .getMountedVolumes()
-                }
+                appState.startRuntime()
             }
             .onReceive(NotificationCenter.default.publisher(for: .openSettings))
         {
@@ -321,7 +322,17 @@ struct MainView: View {
 }
 
 #Preview {
-    MainView()
+    MainView(
+        environment: .test(
+            tempRoot: FileManager.default.temporaryDirectory
+        )
+    )
         .frame(width: 1200, height: 800)
-        .environmentObject(AppState())
+        .environmentObject(
+            AppState(
+                environment: .test(
+                    tempRoot: FileManager.default.temporaryDirectory
+                )
+            )
+        )
 }

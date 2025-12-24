@@ -5,6 +5,7 @@
 //  Rsync 同步配置弹窗 - 完全主题适配版本
 //
 
+import Foundation
 import os.log
 import SwiftUI
 
@@ -721,5 +722,11 @@ struct RsyncSyncSheetView: View {
     )
 
     RsyncSyncSheetView(config: config)
-        .environmentObject(AppState())
+        .environmentObject(
+            AppState(
+                environment: .test(
+                    tempRoot: FileManager.default.temporaryDirectory
+                )
+            )
+        )
 }

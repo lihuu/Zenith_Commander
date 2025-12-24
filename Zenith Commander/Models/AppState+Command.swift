@@ -28,7 +28,7 @@ extension AppState {
             // mkdir <name> - 在当前目录创建文件夹
             let (_, folderName) = CommandParser.validateMkdir(command)
             do {
-                _ = try await FileSystemService.shared.createDirectory(
+                _ = try await env.fileSystem.createDirectory(
                     at: currentPath,
                     name: folderName,
                     undoManager: undoManager
@@ -47,7 +47,7 @@ extension AppState {
             // touch <name> - 在当前目录创建文件
             let (_, fileName) = CommandParser.validateTouch(command)
             do {
-                _ = try await FileSystemService.shared.createFile(
+                _ = try await env.fileSystem.createFile(
                     at: currentPath,
                     name: fileName,
                     undoManager: undoManager
@@ -90,12 +90,12 @@ extension AppState {
         case .open:
             // open - 打开当前选中的文件
             if let file = currentFile() {
-                NSWorkspace.shared.open(file.path)
+                env.fileSystem.openFile(file)
             }
 
         case .term, .terminal:
             // term - 在当前目录打开终端
-            FileSystemService.shared.openInTerminal(path: currentPath)
+            env.fileSystem.openInTerminal(path: currentPath)
 
         case .q, .quit:
             NSApp.terminate(nil)
@@ -152,7 +152,7 @@ extension AppState {
         }
 
         do {
-            try await FileSystemService.shared.trashFiles(
+            try await env.fileSystem.trashFiles(
                 filesToDelete,
                 undoManager: undoManager
             )
@@ -221,7 +221,7 @@ extension AppState {
         if let srcPath = result.source, let destPath = result.destination {
             // move <src> <dest>
             do {
-                try FileManager.default.moveItem(at: srcPath, to: destPath)
+                try await env.fileSystem.moveItem(at: srcPath, to: destPath)
                 await refreshCurrentPane()
             } catch {
                 showToast(
@@ -242,7 +242,7 @@ extension AppState {
             }
 
             do {
-                try await FileSystemService.shared.moveFiles(
+                try await env.fileSystem.moveFiles(
                     selectedFiles,
                     to: destPath,
                     undoManager: undoManager
@@ -279,7 +279,7 @@ extension AppState {
         if let srcPath = result.source, let destPath = result.destination {
             // copy <src> <dest>
             do {
-                try FileManager.default.copyItem(at: srcPath, to: destPath)
+                try await env.fileSystem.copyItem(at: srcPath, to: destPath)
                 await refreshCurrentPane()
             } catch {
                 showToast(
@@ -300,7 +300,7 @@ extension AppState {
             }
 
             do {
-                try await FileSystemService.shared.copyFiles(
+                try await env.fileSystem.copyFiles(
                     selectedFiles,
                     to: destPath,
                     undoManager: undoManager
@@ -330,10 +330,7 @@ extension AppState {
         if let targetPath = result.targetPath {
             // delete <name> - 删除指定文件
             do {
-                try FileManager.default.trashItem(
-                    at: targetPath,
-                    resultingItemURL: nil
-                )
+                try await env.fileSystem.trashItem(at: targetPath)
                 await refreshCurrentPane()
                 showToast(
                     LocalizationManager.shared.localized(.toastDeleted)
@@ -358,7 +355,7 @@ extension AppState {
             }
 
             do {
-                try await FileSystemService.shared.trashFiles(
+                try await env.fileSystem.trashFiles(
                     selectedFiles,
                     undoManager: undoManager
                 )

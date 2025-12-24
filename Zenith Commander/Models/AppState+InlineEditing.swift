@@ -36,7 +36,7 @@ extension AppState {
             .appendingPathComponent(newName)
 
         do {
-            try FileManager.default.moveItem(at: file.path, to: newPath)
+            try await env.fileSystem.moveItem(at: file.path, to: newPath)
             showToast(
                 LocalizationManager.shared.localized(
                     .toastFileRenamed,

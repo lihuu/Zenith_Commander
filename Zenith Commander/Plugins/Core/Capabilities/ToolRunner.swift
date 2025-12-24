@@ -6,6 +6,8 @@
 //
 
 import Foundation
+import Synchronization
+
 
 struct ToolRequest {
     let executable: String
@@ -51,7 +53,7 @@ struct ProcessToolRunner: ToolRunner {
         return (p, out, err)
     }
 
-    private static func parseOutput(stdout: Pipe, stderr: Pipe, exitCode: Int32) -> ToolResponse {
+    private nonisolated static func parseOutput(stdout: Pipe, stderr: Pipe, exitCode: Int32) -> ToolResponse {
         let outData = stdout.fileHandleForReading.readDataToEndOfFile()
         let errData = stderr.fileHandleForReading.readDataToEndOfFile()
 
@@ -73,12 +75,12 @@ struct ProcessToolRunner: ToolRunner {
     func run(_ request: ToolRequest) async throws -> ToolResponse {
         try await withCheckedThrowingContinuation { cont in
             let lock = NSLock()
-            var didResume = false
-            func resumeOnce(_ body: () -> Void) {
+            let didResume = Atomic<Bool>(false)
+            @Sendable func resumeOnce(_ body: () -> Void) {
                 lock.lock()
                 defer { lock.unlock() }
-                guard !didResume else { return }
-                didResume = true
+                guard !didResume.load(ordering: .acquiring) else { return }
+                didResume.store(true, ordering: .releasing)
                 body()
             }
 

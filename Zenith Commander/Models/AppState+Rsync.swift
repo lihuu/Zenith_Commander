@@ -16,7 +16,7 @@ extension AppState {
     /// 打开 Rsync 配置弹窗
     /// - Parameter sourceIsLeft: 源目录是否为左侧面板（true 为左侧，false 为右侧）
     func presentRsyncSheet(sourceIsLeft: Bool) {
-        guard SettingsManager.shared.settings.rsync.enabled else {
+        guard env.settings.rsyncEnabled else {
             showToast(L(.toastRsyncDisabled))
             return
         }

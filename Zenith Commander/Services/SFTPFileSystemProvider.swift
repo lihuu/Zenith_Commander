@@ -27,7 +27,8 @@ class SFTPFileSystemProvider: FileSystemProvider {
         return "\(user)@\(host):\(port)"
     }
 
-    private nonisolated func getOrCreateConnection(for url: URL) throws -> MFTSftpConnection {
+    private func getOrCreateConnection(for url: URL) throws -> MFTSftpConnection
+    {
         let key = getConnectionKey(for: url)
 
         connectionLock.lock()
@@ -39,16 +40,27 @@ class SFTPFileSystemProvider: FileSystemProvider {
 
         // Create new connection
         guard let host = url.host else {
-            throw NSError(domain: "SFTPFileSystemProvider", code: 1, userInfo: [NSLocalizedDescriptionKey: "Missing host"])
+            throw NSError(
+                domain: "SFTPFileSystemProvider",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Missing host"]
+            )
         }
 
         let port = url.port ?? 22
         let username = url.user ?? ""
         let password = url.password ?? ""
 
-        Logger.fileSystem.debug("Connecting to SFTP: \(username)@\(host):\(port)")
+        Logger.fileSystem.debug(
+            "Connecting to SFTP: \(username)@\(host):\(port)"
+        )
 
-        let sftp = MFTSftpConnection(hostname: host, port: port, username: username, password: password)
+        let sftp = MFTSftpConnection(
+            hostname: host,
+            port: port,
+            username: username,
+            password: password
+        )
 
         do {
             try sftp.connect()
@@ -57,11 +69,15 @@ class SFTPFileSystemProvider: FileSystemProvider {
             connectionLock.lock()
             connections[key] = sftp
             connectionLock.unlock()
-            Logger.fileSystem.debug("Connected to SFTP: \(username)@\(host):\(port)")
+            Logger.fileSystem.debug(
+                "Connected to SFTP: \(username)@\(host):\(port)"
+            )
 
             return sftp
         } catch {
-            Logger.fileSystem.error("SFTP Connection failed: \(error.localizedDescription)")
+            Logger.fileSystem.error(
+                "SFTP Connection failed: \(error.localizedDescription)"
+            )
             throw error
         }
     }
@@ -72,14 +88,17 @@ class SFTPFileSystemProvider: FileSystemProvider {
         Logger.fileSystem.debug("Loading SFTP directory: \(path.path)")
         return try await Task.detached { [weak self] in
             guard let self else { return [] }
-            let sftp = try getOrCreateConnection(for: path)
+            let sftp = try await getOrCreateConnection(for: path)
 
             let remotePath = path.path
             // mft contentsOfDirectory returns [MFTFileItem] (inferred name, checking README it says 'item.filename')
             // README doesn't specify the type name, but let's assume it's something iterable.
             // "let items = try sftp.contentsOfDirectory(atPath: "/tmp", maxItems: 0)"
 
-            let items = try sftp.contentsOfDirectory(atPath: remotePath, maxItems: 0)
+            let items = try sftp.contentsOfDirectory(
+                atPath: remotePath,
+                maxItems: 0
+            )
 
             var fileItems: [FileItem] = []
 
@@ -124,7 +143,8 @@ class SFTPFileSystemProvider: FileSystemProvider {
                 } else if !item1.isFolder, item2.isFolder {
                     return false
                 }
-                return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+                return item1.name.localizedCaseInsensitiveCompare(item2.name)
+                    == .orderedAscending
             }
 
             // 如果不是根目录，添加父目录项
@@ -140,8 +160,10 @@ class SFTPFileSystemProvider: FileSystemProvider {
 
     func createDirectory(at path: URL, name: String) async throws -> FileItem {
         try await Task.detached { [weak self] in
-            guard let self else { throw NSError(domain: "SFTP", code: -1, userInfo: nil) }
-            let sftp = try getOrCreateConnection(for: path)
+            guard let self else {
+                throw NSError(domain: "SFTP", code: -1, userInfo: nil)
+            }
+            let sftp = try await getOrCreateConnection(for: path)
 
             let newPath = path.appendingPathComponent(name)
             try sftp.createDirectory(atPath: newPath.path)
@@ -165,8 +187,10 @@ class SFTPFileSystemProvider: FileSystemProvider {
 
     func createFile(at path: URL, name: String) async throws -> FileItem {
         try await Task.detached { [weak self] in
-            guard let self else { throw NSError(domain: "SFTP", code: -1, userInfo: nil) }
-            let sftp = try getOrCreateConnection(for: path)
+            guard let self else {
+                throw NSError(domain: "SFTP", code: -1, userInfo: nil)
+            }
+            let sftp = try await getOrCreateConnection(for: path)
 
             let newPath = path.appendingPathComponent(name)
             // Create empty file
@@ -176,7 +200,11 @@ class SFTPFileSystemProvider: FileSystemProvider {
             let stream = InputStream(data: data)
 
             // write(stream:toFileAtPath:append:progress:)
-            try sftp.write(stream: stream, toFileAtPath: newPath.path, append: false) { _ in true }
+            try sftp.write(
+                stream: stream,
+                toFileAtPath: newPath.path,
+                append: false
+            ) { _ in true }
 
             return FileItem(
                 id: newPath.absoluteString,
@@ -197,7 +225,7 @@ class SFTPFileSystemProvider: FileSystemProvider {
         try await Task.detached { [weak self] in
             guard let self else { return }
             if let first = items.first {
-                let sftp = try getOrCreateConnection(for: first.path)
+                let sftp = try await getOrCreateConnection(for: first.path)
 
                 for item in items {
                     if item.type == .folder {
@@ -214,10 +242,11 @@ class SFTPFileSystemProvider: FileSystemProvider {
         try await Task.detached { [weak self] in
             guard let self else { return }
             if let first = items.first {
-                let sftp = try getOrCreateConnection(for: first.path)
+                let sftp = try await getOrCreateConnection(for: first.path)
 
                 for item in items {
-                    let destPath = destination.appendingPathComponent(item.name).path
+                    let destPath = destination.appendingPathComponent(item.name)
+                        .path
                     try sftp.moveItem(atPath: item.path.path, toPath: destPath)
                 }
             }
@@ -232,16 +261,21 @@ class SFTPFileSystemProvider: FileSystemProvider {
         try await Task.detached { [weak self] in
             guard let self else { return }
             if let first = items.first {
-                let sftp = try getOrCreateConnection(for: first.path)
+                let sftp = try await getOrCreateConnection(for: first.path)
 
                 for item in items {
-                    let destPath = destination.appendingPathComponent(item.name).path
+                    let destPath = destination.appendingPathComponent(item.name)
+                        .path
                     // Assuming copyItem exists based on capabilities
                     // If not, I might need to read/write (slow)
                     // Let's try copyItem first.
                     // If mft doesn't have copyItem, I'll have to implement download/upload loop?
                     // README says "Copying items within the same SFTP server" is a capability.
-                    try sftp.copyItem(atPath: item.path.path, toFileAtPath: destPath, progress: nil)
+                    try sftp.copyItem(
+                        atPath: item.path.path,
+                        toFileAtPath: destPath,
+                        progress: nil
+                    )
                 }
             }
         }.value
@@ -261,11 +295,16 @@ class SFTPFileSystemProvider: FileSystemProvider {
 
             // Download
             // contents(atPath:toStream:fromPosition:progress:)
-            guard let outStream = OutputStream(url: localURL, append: false) else { return }
+            guard let outStream = OutputStream(url: localURL, append: false)
+            else { return }
             outStream.open()
 
             try await Task.detached {
-                try sftp.contents(atPath: file.path.path, toStream: outStream, fromPosition: 0) { _, _ in true }
+                try sftp.contents(
+                    atPath: file.path.path,
+                    toStream: outStream,
+                    fromPosition: 0
+                ) { _, _ in true }
             }.value
 
             outStream.close()
@@ -274,7 +313,9 @@ class SFTPFileSystemProvider: FileSystemProvider {
                 NSWorkspace.shared.open(localURL)
             }
         } catch {
-            Logger.fileSystem.error("Failed to open remote file: \(error.localizedDescription)")
+            Logger.fileSystem.error(
+                "Failed to open remote file: \(error.localizedDescription)"
+            )
         }
     }
 }

@@ -107,12 +107,12 @@ class AppState: ObservableObject {
     @Published var rsyncUIState = RsyncUIState()
     
     // MARK: - 依赖注入
-    
-    /// UserDefaults 实例，可以在测试中注入
-    private let userDefaults: UserDefaults
 
-    init(testDirectory: URL? = nil, userDefaults: UserDefaults = .standard) {
-        self.userDefaults = userDefaults
+    let env: AppEnvironment
+    private var runtimeStarted = false
+
+    init(environment: AppEnvironment, initialDirectory: URL? = nil) {
+        self.env = environment
         // 获取默认驱动器
         let defaultDrive = DriveInfo(
             id: "macintosh-hd",
@@ -124,20 +124,23 @@ class AppState: ObservableObject {
         )
 
         // 如果提供了测试目录，使用测试目录；否则使用用户主目录
-        if let testDir = testDirectory {
+        if let initialDir = initialDirectory {
             leftPane = PaneState(
                 side: .left,
-                initialPath: testDir,
+                initialPath: initialDir,
                 drive: defaultDrive
             )
             rightPane = PaneState(
                 side: .right,
-                initialPath: testDir,
+                initialPath: initialDir,
                 drive: defaultDrive
             )
         } else {
             // 尝试恢复上次的路径
-            let (leftPath, rightPath) = Self.restoreLastPaths(userDefaults: userDefaults)
+            let (leftPath, rightPath) = Self.restoreLastPaths(
+                userDefaults: env.userDefaults,
+                fileSystem: env.fileSystem
+            )
 
             leftPane = PaneState(
                 side: .left,
@@ -153,6 +156,20 @@ class AppState: ObservableObject {
 
         // 订阅两个面板的变化，转发到 AppState
         subscribeToPaneChanges()
+    }
+
+    convenience init(initialDirectory: URL? = nil) {
+        self.init(environment: .live(), initialDirectory: initialDirectory)
+    }
+
+    func startRuntime() {
+        guard env.runtime.startSideEffects else { return }
+        guard !runtimeStarted else { return }
+        runtimeStarted = true
+        Task {
+            let drives = await env.fileSystem.mountedVolumes()
+            availableDrives = drives
+        }
     }
 
     // MARK: - Undo Support
@@ -185,8 +202,8 @@ class AppState: ObservableObject {
         let leftPath = leftPane.activeTab.currentPath.path
         let rightPath = rightPane.activeTab.currentPath.path
 
-        userDefaults.set(leftPath, forKey: "lastLeftPanePath")
-        userDefaults.set(rightPath, forKey: "lastRightPanePath")
+        env.userDefaults.set(leftPath, forKey: "lastLeftPanePath")
+        env.userDefaults.set(rightPath, forKey: "lastRightPanePath")
 
         // 保存安全书签以持久化访问权限
         saveSecurityBookmark(for: leftPane.activeTab.currentPath, key: "leftPaneBookmark")
@@ -205,7 +222,7 @@ class AppState: ObservableObject {
                 includingResourceValuesForKeys: nil,
                 relativeTo: nil
             )
-            userDefaults.set(bookmarkData, forKey: key)
+            env.userDefaults.set(bookmarkData, forKey: key)
             Logger.app.debug("Saved security bookmark for: \(url.path, privacy: .public)")
         } catch {
             Logger.app.error(
@@ -251,8 +268,11 @@ class AppState: ObservableObject {
 
     /// 从 UserDefaults 恢复上次的路径
     /// - Returns: (左面板路径, 右面板路径)
-    private static func restoreLastPaths(userDefaults: UserDefaults) -> (URL, URL) {
-        let homePath = FileManager.default.homeDirectoryForCurrentUser
+    private static func restoreLastPaths(
+        userDefaults: UserDefaults,
+        fileSystem: FileSysteming
+    ) -> (URL, URL) {
+        let homePath = fileSystem.homeDirectory()
         let defaultLeftPath = homePath
         let defaultRightPath = homePath.appendingPathComponent("Downloads")
 
@@ -281,9 +301,8 @@ class AppState: ObservableObject {
         let rightURL = URL(fileURLWithPath: rightPathString)
 
         // 验证路径是否仍然存在
-        let fileManager = FileManager.default
-        let leftPathExists = fileManager.fileExists(atPath: leftPathString)
-        let rightPathExists = fileManager.fileExists(atPath: rightPathString)
+        let leftPathExists = fileSystem.fileExists(leftURL)
+        let rightPathExists = fileSystem.fileExists(rightURL)
 
         let finalLeftPath = leftPathExists ? leftURL : defaultLeftPath
         let finalRightPath = rightPathExists ? rightURL : defaultRightPath
@@ -516,10 +535,10 @@ class AppState: ObservableObject {
 
     func showToast(_ message: String) {
         // 使用异步更新避免在视图更新期间修改 @Published 属性
-        DispatchQueue.main.async { [weak self] in
+        env.main.async { [weak self] in
             self?.toastMessage = message
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+        env.main.asyncAfter(seconds: 2) { [weak self] in
             if self?.toastMessage == message {
                 self?.toastMessage = nil
             }
@@ -571,15 +590,17 @@ class AppState: ObservableObject {
             let destination = currentPane.activeTab.currentPath
 
             if clipboardOperation == .copy {
-                try await FileSystemService.shared.copyFiles(
+                try await env.fileSystem.copyFiles(
                     clipboard,
-                    to: destination
+                    to: destination,
+                    undoManager: undoManager
                 )
                 showToast("\(clipboard.count) file(s) copied")
             } else {
-                try await FileSystemService.shared.moveFiles(
+                try await env.fileSystem.moveFiles(
                     clipboard,
-                    to: destination
+                    to: destination,
+                    undoManager: undoManager
                 )
                 showToast("\(clipboard.count) file(s) moved")
                 clipboard.removeAll()
@@ -599,7 +620,7 @@ class AppState: ObservableObject {
         let otherPane =
             activePane == .left
             ? rightPane : leftPane
-        let files = await FileSystemService.shared.loadDirectory(
+        let files = await env.fileSystem.loadDirectory(
             at: otherPane.activeTab.currentPath
         )
         otherPane.activeTab.files = files
@@ -661,7 +682,7 @@ class AppState: ObservableObject {
                 .appendingPathComponent(newName)
 
             do {
-                try FileManager.default.moveItem(at: file.path, to: newPath)
+                try await env.fileSystem.moveItem(at: file.path, to: newPath)
                 successCount += 1
             } catch {
                 errorMessages.append(

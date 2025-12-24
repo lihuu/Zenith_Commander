@@ -35,7 +35,7 @@ extension AppState {
     }
 
     func refreshCurrentPane() async {
-        await currentPane.refreshActiveTab()
+        await currentPane.refresh(using: env.fileSystem)
     }
 
     /// 恢复未过滤的文件列表
@@ -284,12 +284,12 @@ extension AppState {
         }
 
         guard file.isFolder else {
-            FileSystemService.shared.openFile(file)
+            env.fileSystem.openFile(file)
             return
         }
 
         let newPath = file.path
-        let files = await FileSystemService.shared.loadDirectory(at: newPath)
+        let files = await env.fileSystem.loadDirectory(at: newPath)
 
         pane.activeTab.currentPath = newPath
         pane.activeTab.files = files
@@ -300,16 +300,14 @@ extension AppState {
     func leaveDirectory() async {
         let pane = currentPane
         let currentPath = pane.activeTab.currentPath
-        let parent = FileSystemService.shared.parentDirectory(of: currentPath)
+        let parent = env.fileSystem.parentDirectory(of: currentPath)
 
         // 检查是否已经在根目录
         if currentPath.path != "/" {
             // 记住当前目录名，用于返回后定位
             let currentDirName = currentPath.lastPathComponent
 
-            let files = await FileSystemService.shared.loadDirectory(
-                at: parent
-            )
+            let files = await env.fileSystem.loadDirectory(at: parent)
             pane.activeTab.files = files
 
             pane.activeTab.currentPath = parent
@@ -432,9 +430,7 @@ extension AppState {
         if file.isFolder {
             // 进入目录
             let newPath = file.path
-            let files = await FileSystemService.shared.loadDirectory(
-                at: newPath
-            )
+            let files = await env.fileSystem.loadDirectory(at: newPath)
 
             pane.activeTab.currentPath = newPath
             pane.activeTab.files = files
@@ -447,7 +443,7 @@ extension AppState {
             }
         } else {
             // 打开文件
-            FileSystemService.shared.openFile(file)
+            env.fileSystem.openFile(file)
         }
     }
 
