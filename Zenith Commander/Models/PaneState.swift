@@ -9,6 +9,7 @@ import Combine
 import Foundation
 import SwiftUI
 
+@MainActor
 class PaneState: ObservableObject {
     var side: PaneSide
     @Published var tabs: [TabState]

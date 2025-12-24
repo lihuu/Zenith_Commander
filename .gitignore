@@ -73,3 +73,7 @@ backup/
 *.md
 buildServer.json
 .vscode/settings.json
+
+tools/class-audit/.build/
+
+*.xctestplan

@@ -29,8 +29,6 @@ enum AppAction: Sendable {
     case mouseDoubleClick(fileId: String, paneSide: PaneSide)  // 双击
 }
 
-
-
 enum UIAction {
     case toast(String)
     case cycleTheme
@@ -38,8 +36,6 @@ enum UIAction {
     case showSheet(UIRequest)
     case dismissSheet
 }
-
-
 
 enum FileAction {
     case yank

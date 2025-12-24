@@ -1,6 +1,6 @@
 import SwiftUI
 
-final class GitUIContribution: UIContribution {
+struct GitUIContribution: UIContribution {
     
     func makeView(for request: UIRequest) -> AnyView? {
         switch request {

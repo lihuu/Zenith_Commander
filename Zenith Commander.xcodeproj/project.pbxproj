@@ -43,6 +43,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		1C5C09442EFAE71B00F025FF /* Zenith Commander.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Zenith Commander.xctestplan"; sourceTree = "<group>"; };
 		1C790B762ED8169E005B181E /* Zenith Commander.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Zenith Commander.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1C790B832ED816A0005B181E /* Zenith CommanderTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Zenith CommanderTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1C790B8D2ED816A0005B181E /* Zenith CommanderUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Zenith CommanderUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -96,6 +97,7 @@
 		1C790B6D2ED8169E005B181E = {
 			isa = PBXGroup;
 			children = (
+				1C5C09442EFAE71B00F025FF /* Zenith Commander.xctestplan */,
 				1C790B782ED8169E005B181E /* Zenith Commander */,
 				1C790B862ED816A0005B181E /* Zenith CommanderTests */,
 				1C790B902ED816A0005B181E /* Zenith CommanderUITests */,

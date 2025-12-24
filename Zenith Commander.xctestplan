@@ -4,9 +4,9 @@
       "id" : "F4A7B4F3-AF99-4B87-8DE4-03976D24EED2",
       "name" : "Test Scheme Action",
       "options" : {
-        "addressSanitizer" : {
-          "enabled" : true
-        }
+        "nsZombieEnabled" : true,
+        "threadSanitizerEnabled" : true,
+        "undefinedBehaviorSanitizerEnabled" : true
       }
     }
   ],

@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct GitPlugin: ZenithPlugin {
+struct GitPlugin: ZenithPlugin{
     let id = PluginID(rawValue: "git")
     let displayName = "Git"
     let version = "1.0.0"

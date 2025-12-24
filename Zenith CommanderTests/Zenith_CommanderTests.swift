@@ -162,6 +162,7 @@ struct TabStateTests {
 
 // MARK: - 6. PaneState 测试 (标签页系统)
 
+@MainActor
 struct PaneStateTests {
     func createTestDrive() -> DriveInfo {
         DriveInfo(
@@ -303,6 +304,7 @@ struct PaneStateTests {
 
 // MARK: - Grid View 导航逻辑测试
 
+@MainActor
 struct GridViewNavigationTests {
     func createTestDrive() -> DriveInfo {
         DriveInfo(
@@ -543,6 +545,7 @@ struct GridViewNavigationTests {
 
 // MARK: - 父目录项 (..) 测试
 
+@MainActor
 @Suite("Parent Directory Item Tests")
 struct ParentDirectoryItemTests {
     @Test func parentDirectoryItemCreation() {
@@ -2474,6 +2477,7 @@ struct SettingsTests {
 
 // MARK: - Scroll Sync Tests (cursorFileId 与 cursorIndex 同步测试)
 
+@MainActor
 struct ScrollSyncTests {
     func createTestDrive() -> DriveInfo {
         DriveInfo(
@@ -3557,6 +3561,7 @@ struct AppSettingsGitTests {
 
 // MARK: - PaneState Git 信息测试
 
+@MainActor
 struct PaneStateGitInfoTests {
     func createTestDrive() -> DriveInfo {
         DriveInfo(

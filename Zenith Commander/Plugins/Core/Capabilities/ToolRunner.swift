@@ -30,7 +30,8 @@ extension ToolRunner {
     }
 }
 
-final class ProcessToolRunner: ToolRunner {
+struct ProcessToolRunner: ToolRunner {
+    
     private func setupProcess(for request: ToolRequest) -> (
         process: Process, stdout: Pipe, stderr: Pipe
     ) {
@@ -50,7 +51,7 @@ final class ProcessToolRunner: ToolRunner {
         return (p, out, err)
     }
 
-    private func parseOutput(stdout: Pipe, stderr: Pipe, exitCode: Int32) -> ToolResponse {
+    private static func parseOutput(stdout: Pipe, stderr: Pipe, exitCode: Int32) -> ToolResponse {
         let outData = stdout.fileHandleForReading.readDataToEndOfFile()
         let errData = stderr.fileHandleForReading.readDataToEndOfFile()
 
@@ -71,19 +72,40 @@ final class ProcessToolRunner: ToolRunner {
 
     func run(_ request: ToolRequest) async throws -> ToolResponse {
         try await withCheckedThrowingContinuation { cont in
+            let lock = NSLock()
+            var didResume = false
+            func resumeOnce(_ body: () -> Void) {
+                lock.lock()
+                defer { lock.unlock() }
+                guard !didResume else { return }
+                didResume = true
+                body()
+            }
+
             let (p, out, err) = setupProcess(for: request)
 
-            p.terminationHandler = { [weak self] proc in
-                guard let self = self else { return }
-                let response = self.parseOutput(
-                    stdout: out, stderr: err, exitCode: proc.terminationStatus)
-                cont.resume(returning: response)
+            p.terminationHandler = { proc in
+                // Release handler promptly to avoid retaining cycles / late fires.
+                proc.terminationHandler = nil
+
+                let response = ProcessToolRunner.parseOutput(
+                    stdout: out,
+                    stderr: err,
+                    exitCode: proc.terminationStatus
+                )
+
+                resumeOnce {
+                    cont.resume(returning: response)
+                }
             }
 
             do {
                 try p.run()
             } catch {
-                cont.resume(throwing: error)
+                p.terminationHandler = nil
+                resumeOnce {
+                    cont.resume(throwing: error)
+                }
             }
         }
     }
@@ -98,7 +120,7 @@ final class ProcessToolRunner: ToolRunner {
         try p.run()
         p.waitUntilExit()
 
-        let response = parseOutput(stdout: out, stderr: err, exitCode: p.terminationStatus)
+        let response = ProcessToolRunner.parseOutput(stdout: out, stderr: err, exitCode: p.terminationStatus)
         if !response.stdout.isEmpty {
             print("[ToolRunner] stdout: \(response.stdout.joined(separator: "\\n"))")
         }

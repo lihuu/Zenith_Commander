@@ -1,6 +1,6 @@
 import SwiftUI
 
-final class GitCommandProvider: CommandProvider {
+struct GitCommandProvider: CommandProvider {
     private let context: PluginContext
 
     init(context: PluginContext) {
