@@ -264,8 +264,7 @@ struct TestFileSystem: FileSysteming {
 }
 
 extension AppEnvironment {
-    
-    
+
     private static func restoreLastPaths(
         userDefaults: UserDefaults,
         fileSystem: FileSysteming
@@ -275,8 +274,10 @@ extension AppEnvironment {
         let defaultRightPath = homePath.appendingPathComponent("Downloads")
 
         // 首先尝试从安全书签恢复
-        if let leftURL = restoreSecurityBookmark(key: "leftPaneBookmark", userDefaults: userDefaults),
-            let rightURL = restoreSecurityBookmark(key: "rightPaneBookmark", userDefaults: userDefaults)
+        if let leftURL = restoreSecurityBookmark(
+            key: "leftPaneBookmark", userDefaults: userDefaults),
+            let rightURL = restoreSecurityBookmark(
+                key: "rightPaneBookmark", userDefaults: userDefaults)
         {
             Logger.app.debug("Restored paths from security bookmarks")
             return (leftURL, rightURL)
@@ -311,7 +312,7 @@ extension AppEnvironment {
 
         return (finalLeftPath, finalRightPath)
     }
-    
+
     private static func restoreSecurityBookmark(key: String, userDefaults: UserDefaults) -> URL? {
         guard let bookmarkData = userDefaults.data(forKey: key) else {
             return nil
@@ -346,7 +347,7 @@ extension AppEnvironment {
 
         return nil
     }
-    
+
     static func live(
         fileSystem: FileSysteming = LiveFileSystem(),
         settings: SettingsProviding = LiveSettingsAdapter(),
@@ -401,7 +402,8 @@ extension AppEnvironment {
         settings: SettingsProviding = TestSettings(),
         toolRunner: ToolRunning = FakeToolRunner(),
         main: MainScheduling = ImmediateMainScheduler(),
-        suiteName: String = "ZenithCommanderTests"
+        suiteName: String = "ZenithCommanderTests",
+        initPath: URL
     ) -> AppEnvironment {
         let defaults = UserDefaults(suiteName: suiteName)
         if defaults == nil {
@@ -414,7 +416,9 @@ extension AppEnvironment {
             main: main,
             userDefaults: defaults ?? .standard,
             runtime: RuntimePolicy(startSideEffects: false),
-            initParam: InitParam(leftInitPath: URL(fileURLWithPath: "/tmp"), rightInitPath: URL(fileURLWithPath: "/tmp"))
+            initParam: InitParam(
+                leftInitPath: initPath,
+                rightInitPath: initPath)
         )
     }
 }

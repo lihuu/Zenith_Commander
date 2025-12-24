@@ -105,7 +105,7 @@ class AppState: ObservableObject {
     // MARK: - Rsync 状态
 
     @Published var rsyncUIState = RsyncUIState()
-    
+
     // MARK: - 依赖注入
 
     let env: AppEnvironment
@@ -123,31 +123,16 @@ class AppState: ObservableObject {
             availableCapacity: 0
         )
 
-        // 如果提供了测试目录，使用测试目录；否则使用用户主目录
-        if let initialDir = initialDirectory {
-            leftPane = PaneState(
-                side: .left,
-                initialPath: initialDir,
-                drive: defaultDrive
-            )
-            rightPane = PaneState(
-                side: .right,
-                initialPath: initialDir,
-                drive: defaultDrive
-            )
-        } else {
-
-            leftPane = PaneState(
-                side: .left,
-                initialPath: env.initParam.leftInitPath,
-                drive: defaultDrive
-            )
-            rightPane = PaneState(
-                side: .right,
-                initialPath: env.initParam.rightInitPath,
-                drive: defaultDrive
-            )
-        }
+        leftPane = PaneState(
+            side: .left,
+            initialPath: env.initParam.leftInitPath,
+            drive: defaultDrive
+        )
+        rightPane = PaneState(
+            side: .right,
+            initialPath: env.initParam.rightInitPath,
+            drive: defaultDrive
+        )
 
         // 订阅两个面板的变化，转发到 AppState
         subscribeToPaneChanges()
@@ -673,8 +658,8 @@ class AppState: ObservableObject {
             )
         }
     }
-    
-    func makePaneSnapshot()->PanesSnapshot{
+
+    func makePaneSnapshot() -> PanesSnapshot {
         return PanesSnapshot(
             leftPath: leftPane.activeTab.currentPath.path,
             rightPath: rightPane.activeTab.currentPath.path,

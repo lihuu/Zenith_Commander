@@ -26,15 +26,15 @@ struct Zenith_CommanderApp: App {
         if let testDirectory {
             environment = AppEnvironment.test(
                 tempRoot: testDirectory,
-                suiteName: "ZenithCommanderUITests"
+                suiteName: "ZenithCommanderUITests",
+                initPath: testDirectory
             )
         } else {
             environment = AppEnvironment.live()
         }
         _appState = StateObject(
             wrappedValue: AppState(
-                environment: environment,
-                initialDirectory: testDirectory
+                environment: environment
             )
         )
     }
@@ -54,7 +54,7 @@ struct Zenith_CommanderApp: App {
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1200, height: 800)
         .commands {
-            CommandGroup(replacing: .newItem) { }
+            CommandGroup(replacing: .newItem) {}
 
             // 应用菜单（About/Settings/Hide/Quit）使用应用内语言
             CommandGroup(replacing: .appInfo) {
@@ -94,7 +94,7 @@ struct Zenith_CommanderApp: App {
             }
 
             // 替换系统默认的 Edit 菜单（使用应用内语言设置）
-            CommandGroup(replacing: .textEditing) { }
+            CommandGroup(replacing: .textEditing) {}
             CommandGroup(replacing: .pasteboard) {
                 Button(L(.menuCut)) {
                     NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil)
