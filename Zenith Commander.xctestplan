@@ -1,0 +1,40 @@
+{
+  "configurations" : [
+    {
+      "id" : "F4A7B4F3-AF99-4B87-8DE4-03976D24EED2",
+      "name" : "Test Scheme Action",
+      "options" : {
+        "addressSanitizer" : {
+          "enabled" : true
+        }
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:Zenith Commander.xcodeproj",
+      "identifier" : "1C790B752ED8169E005B181E",
+      "name" : "Zenith Commander"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:Zenith Commander.xcodeproj",
+        "identifier" : "1C790B822ED816A0005B181E",
+        "name" : "Zenith CommanderTests"
+      }
+    },
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:Zenith Commander.xcodeproj",
+        "identifier" : "1C790B8C2ED816A0005B181E",
+        "name" : "Zenith CommanderUITests"
+      }
+    }
+  ],
+  "version" : 1
+}
