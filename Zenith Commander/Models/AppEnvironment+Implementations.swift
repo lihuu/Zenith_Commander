@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import OSLog
 
 final class LiveSettingsAdapter: SettingsProviding {
     var rsyncEnabled: Bool {
@@ -263,6 +264,89 @@ struct TestFileSystem: FileSysteming {
 }
 
 extension AppEnvironment {
+    
+    
+    private static func restoreLastPaths(
+        userDefaults: UserDefaults,
+        fileSystem: FileSysteming
+    ) -> (URL, URL) {
+        let homePath = fileSystem.homeDirectory()
+        let defaultLeftPath = homePath
+        let defaultRightPath = homePath.appendingPathComponent("Downloads")
+
+        // 首先尝试从安全书签恢复
+        if let leftURL = restoreSecurityBookmark(key: "leftPaneBookmark", userDefaults: userDefaults),
+            let rightURL = restoreSecurityBookmark(key: "rightPaneBookmark", userDefaults: userDefaults)
+        {
+            Logger.app.debug("Restored paths from security bookmarks")
+            return (leftURL, rightURL)
+        }
+
+        // 如果书签失败，尝试从保存的路径字符串恢复
+        guard
+            let leftPathString = userDefaults.string(
+                forKey: "lastLeftPanePath"
+            ),
+            let rightPathString = userDefaults.string(
+                forKey: "lastRightPanePath"
+            )
+        else {
+            Logger.app.debug("No saved paths found, using defaults")
+            return (defaultLeftPath, defaultRightPath)
+        }
+
+        let leftURL = URL(fileURLWithPath: leftPathString)
+        let rightURL = URL(fileURLWithPath: rightPathString)
+
+        // 验证路径是否仍然存在
+        let leftPathExists = fileSystem.fileExists(leftURL)
+        let rightPathExists = fileSystem.fileExists(rightURL)
+
+        let finalLeftPath = leftPathExists ? leftURL : defaultLeftPath
+        let finalRightPath = rightPathExists ? rightURL : defaultRightPath
+
+        Logger.app.debug(
+            "Restored paths - Left: \(finalLeftPath.path, privacy: .public) (exists: \(leftPathExists)), Right: \(finalRightPath.path, privacy: .public) (exists: \(rightPathExists))"
+        )
+
+        return (finalLeftPath, finalRightPath)
+    }
+    
+    private static func restoreSecurityBookmark(key: String, userDefaults: UserDefaults) -> URL? {
+        guard let bookmarkData = userDefaults.data(forKey: key) else {
+            return nil
+        }
+
+        do {
+            var isStale = false
+            let url = try URL(
+                resolvingBookmarkData: bookmarkData,
+                options: .withSecurityScope,
+                relativeTo: nil,
+                bookmarkDataIsStale: &isStale
+            )
+
+            if isStale {
+                Logger.app.warning("Security bookmark is stale for key: \(key, privacy: .public)")
+                // 书签过期，需要重新获取权限
+                return nil
+            }
+
+            // 开始访问安全作用域资源
+            if url.startAccessingSecurityScopedResource() {
+                Logger.app.debug(
+                    "Successfully accessed security-scoped resource: \(url.path, privacy: .public)")
+                return url
+            }
+        } catch {
+            Logger.app.error(
+                "Failed to resolve security bookmark: \(error.localizedDescription, privacy: .public)"
+            )
+        }
+
+        return nil
+    }
+    
     static func live(
         fileSystem: FileSysteming = LiveFileSystem(),
         settings: SettingsProviding = LiveSettingsAdapter(),
@@ -271,13 +355,44 @@ extension AppEnvironment {
         userDefaults: UserDefaults = .standard,
         runtime: RuntimePolicy = RuntimePolicy(startSideEffects: true)
     ) -> AppEnvironment {
-        AppEnvironment(
+        let (leftPath, rightPath) = restoreLastPaths(
+            userDefaults: userDefaults,
+            fileSystem: fileSystem
+        )
+        return AppEnvironment(
             fileSystem: fileSystem,
             settings: settings,
             toolRunner: toolRunner,
             main: main,
             userDefaults: userDefaults,
-            runtime: runtime
+            runtime: runtime,
+            plugins: [GitPlugin(), RsyncPlugin()],
+            initParam: InitParam(leftInitPath: leftPath, rightInitPath: rightPath)
+        )
+    }
+
+    static func preview(
+        tempRoot: URL,
+        settings: SettingsProviding = TestSettings(),
+        toolRunner: ToolRunning = FakeToolRunner(),
+        main: MainScheduling = ImmediateMainScheduler(),
+        suiteName: String = "ZenithCommanderPreview"
+    ) -> AppEnvironment {
+        let defaults = UserDefaults(suiteName: suiteName)
+        if defaults == nil {
+            assertionFailure("Failed to create test UserDefaults suite.")
+        }
+        return AppEnvironment(
+            fileSystem: TestFileSystem(tempRoot: tempRoot),
+            settings: settings,
+            toolRunner: toolRunner,
+            main: main,
+            userDefaults: defaults ?? .standard,
+            runtime: RuntimePolicy(startSideEffects: false),
+            initParam: InitParam(
+                leftInitPath: URL(fileURLWithPath: "/tmp"),
+                rightInitPath: URL(fileURLWithPath: "/tmp")
+            )
         )
     }
 
@@ -298,7 +413,8 @@ extension AppEnvironment {
             toolRunner: toolRunner,
             main: main,
             userDefaults: defaults ?? .standard,
-            runtime: RuntimePolicy(startSideEffects: false)
+            runtime: RuntimePolicy(startSideEffects: false),
+            initParam: InitParam(leftInitPath: URL(fileURLWithPath: "/tmp"), rightInitPath: URL(fileURLWithPath: "/tmp"))
         )
     }
 }

@@ -57,15 +57,14 @@ class RsyncSyncSheetViewTests: XCTestCase {
         appState.rightPane = paneRight
 
         // Act
-//        appState.presentRsyncSheet(sourceIsLeft: true)
+        appState.presentRsyncSheet(sourceIsLeft: true)
 
         // Assert
-        // These may fail if rsync is not enabled/installed in the test environment
-//        XCTAssertTrue(appState.rsyncUIState.showConfigSheet)
-//        XCTAssertEqual(appState.rsyncUIState.config?.source, sourceURL)
-//        XCTAssertEqual(appState.rsyncUIState.config?.destination, destURL)
-//        XCTAssertEqual(appState.rsyncUIState.config?.mode, .update)
-//        XCTAssertTrue(appState.rsyncUIState.config?.dryRun ?? false)
+        XCTAssertTrue(appState.rsyncUIState.showConfigSheet)
+        XCTAssertEqual(appState.rsyncUIState.config?.source, sourceURL)
+        XCTAssertEqual(appState.rsyncUIState.config?.destination, destURL)
+        XCTAssertEqual(appState.rsyncUIState.config?.mode, .update)
+        XCTAssertTrue(appState.rsyncUIState.config?.dryRun ?? false)
     }
 
     func testPresentRsyncSheetWithRightSource() {

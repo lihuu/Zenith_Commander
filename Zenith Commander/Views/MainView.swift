@@ -35,9 +35,10 @@ struct MainView: View {
             logger: Logger.plugin,
             toolRunner: ProcessToolRunner()
         )
-
-        pluginManager.register(RsyncPlugin(), context: plugContext)
-        pluginManager.register(GitPlugin(), context: plugContext)
+        
+        environment.plugins.forEach(){ plugin in
+            pluginManager.register(plugin, context: plugContext)
+        }
     }
 
     init() {
