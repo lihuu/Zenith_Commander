@@ -18,6 +18,7 @@ struct RsyncPlugin: ZenithPlugin {
         let ui = RsyncUIContribution { req in
             return AnyView(RsyncNewSheetView(context: context))
         }
-        return [cmd, ui]
+        let contextMenu = RsyncContextMenuProvider()
+        return [cmd, ui, contextMenu]
     }
 }

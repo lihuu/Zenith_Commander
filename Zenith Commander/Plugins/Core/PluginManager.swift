@@ -9,9 +9,13 @@ import OSLog
 import SwiftUI
 
 final class PluginManager {
+    static let shared = PluginManager()
+
     private var commandProviders: [String: any CommandProvider] = [:]
     private var uiProviders: [any UIContribution] = []
-    
+
+    private init() {}
+
     /// Register  plugins
     func register(_ plugin: any ZenithPlugin, context: PluginContext) {
         for capability in plugin.makeCapabilities(context: context) {
@@ -23,7 +27,7 @@ final class PluginManager {
                 }
             case .uiContribution:
                 uiProviders.append(capability as! any UIContribution)
-            case .toolRunner:
+            case .toolRunner, .contextMenuProvider:
                 break
             }
         }

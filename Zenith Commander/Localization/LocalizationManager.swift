@@ -468,6 +468,14 @@ enum LocalizedStringKey: String, CaseIterable {
     case rsyncErrorExecutionFailed
     case rsyncErrorInvalidPath
     case rsyncErrorValidation
+
+    // MARK: - Rsync Context Menu
+
+    case rsyncMenuSyncSelected
+    case rsyncMenuSyncDirectory
+    case rsyncMenuConfigure
+    case rsyncMenuMirror
+    case rsyncMirrorSuccess
 }
 
 // MARK: - 本地化字符串存储
@@ -535,12 +543,14 @@ class LocalizedStrings {
             .settingsNotInstalled: "Not Installed",
             .settingsResetToDefaults: "Reset to Defaults",
             .settingsResetConfirmTitle: "Reset Settings",
-            .settingsResetConfirmMessage: "Are you sure you want to reset all settings to their default values?",
+            .settingsResetConfirmMessage:
+                "Are you sure you want to reset all settings to their default values?",
             .settingsLanguage: "Language",
             .settingsLanguageDescription: "Select your preferred language",
             .settingsRestartRequired: "Restart required for menu language to take effect",
             .settingsRestartTitle: "Restart Required",
-            .settingsRestartMessage: "The app needs to restart for the language change to fully take effect on system menus.",
+            .settingsRestartMessage:
+                "The app needs to restart for the language change to fully take effect on system menus.",
             .settingsRestartNow: "Restart Now",
             .settingsRestartLater: "Restart Later",
 
@@ -824,6 +834,13 @@ class LocalizedStrings {
             .rsyncErrorExecutionFailed: "Rsync execution failed",
             .rsyncErrorInvalidPath: "Invalid path",
             .rsyncErrorValidation: "Validation failed",
+
+            // Rsync Context Menu
+            .rsyncMenuSyncSelected: "Sync Selected to Opposite Pane",
+            .rsyncMenuSyncDirectory: "Sync Directory to Opposite Pane",
+            .rsyncMenuConfigure: "Configure Rsync Sync...",
+            .rsyncMenuMirror: "Mirror to Opposite Pane",
+            .rsyncMirrorSuccess: "Mirror sync completed successfully",
         ]
     }
 
@@ -1163,6 +1180,13 @@ class LocalizedStrings {
             .rsyncErrorExecutionFailed: "Rsync 执行失败",
             .rsyncErrorInvalidPath: "无效路径",
             .rsyncErrorValidation: "验证失败",
+
+            // Rsync 右键菜单
+            .rsyncMenuSyncSelected: "同步选中项到对侧面板",
+            .rsyncMenuSyncDirectory: "同步目录到对侧面板",
+            .rsyncMenuConfigure: "配置 Rsync 同步...",
+            .rsyncMenuMirror: "镜像到对侧面板",
+            .rsyncMirrorSuccess: "镜像同步已成功完成",
         ]
     }
 }

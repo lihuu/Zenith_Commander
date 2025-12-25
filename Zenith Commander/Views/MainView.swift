@@ -22,8 +22,7 @@ struct MainView: View {
         let bookmarkManager = BookmarkManager.shared
         _bookmarkManager = StateObject(wrappedValue: bookmarkManager)
 
-        let pluginManager = PluginManager()
-        self.pluginManager = pluginManager
+        self.pluginManager = PluginManager.shared
 
         let plugContext = PluginContext(
             panes: { @MainActor in
@@ -35,8 +34,8 @@ struct MainView: View {
             logger: Logger.plugin,
             toolRunner: ProcessToolRunner()
         )
-        
-        environment.plugins.forEach(){ plugin in
+
+        environment.plugins.forEach { plugin in
             pluginManager.register(plugin, context: plugContext)
         }
     }
@@ -231,11 +230,10 @@ struct MainView: View {
             .onAppear {
                 appState.startRuntime()
             }
-            .onReceive(NotificationCenter.default.publisher(for: .openSettings))
-        {
-            _ in
-            appState.enterMode(.settings)
-        }
+            .onReceive(NotificationCenter.default.publisher(for: .openSettings)) {
+                _ in
+                appState.enterMode(.settings)
+            }
             .onReceive(NotificationCenter.default.publisher(for: .showHelp)) {
                 _ in
                 appState.enterMode(.help)
@@ -328,12 +326,12 @@ struct MainView: View {
             tempRoot: FileManager.default.temporaryDirectory
         )
     )
-        .frame(width: 1200, height: 800)
-        .environmentObject(
-            AppState(
-                environment: .test(
-                    tempRoot: FileManager.default.temporaryDirectory
-                )
+    .frame(width: 1200, height: 800)
+    .environmentObject(
+        AppState(
+            environment: .test(
+                tempRoot: FileManager.default.temporaryDirectory
             )
         )
+    )
 }
