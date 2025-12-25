@@ -17,6 +17,13 @@ class RsyncService {
     // Singleton instance
     static let shared = RsyncService()
 
+    // Tool runner for executing rsync commands
+    private let toolRunner: ToolRunner
+
+    init(toolRunner: ToolRunner = ProcessToolRunner()) {
+        self.toolRunner = toolRunner
+    }
+
     // MARK: - Public API
 
     /// Checks if rsync is installed on the system
@@ -177,24 +184,33 @@ class RsyncService {
         }
     }
 
-    /// Builds the rsync command array from configuration
+    /// Builds the rsync command arguments from configuration
     /// - Parameter config: Configuration to build command from
-    /// - Returns: Array of command components [rsync, flags..., source, destination]
-    func buildCommand(config: RsyncSyncConfig) -> [String] {
-        var command = ["/usr/bin/rsync"]
+    /// - Returns: Array of arguments [flags..., source, destination]
+    func buildArgs(config: RsyncSyncConfig) -> [String] {
+        var args: [String] = []
 
         // Add flags from config
-        command.append(contentsOf: config.effectiveFlags())
+        args.append(contentsOf: config.effectiveFlags())
 
         // Add source path (with trailing slash for directory contents)
         let sourcePath =
             config.source.path.hasSuffix("/")
             ? config.source.path : config.source.path + "/"
-        command.append(sourcePath)
+        args.append(sourcePath)
 
         // Add destination path
-        command.append(config.destination.path)
+        args.append(config.destination.path)
 
+        return args
+    }
+
+    /// Builds the rsync command array from configuration (legacy compatibility)
+    /// - Parameter config: Configuration to build command from
+    /// - Returns: Array of command components [rsync, flags..., source, destination]
+    func buildCommand(config: RsyncSyncConfig) -> [String] {
+        var command = ["/usr/bin/rsync"]
+        command.append(contentsOf: buildArgs(config: config))
         return command
     }
 
@@ -266,44 +282,25 @@ class RsyncService {
 
     // MARK: - Private Methods
 
-    /// Executes rsync command and returns output
+    /// Executes rsync command and returns output using ToolRunner
     private func executeRsync(command: [String]) async throws -> String {
-        try await withCheckedThrowingContinuation { continuation in
-            let process = Process()
-            let outputPipe = Pipe()
-            let errorPipe = Pipe()
+        let request = ToolRequest(
+            executable: command[0],
+            args: Array(command.dropFirst()),
+            workingDirectory: nil
+        )
 
-            process.executableURL = URL(fileURLWithPath: command[0])
-            process.arguments = Array(command.dropFirst())
-            process.standardOutput = outputPipe
-            process.standardError = errorPipe
+        let response = try await toolRunner.run(request)
 
-            do {
-                try process.run()
-                process.waitUntilExit()
-
-                let outputData = outputPipe.fileHandleForReading
-                    .readDataToEndOfFile()
-                let errorData = errorPipe.fileHandleForReading
-                    .readDataToEndOfFile()
-
-                let output = String(data: outputData, encoding: .utf8) ?? ""
-                let errorOutput = String(data: errorData, encoding: .utf8) ?? ""
-
-                if process.terminationStatus != 0 {
-                    continuation.resume(
-                        throwing: RsyncError.executionFailed(
-                            code: Int(process.terminationStatus),
-                            message: errorOutput
-                        )
-                    )
-                } else {
-                    continuation.resume(returning: output)
-                }
-            } catch {
-                continuation.resume(throwing: RsyncError.processError(error))
-            }
+        if response.exitCode != 0 {
+            let errorOutput = response.stderr.joined(separator: "\n")
+            throw RsyncError.executionFailed(
+                code: Int(response.exitCode),
+                message: errorOutput
+            )
         }
+
+        return response.stdout.joined(separator: "\n")
     }
 }
 

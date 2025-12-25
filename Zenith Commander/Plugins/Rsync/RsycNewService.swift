@@ -7,38 +7,41 @@ struct RsyncNewConfig: Sendable {
     var preserveAttributes: Bool = true
     var dryRun: Bool = true
     var excludePatterns: [String] = []
+
+    /// Convert to RsyncSyncConfig for RsyncService
+    func toRsyncSyncConfig() -> RsyncSyncConfig {
+        RsyncSyncConfig(
+            source: URL(fileURLWithPath: sourcePath),
+            destination: URL(fileURLWithPath: targetPath),
+            mode: deleteExtraFiles ? .mirror : .update,
+            dryRun: dryRun,
+            preserveAttributes: preserveAttributes,
+            deleteExtras: deleteExtraFiles,
+            excludePatterns: excludePatterns,
+            customFlags: []
+        )
+    }
 }
 
 final class RsyncNewService: Sendable {
     static let shared = RsyncNewService()
 
-    func bindArgs(config: RsyncNewConfig) -> [String] {
-        var args: [String] = []
-        if config.preserveAttributes {
-            args.append("-a")
-        }
+    private let rsyncService: RsyncService
 
-        if config.dryRun {
-            args.append("--dry-run")
-        }
-
-        for pattern in config.excludePatterns {
-            args.append("--exclude=\(pattern)")
-        }
-
-        if config.deleteExtraFiles {
-            args.append("--delete")
-        }
-
-        args.append(config.sourcePath.hasSuffix("/") ? config.sourcePath : config.sourcePath + "/")
-        args.append(config.targetPath)
-
-        return args
+    init(rsyncService: RsyncService = .shared) {
+        self.rsyncService = rsyncService
     }
 
+    /// Build rsync arguments from config (delegates to RsyncService)
+    func bindArgs(config: RsyncNewConfig) -> [String] {
+        let syncConfig = config.toRsyncSyncConfig()
+        return rsyncService.buildArgs(config: syncConfig)
+    }
+
+    /// Preview rsync operation (delegates to RsyncService)
     func preview(config: RsyncNewConfig, toolRunner: ToolRunner) async throws -> ToolResponse {
         let req = ToolRequest(
-            executable: "rsync",
+            executable: "/usr/bin/rsync",
             args: bindArgs(config: config),
             workingDirectory: nil
         )
@@ -46,19 +49,17 @@ final class RsyncNewService: Sendable {
         return try await toolRunner.run(req)
     }
 
+    /// Run rsync operation (delegates to RsyncService)
     func run(config: RsyncNewConfig, toolRunner: ToolRunner) async throws -> ToolResponse {
-        var args = bindArgs(config: config)
-        if config.dryRun {
-            args.removeAll { $0 == "--dry-run" }
-        }
+        var modifiedConfig = config
+        modifiedConfig.dryRun = false
 
         let req = ToolRequest(
-            executable: "rsync",
-            args: args,
+            executable: "/usr/bin/rsync",
+            args: bindArgs(config: modifiedConfig),
             workingDirectory: nil
         )
 
         return try await toolRunner.run(req)
     }
-
 }

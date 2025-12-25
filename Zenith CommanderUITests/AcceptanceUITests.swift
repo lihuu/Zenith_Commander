@@ -61,7 +61,6 @@ final class AcceptanceUITests: XCTestCase {
 
     // MARK: - 2. 核心交互逻辑 (Core Interaction)
 
-    @MainActor
     func test_2_1_PaneActivationOnClick() throws {
         let window = app.windows.firstMatch
         let leftPane = window.descendants(matching: .any)["left_pane"]
@@ -89,7 +88,6 @@ final class AcceptanceUITests: XCTestCase {
         waitFor(element: rightHeader, label: "inactive")
     }
 
-    @MainActor
     func test_2_2_PaneSwitchingWithTabKey() throws {
         let leftHeader = app.descendants(matching: .any)["left_pane_header"]
         let rightHeader = app.descendants(matching: .any)["right_pane_header"]
@@ -115,7 +113,6 @@ final class AcceptanceUITests: XCTestCase {
 
     // MARK: - 4. 模态操作引擎测试 (Command Mode)
 
-    @MainActor
     func test_4_1_CommandMode() throws {
         let modeIndicator = app.staticTexts["mode_indicator"]
         let statusText = app.staticTexts["status_text"]
