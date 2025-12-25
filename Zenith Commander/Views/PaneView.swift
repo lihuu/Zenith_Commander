@@ -501,11 +501,17 @@ struct PaneView: View {
             refreshDirectory()
         }
 
-        if settingsManager.settings.rsync.enabled {
-            Divider()
-            Button(LocalizationManager.shared.localized(.rsyncSync)) {
-                // Open rsync sync sheet with this file/folder as source
-                appState.presentRsyncSheet(sourceIsLeft: pane.side == .left)
+        // Plugin context menu items
+        ForEach(Array(PluginManager.shared.contextMenuItems().enumerated()), id: \.offset) { _, item in
+            switch item {
+            case .item(let contextItem):
+                Button(contextItem.title) {
+                    Task { @MainActor in
+                        await contextItem.action()
+                    }
+                }
+            case .separator:
+                Divider()
             }
         }
     }
@@ -552,13 +558,18 @@ struct PaneView: View {
                 appState.showGitHistoryForRepo(at: pane.activeTab.currentPath)
             }
         }
-
-        if settingsManager.settings.rsync.enabled {
-            Divider()
-
-            Button(LocalizationManager.shared.localized(.rsyncSync)) {
-                // Open rsync sync sheet with this directory as source
-                appState.presentRsyncSheet(sourceIsLeft: pane.side == .left)
+        
+        // Plugin context menu items
+        ForEach(Array(PluginManager.shared.contextMenuItems().enumerated()), id: \.offset) { _, item in
+            switch item {
+            case .item(let contextItem):
+                Button(contextItem.title) {
+                    Task { @MainActor in
+                        await contextItem.action()
+                    }
+                }
+            case .separator:
+                Divider()
             }
         }
     }

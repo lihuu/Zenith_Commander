@@ -13,6 +13,7 @@ final class PluginManager {
 
     private var commandProviders: [String: any CommandProvider] = [:]
     private var uiProviders: [any UIContribution] = []
+    private var contextMenuProviders: [any ContextMenuProvider] = []
 
     private init() {}
 
@@ -27,7 +28,12 @@ final class PluginManager {
                 }
             case .uiContribution:
                 uiProviders.append(capability as! any UIContribution)
-            case .toolRunner, .contextMenuProvider:
+            case .contextMenuProvider:
+                contextMenuProviders.append(
+                    capability as! any ContextMenuProvider
+                )
+            case .toolRunner:
+                // ToolRunner 目前固定ProcessToolRunner，先不通过插件扩展
                 break
             }
         }
@@ -50,5 +56,13 @@ final class PluginManager {
             }
         }
         return nil
+    }
+
+    func contextMenuItems() -> [MenuElement] {
+        var items: [MenuElement] = []
+        for provider in contextMenuProviders {
+            items.append(contentsOf: provider.menuItems())
+        }
+        return items
     }
 }

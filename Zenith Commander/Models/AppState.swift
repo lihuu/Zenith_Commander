@@ -340,7 +340,8 @@ class AppState: ObservableObject {
                 )
             )
         case .openRsync:
-            presentRsyncSheet(sourceIsLeft: true)
+                let isLeft = activePane == .left
+                presentRsyncSheet(sourceIsLeft: isLeft)
         case .showSheet(let req):
             activeSheet = req
         case .dismissSheet:

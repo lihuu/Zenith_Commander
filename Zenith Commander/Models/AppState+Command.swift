@@ -119,9 +119,8 @@ extension AppState {
 
         case .rsync:
             let (valid, _, error) = CommandParser.validateRsync(command)
-
             if valid {
-                presentRsyncSheet(sourceIsLeft: true)
+                await dispatch(.ui(.openRsync))
             } else if let error {
                 showToast(error)
             }

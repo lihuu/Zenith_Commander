@@ -7,21 +7,6 @@
 
 import SwiftUI
 
-/// Context information for menu item evaluation
-struct MenuContext: Sendable {
-    /// Selected files in the current pane
-    let selectedFiles: [FileItem]
-
-    /// Current directory path
-    let currentPath: URL
-
-    /// Active pane side
-    let activePaneSide: PaneSide
-
-    /// Inactive pane path (for sync operations)
-    let inactivePanePath: URL?
-}
-
 /// A single context menu item
 struct ContextMenuItem: Identifiable {
     let id: String
@@ -74,7 +59,7 @@ protocol ContextMenuProvider: PluginCapability {
     /// Returns menu items for the given context
     /// - Parameter context: Current selection and navigation context
     /// - Returns: Array of menu elements to display
-    func menuItems(for context: MenuContext) -> [MenuElement]
+    func menuItems() -> [MenuElement]
 }
 
 extension ContextMenuProvider {
