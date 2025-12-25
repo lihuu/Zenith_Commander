@@ -15,8 +15,18 @@ import os.log
 class AppState: ObservableObject {
     // MARK: - 面板状态
 
-    @Published var leftPane: PaneState
-    @Published var rightPane: PaneState
+    @Published var leftPane: PaneState {
+        didSet {
+            // 当 pane 被替换时，重新订阅
+            subscribeToPaneChanges()
+        }
+    }
+    @Published var rightPane: PaneState {
+        didSet {
+            // 当 pane 被替换时，重新订阅
+            subscribeToPaneChanges()
+        }
+    }
     @Published var activePane: PaneSide = .left
 
     // MARK: - 订阅管理
@@ -165,6 +175,9 @@ class AppState: ObservableObject {
 
     /// 订阅面板状态变化
     private func subscribeToPaneChanges() {
+        // 清除旧订阅，避免内存泄漏
+        paneCancellables.removeAll()
+
         leftPane.objectWillChange
             .sink { [weak self] _ in
                 self?.objectWillChange.send()

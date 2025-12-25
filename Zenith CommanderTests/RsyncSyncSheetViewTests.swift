@@ -16,9 +16,15 @@ class RsyncSyncSheetViewTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        appState = AppState()
-        // Ensure rsync is enabled for tests
-        SettingsManager.shared.settings.rsync.enabled = true
+        // Initialize AppState with test environment to avoid SettingsManager initialization issues
+        let tempRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("RsyncTests_\(UUID().uuidString)")
+        let testSettings = TestSettings(rsyncEnabled: true)
+        let testEnv = AppEnvironment.test(
+            tempRoot: tempRoot,
+            settings: testSettings
+        )
+        appState = AppState(environment: testEnv)
     }
 
     override func tearDown() {
@@ -33,28 +39,9 @@ class RsyncSyncSheetViewTests: XCTestCase {
         let sourceURL = URL(fileURLWithPath: "/Users/test/source")
         let destURL = URL(fileURLWithPath: "/Users/test/dest")
 
-        let drive = DriveInfo(
-            id: "test-drive",
-            name: "Test Drive",
-            path: URL(fileURLWithPath: "/"),
-            type: .system,
-            totalCapacity: 1_000_000,
-            availableCapacity: 500_000
-        )
-
-        let paneLeft = PaneState(
-            side: .left,
-            initialPath: sourceURL,
-            drive: drive
-        )
-        let paneRight = PaneState(
-            side: .right,
-            initialPath: destURL,
-            drive: drive
-        )
-
-        appState.leftPane = paneLeft
-        appState.rightPane = paneRight
+        // 更新现有 pane 的路径，而不是替换整个 pane 对象
+        appState.leftPane.activeTab.currentPath = sourceURL
+        appState.rightPane.activeTab.currentPath = destURL
 
         // Act
         appState.presentRsyncSheet(sourceIsLeft: true)
@@ -72,25 +59,9 @@ class RsyncSyncSheetViewTests: XCTestCase {
         let sourceURL = URL(fileURLWithPath: "/Users/test/source")
         let destURL = URL(fileURLWithPath: "/Users/test/dest")
 
-        let drive = DriveInfo(
-            id: "test-drive",
-            name: "Test Drive",
-            path: URL(fileURLWithPath: "/"),
-            type: .system,
-            totalCapacity: 1_000_000,
-            availableCapacity: 500_000
-        )
-
-        appState.leftPane = PaneState(
-            side: .left,
-            initialPath: destURL,
-            drive: drive
-        )
-        appState.rightPane = PaneState(
-            side: .right,
-            initialPath: sourceURL,
-            drive: drive
-        )
+        // 更新现有 pane 的路径，而不是替换整个 pane 对象
+        appState.leftPane.activeTab.currentPath = destURL
+        appState.rightPane.activeTab.currentPath = sourceURL
 
         // Act
         appState.presentRsyncSheet(sourceIsLeft: false)

@@ -15,9 +15,9 @@ class PaneState: ObservableObject {
     @Published var tabs: [TabState]
     @Published var activeTabIndex: Int
     @Published var viewMode: ViewMode
-    @Published var selections: Set<String> // 存储选中的文件 ID
-    @Published var gitInfo: GitRepositoryInfo? = nil // Git 仓库信息
-    var visualAnchor: Int? // Visual 模式的锚点位置
+    @Published var selections: Set<String>  // 存储选中的文件 ID
+    @Published var gitInfo: GitRepositoryInfo? = nil  // Git 仓库信息
+    var visualAnchor: Int?  // Visual 模式的锚点位置
 
     /// Grid View 每行的列数（用于键盘导航）
     var gridColumnCount = 4
@@ -34,6 +34,11 @@ class PaneState: ObservableObject {
 
         // 订阅初始标签页的变化
         subscribeToTabChanges()
+    }
+
+    deinit {
+        // 清理所有订阅，避免悬空引用
+        tabCancellables.removeAll()
     }
 
     /// 订阅所有标签页的变化，转发到 PaneState
@@ -178,7 +183,7 @@ class PaneState: ObservableObject {
 
         // 清除旧选择，重新选择范围内的文件
         selections.removeAll()
-        for i in start ... end {
+        for i in start...end {
             if i < files.count {
                 let file = files[i]
                 // 父目录项 (..) 不能被选中

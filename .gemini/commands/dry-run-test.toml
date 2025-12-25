@@ -5,7 +5,15 @@ xcodebuild test -scheme "Zenith Commander" -destination 'platform=macOS'
 ## 任务说明
 1. 运行Zenith CommanderTests目录下面的测试用例，并输出结果。
 2. 运行Zenith CommanderUITests目录下面的测试用例，并输出结果。
+3. 如果指定了某些测试用例文件，请仅运行这些测试用例文件。
 ## 任务要求
 1. 如果有失败的测试用例，请详细说明失败的原因，并给出解决方案，包括可能的代码修改建议，注意仅仅给出解决方案，等待我确认。
 2. 如果我确认修改，修改之后重新运行测试用例，注意只运行之前失败的测试用例，直到所有测试用例通过为止。
+## 命令权限
+- 允许运行如下命令。
+  - xcodebuild
+  - grep
+  - sed
+  - awk
+  - cat
 """
