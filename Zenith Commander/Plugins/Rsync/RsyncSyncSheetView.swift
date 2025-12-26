@@ -6,8 +6,8 @@
 //
 
 import Foundation
-import os.log
 import SwiftUI
+import os.log
 
 // Helper function to access localization
 private func L(_ key: LocalizedStringKey) -> String {
@@ -16,7 +16,7 @@ private func L(_ key: LocalizedStringKey) -> String {
 
 struct RsyncSyncSheetView: View {
     let context: PluginContext
-    
+
     @ObservedObject private var themeManager = ThemeManager.shared
     @State private var rsyncUIState = RsyncUIState()
     @State private var localConfig: RsyncSyncConfig
@@ -25,11 +25,11 @@ struct RsyncSyncSheetView: View {
 
     init(context: PluginContext) {
         self.context = context
-        
+
         let panes = context.panes()
         let source = (panes.active == .left) ? panes.leftPath : panes.rightPath
         let target = (panes.active == .left) ? panes.rightPath : panes.leftPath
-        
+
         let config = RsyncSyncConfig(
             source: URL(fileURLWithPath: source),
             destination: URL(fileURLWithPath: target),
@@ -40,7 +40,7 @@ struct RsyncSyncSheetView: View {
             excludePatterns: [],
             customFlags: []
         )
-        
+
         _localConfig = State(initialValue: config)
         _excludePatternsText = State(initialValue: config.excludePatterns.joined(separator: ", "))
         _customFlagsText = State(initialValue: config.customFlags.joined(separator: " "))
@@ -82,8 +82,10 @@ struct RsyncSyncSheetView: View {
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(Theme.accent)
                     .rotationEffect(rsyncUIState.isRunningSync ? .degrees(360) : .degrees(0))
-                    .animation(rsyncUIState.isRunningSync ?
-                        Animation.linear(duration: 2).repeatForever(autoreverses: false) : .default,
+                    .animation(
+                        rsyncUIState.isRunningSync
+                            ? Animation.linear(duration: 2).repeatForever(autoreverses: false)
+                            : .default,
                         value: rsyncUIState.isRunningSync)
 
                 Text("Directory Synchronization (Rsync)")
@@ -244,32 +246,36 @@ struct RsyncSyncSheetView: View {
                         }
                         .toggleStyle(.checkbox)
 
-                        Toggle(isOn: Binding<Bool>(
-                            get: { localConfig.flags.contains("-z") },
-                            set: { newValue in
-                                if newValue {
-                                    localConfig.flags.insert("-z")
-                                } else {
-                                    localConfig.flags.remove("-z")
+                        Toggle(
+                            isOn: Binding<Bool>(
+                                get: { localConfig.flags.contains("-z") },
+                                set: { newValue in
+                                    if newValue {
+                                        localConfig.flags.insert("-z")
+                                    } else {
+                                        localConfig.flags.remove("-z")
+                                    }
                                 }
-                            }
-                        )) {
+                            )
+                        ) {
                             Text("Compress (-z)")
                                 .font(.system(size: 13))
                                 .foregroundColor(Theme.textPrimary)
                         }
                         .toggleStyle(.checkbox)
 
-                        Toggle(isOn: Binding<Bool>(
-                            get: { localConfig.flags.contains("--delete") },
-                            set: { newValue in
-                                if newValue {
-                                    localConfig.flags.insert("--delete")
-                                } else {
-                                    localConfig.flags.remove("--delete")
+                        Toggle(
+                            isOn: Binding<Bool>(
+                                get: { localConfig.flags.contains("--delete") },
+                                set: { newValue in
+                                    if newValue {
+                                        localConfig.flags.insert("--delete")
+                                    } else {
+                                        localConfig.flags.remove("--delete")
+                                    }
                                 }
-                            }
-                        )) {
+                            )
+                        ) {
                             Text("Force Delete (--delete)")
                                 .font(.system(size: 13))
                                 .foregroundColor(Theme.error)
@@ -353,8 +359,7 @@ struct RsyncSyncSheetView: View {
             .padding(.horizontal, 6)
             .contentShape(Rectangle())
             .background(
-                localConfig.mode == mode ?
-                    Theme.backgroundTertiary.opacity(0.5) : Color.clear
+                localConfig.mode == mode ? Theme.backgroundTertiary.opacity(0.5) : Color.clear
             )
             .cornerRadius(4)
         }
@@ -403,7 +408,11 @@ struct RsyncSyncSheetView: View {
                             .foregroundColor(Theme.border)
 
                         // Rows
-                        ForEach(Array((result.copied + result.updated + result.deleted).prefix(20).enumerated()), id: \.offset) { index, item in
+                        ForEach(
+                            Array(
+                                (result.copied + result.updated + result.deleted).prefix(20)
+                                    .enumerated()), id: \.offset
+                        ) { index, item in
                             HStack {
                                 // Change Type Badge
                                 Text(getChangeType(item, from: result))
@@ -431,7 +440,9 @@ struct RsyncSyncSheetView: View {
                             }
                             .padding(.vertical, 6)
                             .padding(.horizontal, 8)
-                            .background(index % 2 == 0 ? Color.clear : Theme.backgroundTertiary.opacity(0.1))
+                            .background(
+                                index % 2 == 0 ? Color.clear : Theme.backgroundTertiary.opacity(0.1)
+                            )
 
                             if index < 19 {
                                 Divider()
@@ -526,7 +537,10 @@ struct RsyncSyncSheetView: View {
 
                                 Rectangle()
                                     .fill(Theme.accent)
-                                    .frame(width: geometry.size.width * CGFloat(progress.percentage / 100.0), height: 8)
+                                    .frame(
+                                        width: geometry.size.width
+                                            * CGFloat(progress.percentage / 100.0), height: 8
+                                    )
                                     .cornerRadius(4)
                             }
                         }
@@ -604,9 +618,11 @@ struct RsyncSyncSheetView: View {
         HStack {
             // Left Info
             if let previewResult = rsyncUIState.previewResult {
-                Text("\(previewResult.copied.count + previewResult.updated.count + previewResult.deleted.count) changes detected")
-                    .font(.system(size: 11))
-                    .foregroundColor(Theme.textSecondary)
+                Text(
+                    "\(previewResult.copied.count + previewResult.updated.count + previewResult.deleted.count) changes detected"
+                )
+                .font(.system(size: 11))
+                .foregroundColor(Theme.textSecondary)
             }
 
             Spacer()
@@ -720,16 +736,16 @@ struct RsyncSyncSheetView: View {
             alignment: .top
         )
     }
-    
+
     // MARK: - State Management Methods
-    
+
     /// 更新 Rsync 配置
     private func updateRsyncConfig(_ config: RsyncSyncConfig) {
         rsyncUIState.error = nil
         // 配置改变时清除预览结果
         rsyncUIState.previewResult = nil
     }
-    
+
     /// 关闭 Rsync 配置弹窗
     private func dismissRsyncSheet() {
         // TODO: Dispatch close action to plugin manager
@@ -740,7 +756,7 @@ struct RsyncSyncSheetView: View {
         rsyncUIState.isRunningSync = false
         rsyncUIState.syncProgress = nil
     }
-    
+
     /// 运行预览（dry-run）
     private func runPreview() async {
         rsyncUIState.isPreviewingDryRun = true
@@ -755,7 +771,7 @@ struct RsyncSyncSheetView: View {
 
         rsyncUIState.isPreviewingDryRun = false
     }
-    
+
     /// 执行同步
     private func runSync() async {
         rsyncUIState.isRunningSync = true
@@ -806,7 +822,11 @@ struct RsyncSyncSheetView: View {
 
 #Preview {
     let mockContext = PluginContext(
-        panes: { PanesSnapshot(leftPath: "/Macintosh HD/Users/Dev", rightPath: "/Samsung T7/Backups/2024", active: .left) },
+        panes: {
+            PanesSnapshot(
+                leftPath: "/Macintosh HD/Users/Dev", rightPath: "/Samsung T7/Backups/2024",
+                active: .left)
+        },
         dispatch: { _ in },
         logger: Logger(subsystem: "preview", category: "test"),
         toolRunner: ProcessToolRunner()

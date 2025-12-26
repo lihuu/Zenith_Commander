@@ -5,9 +5,9 @@
 //  Rsync Sync Sheet View Unit Tests
 //
 
+import OSLog
 import SwiftUI
 import XCTest
-import OSLog
 
 @testable import Zenith_Commander
 
@@ -17,10 +17,12 @@ class RsyncSyncSheetViewTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        
+
         // Initialize PluginContext for testing
         context = PluginContext(
-            panes: { PanesSnapshot(leftPath: "/test/left", rightPath: "/test/right", active: .left) },
+            panes: {
+                PanesSnapshot(leftPath: "/test/left", rightPath: "/test/right", active: .left)
+            },
             dispatch: { _ in },
             logger: Logger(subsystem: "test", category: "rsync"),
             toolRunner: ProcessToolRunner()
@@ -45,7 +47,9 @@ class RsyncSyncSheetViewTests: XCTestCase {
     func testInitialConfigFromContext() {
         // Arrange
         let customContext = PluginContext(
-            panes: { PanesSnapshot(leftPath: "/source/path", rightPath: "/dest/path", active: .left) },
+            panes: {
+                PanesSnapshot(leftPath: "/source/path", rightPath: "/dest/path", active: .left)
+            },
             dispatch: { _ in },
             logger: Logger(subsystem: "test", category: "rsync"),
             toolRunner: ProcessToolRunner()
@@ -370,7 +374,7 @@ class RsyncSyncSheetViewTests: XCTestCase {
 
     func testFullWorkflowSimulation() {
         // This test simulates the full workflow without actually running rsync
-        
+
         // Arrange
         var state = RsyncUIState()
         let config = RsyncSyncConfig(
