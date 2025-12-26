@@ -21,6 +21,7 @@ final class PluginManager {
 
     /// Register  plugins
     func register(_ plugin: any ZenithPlugin, context: PluginContext) {
+        context.logger.info("Registering plugin: \(plugin.displayName)")
         for capability in plugin.makeCapabilities(context: context) {
             switch capability.type {
             case .commandProvider:

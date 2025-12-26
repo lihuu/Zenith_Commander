@@ -476,6 +476,24 @@ enum LocalizedStringKey: String, CaseIterable {
     case rsyncMenuConfigure
     case rsyncMenuMirror
     case rsyncMirrorSuccess
+    
+    // MARK: - Fzf Settings
+    
+    case settingsFzf
+    case fzfEnabled
+    case fzfEnabledDescription
+    case fzfNotInstalled
+    
+    // MARK: - Fzf Search
+    
+    case fzfSearchTitle
+    case fzfSearchPattern
+    case fzfRecursive
+    case fzfSearching
+    case fzfEnterPattern
+    case fzfResultsFound
+    case fzfShowInPane
+    case fzfSearch
 }
 
 // MARK: - 本地化字符串存储
@@ -841,6 +859,22 @@ class LocalizedStrings {
             .rsyncMenuConfigure: "Configure Rsync Sync...",
             .rsyncMenuMirror: "Mirror to Opposite Pane",
             .rsyncMirrorSuccess: "Mirror sync completed successfully",
+            
+            // Fzf Settings
+            .settingsFzf: "Fzf Search",
+            .fzfEnabled: "Enable Fzf Search",
+            .fzfEnabledDescription: "Enable fuzzy file search using fzf",
+            .fzfNotInstalled: "fzf is not installed. Install with: brew install fzf",
+            
+            // Fzf Search
+            .fzfSearchTitle: "Fuzzy Search",
+            .fzfSearchPattern: "Search Pattern",
+            .fzfRecursive: "Search recursively",
+            .fzfSearching: "Searching...",
+            .fzfEnterPattern: "Enter a pattern to search",
+            .fzfResultsFound: "results found",
+            .fzfShowInPane: "Show in Pane",
+            .fzfSearch: "Search",
         ]
     }
 
@@ -1187,6 +1221,22 @@ class LocalizedStrings {
             .rsyncMenuConfigure: "配置 Rsync 同步...",
             .rsyncMenuMirror: "镜像到对侧面板",
             .rsyncMirrorSuccess: "镜像同步已成功完成",
+            
+            // Fzf 设置
+            .settingsFzf: "Fzf 搜索",
+            .fzfEnabled: "启用 Fzf 搜索",
+            .fzfEnabledDescription: "使用 fzf 进行模糊文件搜索",
+            .fzfNotInstalled: "fzf 未安装。请使用 brew install fzf 安装",
+            
+            // Fzf 搜索
+            .fzfSearchTitle: "模糊搜索",
+            .fzfSearchPattern: "搜索模式",
+            .fzfRecursive: "递归搜索",
+            .fzfSearching: "搜索中...",
+            .fzfEnterPattern: "输入搜索模式",
+            .fzfResultsFound: "个结果",
+            .fzfShowInPane: "在面板中显示",
+            .fzfSearch: "搜索",
         ]
     }
 }

@@ -86,7 +86,23 @@ struct PaneView: View {
                         .foregroundColor(Theme.textTertiary)
 
                     Spacer()
-
+                    
+                    // Fzf Search Button - only show if fzf is installed
+                    if FzfService.shared.isFzfInstalled() && SettingsManager.shared.settings.fzf.enabled {
+                        Button(action: {
+                            Task {
+                                await appState.dispatch(.ui(.showSheet(.fzfPicker)))
+                            }
+                        }) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 12))
+                                .foregroundColor(Theme.textSecondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Fuzzy Search (fzf)")
+                        .padding(.trailing, 8)
+                    }
+                    
                     // Network Connection Button
                     Button(action: {
                         appState.enterMode(.modal)

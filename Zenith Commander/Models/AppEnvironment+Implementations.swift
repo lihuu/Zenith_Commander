@@ -367,7 +367,7 @@ extension AppEnvironment {
             main: main,
             userDefaults: userDefaults,
             runtime: runtime,
-            plugins: [GitPlugin(), RsyncPlugin()],
+            plugins: [GitPlugin(), RsyncPlugin(), FzfPlugin()],
             initParam: InitParam(leftInitPath: leftPath, rightInitPath: rightPath)
         )
     }

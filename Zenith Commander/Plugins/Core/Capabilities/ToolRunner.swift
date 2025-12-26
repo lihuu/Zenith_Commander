@@ -129,6 +129,8 @@ struct ProcessToolRunner: ToolRunner {
         if !response.stderr.isEmpty {
             print("[ToolRunner] stderr: \(response.stderr.joined(separator: "\\n"))")
         }
+        
+        print("[ToolRunner] Process exited with code: \(response.exitCode)")
 
         return response
     }

@@ -24,6 +24,9 @@ struct AppSettings: Codable, Equatable {
 
     /// Rsync 设置
     var rsync: RsyncSettings
+    
+    /// Fzf 设置
+    var fzf: FzfSettings
 
     /// 默认设置
     static var `default`: AppSettings {
@@ -31,7 +34,8 @@ struct AppSettings: Codable, Equatable {
             appearance: .default,
             terminal: .default,
             git: .default,
-            rsync: .default
+            rsync: .default,
+            fzf: .default
         )
     }
 
@@ -44,16 +48,18 @@ struct AppSettings: Codable, Equatable {
             try container.decodeIfPresent(TerminalSettings.self, forKey: .terminal) ?? .default
         git = try container.decodeIfPresent(GitSettings.self, forKey: .git) ?? .default
         rsync = try container.decodeIfPresent(RsyncSettings.self, forKey: .rsync) ?? .default
+        fzf = try container.decodeIfPresent(FzfSettings.self, forKey: .fzf) ?? .default
     }
 
     init(
         appearance: AppearanceSettings, terminal: TerminalSettings, git: GitSettings,
-        rsync: RsyncSettings
+        rsync: RsyncSettings, fzf: FzfSettings
     ) {
         self.appearance = appearance
         self.terminal = terminal
         self.git = git
         self.rsync = rsync
+        self.fzf = fzf
     }
 }
 
