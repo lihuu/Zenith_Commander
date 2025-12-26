@@ -21,6 +21,7 @@ class AppState: ObservableObject {
             subscribeToPaneChanges()
         }
     }
+
     @Published var rightPane: PaneState {
         didSet {
             // 当 pane 被替换时，重新订阅
@@ -111,12 +112,6 @@ class AppState: ObservableObject {
 
     @Published var contextMenuPosition: CGPoint?
     @Published var contextMenuFile: FileItem?
-
-    // MARK: - Rsync 状态
-
-    @Published var rsyncUIState = RsyncUIState()
-
-    // MARK: - 依赖注入
 
     let env: AppEnvironment
     private var runtimeStarted = false

@@ -61,18 +61,30 @@ Create DMG:
 ## 5. Project Structure
 
 ```txt
-.
-├── Zenith Commander/
-│   ├── Zenith_CommanderApp.swift   # App Entry Point
-│   ├── Localization/               # Custom localization system
-│   ├── Models/                     # Data models (AppState, FileItem, etc.)
-│   ├── Services/                   # Business logic (FS, Git, Commands)
-│   ├── Theme/                      # Theme definitions
-│   └── Views/                      # SwiftUI Views
-├── mft/                            # Embedded SFTP framework
-├── build-dmg.sh                    # Distribution script
-├── Zenith Commander.xcodeproj
-└── README.md
+Zenith Commander/
+├── Models/          # 数据模型
+│   ├── AppMode.swift       # 模式定义
+│   ├── AppState.swift      # 应用状态
+│   ├── Bookmark.swift      # 书签模型
+│   ├── FileItem.swift      # 文件项模型
+│   └── Settings.swift      # 设置模型
+├── Plugins/         # 插件系统
+│   ├── Core/               # 核心架构
+│   ├── Git/                # Git 功能插件
+│   └── Rsync/              # Rsync 同步插件
+├── Services/        # 服务层
+│   ├── CommandParser.swift     # 命令解析器
+│   ├── DirectoryMonitor.swift  # 目录监控
+│   ├── FileSystemService.swift # 文件系统服务
+│   └── Logger.swift            # 日志服务
+├── Theme/           # 主题系统
+│   ├── Theme.swift         # 主题定义
+│   └── ThemeManager.swift  # 主题管理器
+└── Views/           # 视图层
+    ├── MainView.swift      # 主视图
+    ├── PaneView.swift      # 面板视图
+    ├── SettingsView.swift  # 设置视图
+    └── Components/         # UI 组件
 ```
 
 You must NOT move files across layers without explicit instruction.
