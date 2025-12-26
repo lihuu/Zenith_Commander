@@ -15,6 +15,7 @@ final class PluginManager {
     private var uiProviders: [any UIContribution] = []
     private var contextMenuProviders: [any ContextMenuProvider] = []
     private var keybindingProviders: [any KeybindingProvider] = []
+    private var settingsProviders: [any SettingsProvider] = []
 
     private init() {}
 
@@ -36,6 +37,10 @@ final class PluginManager {
             case .keybindingProvider:
                 keybindingProviders.append(
                     capability as! any KeybindingProvider
+                )
+            case .settingsProvider:
+                settingsProviders.append(
+                    capability as! any SettingsProvider
                 )
             case .toolRunner:
                 // ToolRunner 目前固定ProcessToolRunner，先不通过插件扩展
@@ -89,5 +94,10 @@ final class PluginManager {
             allBindings.append(contentsOf: provider.keybindings)
         }
         return allBindings
+    }
+
+    /// Get all settings providers sorted by order
+    func allSettingsProviders() -> [any SettingsProvider] {
+        settingsProviders.sorted { $0.settingsOrder < $1.settingsOrder }
     }
 }

@@ -15,4 +15,5 @@ enum CapabilityType: String, CaseIterable {
     case uiContribution
     case contextMenuProvider
     case keybindingProvider
+    case settingsProvider
 }

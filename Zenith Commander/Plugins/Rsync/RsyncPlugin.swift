@@ -20,6 +20,7 @@ struct RsyncPlugin: ZenithPlugin {
         }
         let contextMenu = RsyncContextMenuProvider(context: context)
         let keybindings = RsyncKeybindingProvider(context: context)
-        return [cmd, ui, contextMenu, keybindings]
+        let settings = RsyncSettingsProvider(context: context)
+        return [cmd, ui, contextMenu, keybindings, settings]
     }
 }
