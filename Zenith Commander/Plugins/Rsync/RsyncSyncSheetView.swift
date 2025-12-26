@@ -15,13 +15,32 @@ private func L(_ key: LocalizedStringKey) -> String {
 }
 
 struct RsyncSyncSheetView: View {
-    @EnvironmentObject var appState: AppState
+    let context: PluginContext
+    
     @ObservedObject private var themeManager = ThemeManager.shared
+    @State private var rsyncUIState = RsyncUIState()
     @State private var localConfig: RsyncSyncConfig
     @State private var excludePatternsText = ""
     @State private var customFlagsText = ""
 
-    init(config: RsyncSyncConfig) {
+    init(context: PluginContext) {
+        self.context = context
+        
+        let panes = context.panes()
+        let source = (panes.active == .left) ? panes.leftPath : panes.rightPath
+        let target = (panes.active == .left) ? panes.rightPath : panes.leftPath
+        
+        let config = RsyncSyncConfig(
+            source: URL(fileURLWithPath: source),
+            destination: URL(fileURLWithPath: target),
+            mode: .update,
+            dryRun: true,
+            preserveAttributes: true,
+            deleteExtras: false,
+            excludePatterns: [],
+            customFlags: []
+        )
+        
         _localConfig = State(initialValue: config)
         _excludePatternsText = State(initialValue: config.excludePatterns.joined(separator: ", "))
         _customFlagsText = State(initialValue: config.customFlags.joined(separator: " "))
@@ -34,11 +53,11 @@ struct RsyncSyncSheetView: View {
 
             pathVisualizerView
 
-            if appState.rsyncUIState.isRunningSync {
+            if rsyncUIState.isRunningSync {
                 progressView
-            } else if let previewResult = appState.rsyncUIState.previewResult {
+            } else if let previewResult = rsyncUIState.previewResult {
                 previewView(result: previewResult)
-            } else if let syncResult = appState.rsyncUIState.syncResult {
+            } else if let syncResult = rsyncUIState.syncResult {
                 resultView(result: syncResult)
             } else {
                 configView
@@ -49,7 +68,7 @@ struct RsyncSyncSheetView: View {
         .background(Theme.background)
         .frame(width: 700, height: 600)
         .onChange(of: localConfig) { _, newValue in
-            appState.updateRsyncConfig(newValue)
+            updateRsyncConfig(newValue)
         }
     }
 
@@ -62,10 +81,10 @@ struct RsyncSyncSheetView: View {
                 Image(systemName: "arrow.triangle.2.circlepath")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(Theme.accent)
-                    .rotationEffect(appState.rsyncUIState.isRunningSync ? .degrees(360) : .degrees(0))
-                    .animation(appState.rsyncUIState.isRunningSync ?
+                    .rotationEffect(rsyncUIState.isRunningSync ? .degrees(360) : .degrees(0))
+                    .animation(rsyncUIState.isRunningSync ?
                         Animation.linear(duration: 2).repeatForever(autoreverses: false) : .default,
-                        value: appState.rsyncUIState.isRunningSync)
+                        value: rsyncUIState.isRunningSync)
 
                 Text("Directory Synchronization (Rsync)")
                     .font(.system(size: 14, weight: .semibold))
@@ -289,7 +308,7 @@ struct RsyncSyncSheetView: View {
                 )
 
                 // Error Display
-                if let error = appState.rsyncUIState.error {
+                if let error = rsyncUIState.error {
                     HStack(spacing: 8) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundColor(Theme.error)
@@ -474,7 +493,7 @@ struct RsyncSyncSheetView: View {
             Spacer()
 
             VStack(spacing: 16) {
-                if let progress = appState.rsyncUIState.syncProgress {
+                if let progress = rsyncUIState.syncProgress {
                     // Spinner and Text
                     VStack(spacing: 12) {
                         ProgressView()
@@ -584,7 +603,7 @@ struct RsyncSyncSheetView: View {
     private var footerView: some View {
         HStack {
             // Left Info
-            if let previewResult = appState.rsyncUIState.previewResult {
+            if let previewResult = rsyncUIState.previewResult {
                 Text("\(previewResult.copied.count + previewResult.updated.count + previewResult.deleted.count) changes detected")
                     .font(.system(size: 11))
                     .foregroundColor(Theme.textSecondary)
@@ -596,13 +615,9 @@ struct RsyncSyncSheetView: View {
             HStack(spacing: 12) {
                 // Cancel/Close Button
                 Button(action: {
-                    if appState.rsyncUIState.syncResult != nil {
-                        appState.dismissRsyncSheet()
-                    } else {
-                        appState.dismissRsyncSheet()
-                    }
+                    dismissRsyncSheet()
                 }) {
-                    Text(appState.rsyncUIState.syncResult != nil ? "Close" : "Cancel")
+                    Text(rsyncUIState.syncResult != nil ? "Close" : "Cancel")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(Theme.textPrimary)
                         .frame(minWidth: 80, minHeight: 32)
@@ -612,9 +627,9 @@ struct RsyncSyncSheetView: View {
                 .cornerRadius(4)
 
                 // Back Button (Preview only)
-                if appState.rsyncUIState.previewResult != nil, appState.rsyncUIState.syncResult == nil {
+                if rsyncUIState.previewResult != nil, rsyncUIState.syncResult == nil {
                     Button(action: {
-                        appState.rsyncUIState.previewResult = nil
+                        rsyncUIState.previewResult = nil
                     }) {
                         Text("Back")
                             .font(.system(size: 12, weight: .medium))
@@ -627,12 +642,12 @@ struct RsyncSyncSheetView: View {
                 }
 
                 // Primary Action Button
-                if appState.rsyncUIState.syncResult == nil {
-                    if appState.rsyncUIState.previewResult != nil {
+                if rsyncUIState.syncResult == nil {
+                    if rsyncUIState.previewResult != nil {
                         // Confirm & Sync
                         Button(action: {
                             Task {
-                                await appState.runSync()
+                                await runSync()
                             }
                         }) {
                             HStack(spacing: 6) {
@@ -647,12 +662,12 @@ struct RsyncSyncSheetView: View {
                         .buttonStyle(.borderless)
                         .background(Theme.success)
                         .cornerRadius(4)
-                        .disabled(appState.rsyncUIState.isRunningSync)
-                    } else if !appState.rsyncUIState.isRunningSync {
+                        .disabled(rsyncUIState.isRunningSync)
+                    } else if !rsyncUIState.isRunningSync {
                         // Dry Run
                         Button(action: {
                             Task {
-                                await appState.runPreview()
+                                await runPreview()
                             }
                         }) {
                             HStack(spacing: 6) {
@@ -676,7 +691,7 @@ struct RsyncSyncSheetView: View {
                         // Start Sync
                         Button(action: {
                             Task {
-                                await appState.runSync()
+                                await runSync()
                             }
                         }) {
                             HStack(spacing: 6) {
@@ -705,28 +720,97 @@ struct RsyncSyncSheetView: View {
             alignment: .top
         )
     }
+    
+    // MARK: - State Management Methods
+    
+    /// 更新 Rsync 配置
+    private func updateRsyncConfig(_ config: RsyncSyncConfig) {
+        rsyncUIState.error = nil
+        // 配置改变时清除预览结果
+        rsyncUIState.previewResult = nil
+    }
+    
+    /// 关闭 Rsync 配置弹窗
+    private func dismissRsyncSheet() {
+        // TODO: Dispatch close action to plugin manager
+        rsyncUIState.error = nil
+        rsyncUIState.previewResult = nil
+        rsyncUIState.syncResult = nil
+        rsyncUIState.isPreviewingDryRun = false
+        rsyncUIState.isRunningSync = false
+        rsyncUIState.syncProgress = nil
+    }
+    
+    /// 运行预览（dry-run）
+    private func runPreview() async {
+        rsyncUIState.isPreviewingDryRun = true
+        rsyncUIState.error = nil
+
+        do {
+            let result = try await RsyncService.shared.preview(config: localConfig)
+            rsyncUIState.previewResult = result
+        } catch {
+            rsyncUIState.error = error.localizedDescription
+        }
+
+        rsyncUIState.isPreviewingDryRun = false
+    }
+    
+    /// 执行同步
+    private func runSync() async {
+        rsyncUIState.isRunningSync = true
+        rsyncUIState.error = nil
+        rsyncUIState.syncProgress = nil
+        rsyncUIState.syncResult = nil
+
+        // 创建进度流
+        let (stream, continuation) = AsyncStream<RsyncProgress>.makeStream()
+
+        // 在后台任务中执行同步
+        let syncTask = Task {
+            do {
+                let result = try await RsyncService.shared.run(
+                    config: localConfig,
+                    progressContinuation: continuation
+                )
+                return result
+            } catch {
+                throw error
+            }
+        }
+
+        // 监听进度更新并在主线程更新 UI
+        for await progress in stream {
+            await MainActor.run {
+                rsyncUIState.syncProgress = progress
+            }
+        }
+
+        // 等待同步任务完成并获取最终结果
+        do {
+            let result = try await syncTask.value
+            await MainActor.run {
+                rsyncUIState.syncResult = result
+                rsyncUIState.isRunningSync = false
+            }
+        } catch {
+            await MainActor.run {
+                rsyncUIState.error = error.localizedDescription
+                rsyncUIState.isRunningSync = false
+            }
+        }
+    }
 }
 
 // MARK: - Preview
 
 #Preview {
-    let config = RsyncSyncConfig(
-        source: URL(fileURLWithPath: "/Macintosh HD/Users/Dev"),
-        destination: URL(fileURLWithPath: "/Samsung T7/Backups/2024"),
-        mode: .mirror,
-        dryRun: true,
-        preserveAttributes: true,
-        deleteExtras: false,
-        excludePatterns: ["*.tmp", ".DS_Store"],
-        customFlags: []
+    let mockContext = PluginContext(
+        panes: { PanesSnapshot(leftPath: "/Macintosh HD/Users/Dev", rightPath: "/Samsung T7/Backups/2024", active: .left) },
+        dispatch: { _ in },
+        logger: Logger(subsystem: "preview", category: "test"),
+        toolRunner: ProcessToolRunner()
     )
 
-    RsyncSyncSheetView(config: config)
-        .environmentObject(
-            AppState(
-                environment: .test(
-                    tempRoot: FileManager.default.temporaryDirectory
-                )
-            )
-        )
+    RsyncSyncSheetView(context: mockContext)
 }
