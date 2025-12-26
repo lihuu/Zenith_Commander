@@ -14,6 +14,7 @@ struct MainView: View {
     @StateObject private var appState: AppState
     @StateObject private var bookmarkManager: BookmarkManager
     private let pluginManager: PluginManager
+    private let pluginContext: PluginContext
 
     init(environment: AppEnvironment) {
         let appState = AppState(environment: environment)
@@ -34,6 +35,7 @@ struct MainView: View {
             logger: Logger.plugin,
             toolRunner: ProcessToolRunner()
         )
+        self.pluginContext = plugContext
 
         environment.plugins.forEach { plugin in
             pluginManager.register(plugin, context: plugContext)
@@ -212,7 +214,9 @@ struct MainView: View {
             ) {
                 HelpView()
             }
-            .pluginSheetHost(appState: appState, pluginManager: pluginManager)
+            .pluginSheetHost(
+                appState: appState, pluginContext: pluginContext, pluginManager: pluginManager
+            )
             .focusable()
             .onKeyPress { keyPress in
                 handleKeyPress(keyPress)

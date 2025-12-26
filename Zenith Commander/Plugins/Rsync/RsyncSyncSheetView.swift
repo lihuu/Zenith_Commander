@@ -748,13 +748,15 @@ struct RsyncSyncSheetView: View {
 
     /// 关闭 Rsync 配置弹窗
     private func dismissRsyncSheet() {
-        // TODO: Dispatch close action to plugin manager
         rsyncUIState.error = nil
         rsyncUIState.previewResult = nil
         rsyncUIState.syncResult = nil
         rsyncUIState.isPreviewingDryRun = false
         rsyncUIState.isRunningSync = false
         rsyncUIState.syncProgress = nil
+        Task { @MainActor in
+            await context.dispatch(.ui(.dismissSheet))
+        }
     }
 
     /// 运行预览（dry-run）

@@ -16,7 +16,7 @@ struct RsyncPlugin: ZenithPlugin {
     func makeCapabilities(context: PluginContext) -> [any PluginCapability] {
         let cmd = RsyncCommandProvider(context: context)
         let ui = RsyncUIContribution { req in
-            return AnyView(RsyncNewSheetView(context: context))
+            return AnyView(RsyncSyncSheetView(context: context))
         }
         let contextMenu = RsyncContextMenuProvider(context: context)
         return [cmd, ui, contextMenu]

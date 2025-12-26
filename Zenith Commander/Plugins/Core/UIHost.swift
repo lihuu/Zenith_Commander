@@ -10,6 +10,7 @@ import SwiftUI
 struct PluginSheetHost: ViewModifier {
     @ObservedObject var appState: AppState
     let pluginManager: PluginManager
+    let pluginContext: PluginContext
 
     func body(content: Content) -> some View {
         content
@@ -19,7 +20,12 @@ struct PluginSheetHost: ViewModifier {
                     set: { newValue in
                         if newValue == nil { appState.activeSheet = nil }
                     }
-                )
+                ),
+                onDismiss: {
+                    Task { @MainActor in
+                        await pluginContext.dispatch(.ui(.dismissSheet))
+                    }
+                }
             ) { request in
                 pluginManager.view(for: request)
                     ?? AnyView(Text("No UI for \(String(describing: request))"))
@@ -28,11 +34,19 @@ struct PluginSheetHost: ViewModifier {
 }
 
 extension View {
-    func pluginSheetHost(appState: AppState, pluginManager: PluginManager)
+
+    func pluginSheetHost(
+        appState: AppState, pluginContext: PluginContext, pluginManager: PluginManager
+    )
         -> some View
     {
         modifier(
-            PluginSheetHost(appState: appState, pluginManager: pluginManager)
+            PluginSheetHost(
+                appState: appState,
+                pluginManager: pluginManager,
+                pluginContext: pluginContext
+            )
         )
     }
+
 }

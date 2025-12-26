@@ -124,8 +124,7 @@ enum AppModeKeyMaps {
             KeyChord("g"): .pane(.jumpToTop),
             KeyChord("G", [.shift]): .pane(.jumpToBottom),
             KeyChord("D", [.shift]): .mode(.enterMode(.driveSelect)),
-            KeyChord("S", [.shift]): .ui(.openRsync),
-            KeyChord("A", [.shift]): .ui(.showSheet(.rsyncSheet)),
+            KeyChord("S", [.shift]): .ui(.showSheet(.rsyncSheet)),
         ]
 
         return normalOverrides.merging(defaultMap) { current, _ in
