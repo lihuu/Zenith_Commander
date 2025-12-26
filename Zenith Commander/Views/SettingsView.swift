@@ -352,11 +352,11 @@ struct TerminalOptionButton: View {
     let terminal: TerminalOption
     let isSelected: Bool
     let action: () -> Void
-
+    
     @ObservedObject private var themeManager = ThemeManager.shared
     @ObservedObject private var localizationManager = LocalizationManager.shared
     @State private var isHovered = false
-
+    
     var body: some View {
         Button(action: action) {
             HStack(spacing: 10) {
@@ -365,24 +365,24 @@ struct TerminalOptionButton: View {
                     RoundedRectangle(cornerRadius: 6)
                         .fill(isSelected ? themeManager.current.accent.opacity(0.15) : themeManager.current.backgroundTertiary)
                         .frame(width: 32, height: 32)
-
+                    
                     Image(systemName: terminalIcon)
                         .font(.system(size: 14))
                         .foregroundColor(isSelected ? themeManager.current.accent : themeManager.current.textSecondary)
                 }
-
+                
                 VStack(alignment: .leading, spacing: 2) {
                     Text(terminal.name)
                         .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
                         .foregroundColor(isSelected ? themeManager.current.textPrimary : themeManager.current.textSecondary)
-
+                    
                     Text(terminal.isInstalled ? L(.settingsInstalled) : L(.settingsNotInstalled))
                         .font(.system(size: 9))
                         .foregroundColor(terminal.isInstalled ? themeManager.current.success : themeManager.current.textMuted)
                 }
-
+                
                 Spacer()
-
+                
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 14))
@@ -403,23 +403,24 @@ struct TerminalOptionButton: View {
         .onHover { isHovered = $0 }
         .opacity(terminal.isInstalled ? 1.0 : 0.6)
     }
-
+    
     private func L(_ key: LocalizedStringKey) -> String {
         localizationManager.localized(key)
     }
-
+    
     private var terminalIcon: String {
         switch terminal.id {
-        case "terminal": "terminal"
-        case "iterm": "rectangle.split.3x1"
-        case "warp": "bolt.horizontal"
-        case "alacritty": "a.square"
-        case "kitty": "cat"
-        case "hyper": "h.square"
-        default: "terminal"
+            case "terminal": "terminal"
+            case "iterm": "rectangle.split.3x1"
+            case "warp": "bolt.horizontal"
+            case "alacritty": "a.square"
+            case "kitty": "cat"
+            case "hyper": "h.square"
+            default: "terminal"
+        }
     }
+    
 }
-
 // MARK: - 设置区域容器
 
 struct SettingsSection<Content: View>: View {

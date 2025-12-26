@@ -82,7 +82,9 @@ struct GitToggleRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(isDisabled ? themeManager.current.textMuted : themeManager.current.textPrimary)
+                    .foregroundColor(
+                        isDisabled
+                            ? themeManager.current.textMuted : themeManager.current.textPrimary)
 
                 Text(description)
                     .font(.system(size: 10))
