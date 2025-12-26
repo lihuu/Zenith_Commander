@@ -1,11 +1,16 @@
 import SwiftUI
 
 struct GitUIContribution: UIContribution {
+    let context: PluginContext
+    
+    init(context: PluginContext) {
+        self.context = context
+    }
     
     func makeView(for request: UIRequest) -> AnyView? {
         switch request {
         case .gitPanel:
-            return AnyView(GitPanelContainer())
+            return AnyView(GitPanelContainer(context: context))
         default:
             return nil
         }
@@ -13,10 +18,12 @@ struct GitUIContribution: UIContribution {
 }
 
 struct GitPanelContainer: View {
+    let context: PluginContext
     @EnvironmentObject var appState: AppState
     
     var body: some View {
         GitHistoryPanelView(
+            context: context,
             fileName: appState.gitHistoryFile?.name ?? LocalizationManager.shared.localized(.gitRepoHistory),
             commits: appState.gitHistoryCommits,
             isLoading: appState.gitHistoryLoading,

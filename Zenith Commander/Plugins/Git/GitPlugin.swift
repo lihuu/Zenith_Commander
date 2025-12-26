@@ -7,7 +7,7 @@ struct GitPlugin: ZenithPlugin {
 
     func makeCapabilities(context: PluginContext) -> [any PluginCapability] {
         let cmd = GitCommandProvider(context: context)
-        let ui = GitUIContribution()
+        let ui = GitUIContribution(context: context)
         let keybindings = GitKeybindingProvider(context: context)
         return [cmd, ui, keybindings]
     }
