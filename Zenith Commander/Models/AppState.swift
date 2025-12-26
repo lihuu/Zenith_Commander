@@ -197,8 +197,14 @@ class AppState: ObservableObject {
         env.userDefaults.set(rightPath, forKey: "lastRightPanePath")
 
         // 保存安全书签以持久化访问权限
-        saveSecurityBookmark(for: leftPane.activeTab.currentPath, key: "leftPaneBookmark")
-        saveSecurityBookmark(for: rightPane.activeTab.currentPath, key: "rightPaneBookmark")
+        saveSecurityBookmark(
+            for: leftPane.activeTab.currentPath,
+            key: "leftPaneBookmark"
+        )
+        saveSecurityBookmark(
+            for: rightPane.activeTab.currentPath,
+            key: "rightPaneBookmark"
+        )
 
         Logger.app.debug(
             "Saved paths - Left: \(leftPath, privacy: .public), Right: \(rightPath, privacy: .public)"
@@ -209,15 +215,20 @@ class AppState: ObservableObject {
     private func saveSecurityBookmark(for url: URL, key: String) {
         do {
             let bookmarkData = try url.bookmarkData(
-                options: [.withSecurityScope, .securityScopeAllowOnlyReadAccess],
+                options: [
+                    .withSecurityScope, .securityScopeAllowOnlyReadAccess,
+                ],
                 includingResourceValuesForKeys: nil,
                 relativeTo: nil
             )
             env.userDefaults.set(bookmarkData, forKey: key)
-            Logger.app.debug("Saved security bookmark for: \(url.path, privacy: .public)")
+            Logger.app.debug(
+                "Saved security bookmark for: \(url.path, privacy: .public)"
+            )
         } catch {
             Logger.app.error(
-                "Failed to save security bookmark: \(error.localizedDescription, privacy: .public)")
+                "Failed to save security bookmark: \(error.localizedDescription, privacy: .public)"
+            )
         }
     }
 
@@ -338,8 +349,10 @@ class AppState: ObservableObject {
             break
         case .showSheet(let req):
             activeSheet = req
+            enterMode(.modal)
         case .dismissSheet:
             activeSheet = nil
+            exitMode()
         }
     }
 
