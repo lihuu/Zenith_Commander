@@ -590,7 +590,6 @@ struct PaneView: View {
         }
     }
 
-    // MARK: - 事件处理（统一通过模式系统）
 
     /// 处理拖放的 URL - 移动文件到目标目录
     /// - Parameters:
