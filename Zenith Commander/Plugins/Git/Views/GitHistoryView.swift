@@ -5,9 +5,9 @@
 //  Git 历史记录面板视图
 //
 
-import os.log
 import OSLog
 import SwiftUI
+import os.log
 
 // Helper function to access localization
 private func L(_ key: LocalizedStringKey) -> String {
@@ -50,7 +50,8 @@ struct GitHistoryPanelView: View {
             GitCommitDetailView(commit: commit)
         }
         .onAppear {
-            context.logger.info("GitHistoryPanelView appeared - fileName: \(fileName), commits: \(commits.count)")
+            context.logger.info(
+                "GitHistoryPanelView appeared - fileName: \(fileName), commits: \(commits.count)")
         }
         .onDisappear {
             context.logger.info("GitHistoryPanelView disappeared")
@@ -204,10 +205,15 @@ struct GitCommitDetailView: View {
                     // 基本信息
                     Group {
                         detailRow(icon: "number", title: L(.gitCommitHash), value: commit.id)
-                        detailRow(icon: "person", title: L(.gitCommitAuthor), value: "\(commit.author) <\(commit.authorEmail)>")
-                        detailRow(icon: "calendar", title: L(.gitCommitDate), value: commit.formattedDate)
+                        detailRow(
+                            icon: "person", title: L(.gitCommitAuthor),
+                            value: "\(commit.author) <\(commit.authorEmail)>")
+                        detailRow(
+                            icon: "calendar", title: L(.gitCommitDate), value: commit.formattedDate)
                         if !commit.parentHashes.isEmpty {
-                            detailRow(icon: "arrow.turn.up.left", title: L(.gitCommitParent), value: commit.parentHashes.joined(separator: ", "))
+                            detailRow(
+                                icon: "arrow.turn.up.left", title: L(.gitCommitParent),
+                                value: commit.parentHashes.joined(separator: ", "))
                         }
                     }
 
@@ -264,9 +270,8 @@ struct GitCommitRowView: View, Equatable {
     let isHovered: Bool
 
     static func == (lhs: GitCommitRowView, rhs: GitCommitRowView) -> Bool {
-        lhs.commit.id == rhs.commit.id &&
-            lhs.isSelected == rhs.isSelected &&
-            lhs.isHovered == rhs.isHovered
+        lhs.commit.id == rhs.commit.id && lhs.isSelected == rhs.isSelected
+            && lhs.isHovered == rhs.isHovered
     }
 
     var body: some View {
@@ -330,13 +335,14 @@ struct GitCommitRowView: View, Equatable {
         logger: Logger(subsystem: "preview", category: "git"),
         toolRunner: ProcessToolRunner()
     )
-    
+
     let sampleCommits = [
         GitCommit(
             id: "abc123def456",
             shortHash: "abc123d",
             message: "Fix path parsing for git status",
-            fullMessage: "Fix path parsing for git status\n\nThis commit fixes the issue with quoted paths.",
+            fullMessage:
+                "Fix path parsing for git status\n\nThis commit fixes the issue with quoted paths.",
             author: "lihu",
             authorEmail: "lihu@example.com",
             date: Date().addingTimeInterval(-3600),
@@ -369,7 +375,7 @@ struct GitCommitRowView: View, Equatable {
         fileName: "GitService.swift",
         commits: sampleCommits,
         isLoading: false,
-        onClose: { },
+        onClose: {},
         onCommitSelected: { _ in }
     )
     .frame(height: 200)
