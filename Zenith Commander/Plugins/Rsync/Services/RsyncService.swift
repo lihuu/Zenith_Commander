@@ -19,6 +19,9 @@ class RsyncService {
 
     // Tool runner for executing rsync commands
     private let toolRunner: ToolRunner
+    
+    // Cache for rsync installation check
+    private var rsyncInstalledCache: Bool?
 
     init(toolRunner: ToolRunner = ProcessToolRunner()) {
         self.toolRunner = toolRunner
@@ -28,7 +31,13 @@ class RsyncService {
 
     /// Checks if rsync is installed on the system
     /// - Returns: True if rsync executable is found
+    /// - Note: Result is cached after first check
     func isRsyncInstalled() -> Bool {
+        // Return cached value if available
+        if let cached = rsyncInstalledCache {
+            return cached
+        }
+        
         let toolRunner = ProcessToolRunner()
 
         do {
@@ -39,8 +48,11 @@ class RsyncService {
                     workingDirectory: nil
                 )
             )
-            return response.exitCode == 0
+            let result = response.exitCode == 0
+            rsyncInstalledCache = result
+            return result
         } catch {
+            rsyncInstalledCache = false
             return false
         }
     }

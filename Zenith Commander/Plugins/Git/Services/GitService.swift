@@ -37,7 +37,6 @@ class GitService {
     private var _isGitAvailable: Bool?
     private var isGitAvailable: Bool {
         if let cached = _isGitAvailable {
-            Logger.git.debug("Using cached git availability: \(cached)")
             return cached
         }
 
