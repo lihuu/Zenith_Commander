@@ -22,6 +22,13 @@ class RsyncService {
     
     // Cache for rsync installation check
     private var rsyncInstalledCache: Bool?
+    
+    // Candidate paths for rsync executable
+    private let candidatePaths: [String] = [
+        "/opt/homebrew/bin/rsync",
+        "/usr/local/bin/rsync",
+        "/usr/bin/rsync",
+    ]
 
     init(toolRunner: ToolRunner = ProcessToolRunner()) {
         self.toolRunner = toolRunner
@@ -38,23 +45,14 @@ class RsyncService {
             return cached
         }
         
-        let toolRunner = ProcessToolRunner()
-
-        do {
-            let response = try toolRunner.runSync(
-                ToolRequest(
-                    executable: "/usr/bin/which",
-                    args: ["rsync"],
-                    workingDirectory: nil
-                )
-            )
-            let result = response.exitCode == 0
-            rsyncInstalledCache = result
-            return result
-        } catch {
-            rsyncInstalledCache = false
-            return false
-        }
+        let allCandidates = ToolPathUtils.generateCandidatePaths(
+            executableName: "rsync",
+            additionalPaths: candidatePaths
+        )
+        
+        let result = ToolPathUtils.resolveFirstExecutablePath(candidatePaths: allCandidates) != nil
+        rsyncInstalledCache = result
+        return result
     }
 
     /// Performs a dry-run preview of the rsync operation

@@ -652,20 +652,15 @@ class GitService {
     /// 获取 Git 可执行文件路径
     private func resolveGitExecutableURL() -> URL? {
         Logger.git.info("Resolving git executable path...")
-        let fileManager = FileManager.default
-        if let pathEnv = ProcessInfo.processInfo.environment["PATH"] {
-            Logger.git.debug("PATH environment: \(pathEnv, privacy: .public)")
-            let pathCandidates = pathEnv.split(separator: ":").map { path in
-                "\(path)/git"
-            }
-            self.candidatePaths.append(contentsOf: pathCandidates)
-        }
-
-        for path in candidatePaths {
-            if fileManager.isExecutableFile(atPath: path) {
-                Logger.git.info("Found git executable at: \(path, privacy: .public)")
-                return URL(fileURLWithPath: path)
-            }
+        
+        let allCandidates = ToolPathUtils.generateCandidatePaths(
+            executableName: "git",
+            additionalPaths: candidatePaths
+        )
+        
+        if let foundPath = ToolPathUtils.resolveFirstExecutablePath(candidatePaths: allCandidates) {
+            Logger.git.info("Found git executable at: \(foundPath, privacy: .public)")
+            return URL(fileURLWithPath: foundPath)
         }
 
         Logger.git.error("No git executable found in any candidate path")

@@ -14,6 +14,13 @@ class FzfService {
     private let toolRunner: ToolRunner
     private var fzfInstalledCache: Bool?
     
+    // Candidate paths for fzf executable
+    private let candidatePaths: [String] = [
+        "/opt/homebrew/bin/fzf",
+        "/usr/local/bin/fzf",
+        "/usr/bin/fzf",
+    ]
+    
     init(toolRunner: ToolRunner = ProcessToolRunner()) {
         self.toolRunner = toolRunner
     }
@@ -28,21 +35,14 @@ class FzfService {
             return cached
         }
         
-        do {
-            let response = try toolRunner.runSync(
-                ToolRequest(
-                    executable: "/usr/bin/which",
-                    args: ["fzf"],
-                    workingDirectory: nil
-                )
-            )
-            let result = response.exitCode == 0
-            fzfInstalledCache = result
-            return result
-        } catch {
-            fzfInstalledCache = false
-            return false
-        }
+        let allCandidates = ToolPathUtils.generateCandidatePaths(
+            executableName: "fzf",
+            additionalPaths: candidatePaths
+        )
+        
+        let result = ToolPathUtils.resolveFirstExecutablePath(candidatePaths: allCandidates) != nil
+        fzfInstalledCache = result
+        return result
     }
     
     /// Performs fuzzy search using fzf
