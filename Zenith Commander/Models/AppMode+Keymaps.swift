@@ -11,7 +11,7 @@ import SwiftUI
 extension AppMode {
     var keyMaps: [KeyChord: AppAction] {
         let baseKeyMaps: [KeyChord: AppAction]
-        
+
         switch self {
         case .normal:
             baseKeyMaps = AppModeKeyMaps.normal
@@ -36,7 +36,7 @@ extension AppMode {
         default:
             baseKeyMaps = [:]
         }
-        
+
         // Merge plugin keybindings (plugins take priority over base keymaps)
         let pluginKeybindings = PluginManager.shared.keybindings(for: self)
         return baseKeyMaps.merging(pluginKeybindings) { _, plugin in plugin }

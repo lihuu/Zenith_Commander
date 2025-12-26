@@ -13,7 +13,7 @@ struct KeybindingDefinition {
     let keyChord: KeyChord
     let action: AppAction
     let description: String?
-    
+
     init(mode: AppMode, keyChord: KeyChord, action: AppAction, description: String? = nil) {
         self.mode = mode
         self.keyChord = keyChord

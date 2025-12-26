@@ -70,7 +70,7 @@ final class PluginManager {
         }
         return items
     }
-    
+
     /// Get all keybindings for a specific mode
     func keybindings(for mode: AppMode) -> [KeyChord: AppAction] {
         var bindings: [KeyChord: AppAction] = [:]
@@ -81,7 +81,7 @@ final class PluginManager {
         }
         return bindings
     }
-    
+
     /// Get all keybindings from all providers
     func allKeybindings() -> [KeybindingDefinition] {
         var allBindings: [KeybindingDefinition] = []
