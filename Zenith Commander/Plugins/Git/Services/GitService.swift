@@ -40,29 +40,7 @@ class GitService {
             return cached
         }
 
-        guard let gitURL = gitExecutableURL else {
-            _isGitAvailable = false
-            return false
-        }
-
-        let request = ToolRequest(
-            executable: gitURL.path,
-            args: ["--version"],
-            workingDirectory: nil
-        )
-
-        let result: Bool
-        do {
-            let response = try toolRunner.runSync(request)
-            if !response.stderr.isEmpty {
-                Logger.git.warning(
-                    "Git stderr: \(response.stderr.joined(separator: ", "), privacy: .public)")
-            }
-            result = response.exitCode == 0
-        } catch {
-            Logger.git.error("Git command failed with error: \(error.localizedDescription)")
-            result = false
-        }
+        let result = ToolPathUtils.commandAvailable(command: "git")
 
         _isGitAvailable = result
         return result
@@ -652,12 +630,12 @@ class GitService {
     /// 获取 Git 可执行文件路径
     private func resolveGitExecutableURL() -> URL? {
         Logger.git.info("Resolving git executable path...")
-        
+
         let allCandidates = ToolPathUtils.generateCandidatePaths(
             executableName: "git",
             additionalPaths: candidatePaths
         )
-        
+
         if let foundPath = ToolPathUtils.resolveFirstExecutablePath(candidatePaths: allCandidates) {
             Logger.git.info("Found git executable at: \(foundPath, privacy: .public)")
             return URL(fileURLWithPath: foundPath)
