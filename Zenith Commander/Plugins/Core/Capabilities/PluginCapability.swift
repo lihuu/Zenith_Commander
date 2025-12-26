@@ -14,4 +14,5 @@ enum CapabilityType: String, CaseIterable {
     case toolRunner
     case uiContribution
     case contextMenuProvider
+    case keybindingProvider
 }

@@ -10,30 +10,36 @@ import SwiftUI
 /// 不同模式下的键盘映射扩展
 extension AppMode {
     var keyMaps: [KeyChord: AppAction] {
+        let baseKeyMaps: [KeyChord: AppAction]
+        
         switch self {
         case .normal:
-            AppModeKeyMaps.normal
+            baseKeyMaps = AppModeKeyMaps.normal
         case .visual:
-            AppModeKeyMaps.visual
+            baseKeyMaps = AppModeKeyMaps.visual
         case .command:
-            AppModeKeyMaps.command
+            baseKeyMaps = AppModeKeyMaps.command
         case .filter:
-            AppModeKeyMaps.filter
+            baseKeyMaps = AppModeKeyMaps.filter
         case .driveSelect:
-            AppModeKeyMaps.driver
+            baseKeyMaps = AppModeKeyMaps.driver
         case .rename:
-            AppModeKeyMaps.rename
+            baseKeyMaps = AppModeKeyMaps.rename
         case .batchRename:
-            AppModeKeyMaps.batchRename
+            baseKeyMaps = AppModeKeyMaps.batchRename
         case .settings:
-            AppModeKeyMaps.settings
+            baseKeyMaps = AppModeKeyMaps.settings
         case .help:
-            AppModeKeyMaps.help
+            baseKeyMaps = AppModeKeyMaps.help
         case .modal:
-            AppModeKeyMaps.modal  // No key maps for modal mode
+            baseKeyMaps = AppModeKeyMaps.modal
         default:
-            [:]
+            baseKeyMaps = [:]
         }
+        
+        // Merge plugin keybindings (plugins take priority over base keymaps)
+        let pluginKeybindings = PluginManager.shared.keybindings(for: self)
+        return baseKeyMaps.merging(pluginKeybindings) { _, plugin in plugin }
     }
 
     func action(for keyPress: KeyPress) -> AppAction? {

@@ -19,6 +19,7 @@ struct RsyncPlugin: ZenithPlugin {
             return AnyView(RsyncSyncSheetView(context: context))
         }
         let contextMenu = RsyncContextMenuProvider(context: context)
-        return [cmd, ui, contextMenu]
+        let keybindings = RsyncKeybindingProvider(context: context)
+        return [cmd, ui, contextMenu, keybindings]
     }
 }

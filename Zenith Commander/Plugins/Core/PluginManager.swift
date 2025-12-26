@@ -14,6 +14,7 @@ final class PluginManager {
     private var commandProviders: [String: any CommandProvider] = [:]
     private var uiProviders: [any UIContribution] = []
     private var contextMenuProviders: [any ContextMenuProvider] = []
+    private var keybindingProviders: [any KeybindingProvider] = []
 
     private init() {}
 
@@ -31,6 +32,10 @@ final class PluginManager {
             case .contextMenuProvider:
                 contextMenuProviders.append(
                     capability as! any ContextMenuProvider
+                )
+            case .keybindingProvider:
+                keybindingProviders.append(
+                    capability as! any KeybindingProvider
                 )
             case .toolRunner:
                 // ToolRunner 目前固定ProcessToolRunner，先不通过插件扩展
@@ -64,5 +69,25 @@ final class PluginManager {
             items.append(contentsOf: provider.menuItems())
         }
         return items
+    }
+    
+    /// Get all keybindings for a specific mode
+    func keybindings(for mode: AppMode) -> [KeyChord: AppAction] {
+        var bindings: [KeyChord: AppAction] = [:]
+        for provider in keybindingProviders {
+            for binding in provider.keybindings where binding.mode == mode {
+                bindings[binding.keyChord] = binding.action
+            }
+        }
+        return bindings
+    }
+    
+    /// Get all keybindings from all providers
+    func allKeybindings() -> [KeybindingDefinition] {
+        var allBindings: [KeybindingDefinition] = []
+        for provider in keybindingProviders {
+            allBindings.append(contentsOf: provider.keybindings)
+        }
+        return allBindings
     }
 }
