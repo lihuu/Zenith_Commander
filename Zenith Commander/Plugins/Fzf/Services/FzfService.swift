@@ -13,24 +13,36 @@ class FzfService {
 
     private let toolRunner: ToolRunner
     private var fzfInstalledCache: Bool?
+    private let fzfExecutablePath: String
+    private let findExecuatablePath: String
+    private let rgExecutablePath: String
 
     init(toolRunner: ToolRunner = ProcessToolRunner()) {
         self.toolRunner = toolRunner
-    }
-
-    // MARK: - Public API
-
-    /// Checks if fzf is installed on the system
-    /// - Returns: True if fzf executable is found
-    /// - Note: Result is cached after first check
-    func isFzfInstalled() -> Bool {
-        if let cached = fzfInstalledCache {
-            return cached
-        }
-
-        let result = ToolPathUtils.commandAvailable(command: "fzf")
-        fzfInstalledCache = result
-        return result
+        fzfExecutablePath =
+            ToolPathUtils.resolveFirstExecutablePath(
+                candidatePaths: [
+                    "/opt/homebrew/bin/fzf",
+                    "/usr/local/bin/fzf",
+                    "/usr/bin/fzf",
+                ]
+            ) ?? "fzf"
+        findExecuatablePath =
+            ToolPathUtils.resolveFirstExecutablePath(candidatePaths: [
+                "/opt/homebrew/bin/fd",
+                "/usr/local/bin/fd",
+                "/usr/bin/fd",
+            ]) ?? ToolPathUtils.resolveFirstExecutablePath(candidatePaths: [
+                "/opt/homebrew/bin/find",
+                "/usr/local/bin/find",
+                "/usr/bin/find",
+            ]) ?? "find"
+        rgExecutablePath =
+            ToolPathUtils.resolveFirstExecutablePath(candidatePaths: [
+                "/opt/homebrew/bin/rg",
+                "/usr/local/bin/rg",
+                "/usr/bin/rg",
+            ]) ?? "rg"
     }
 
     /// Performs fuzzy search using fzf
@@ -44,10 +56,6 @@ class FzfService {
         directory: URL,
         recursive: Bool = true
     ) async throws -> [URL] {
-        guard isFzfInstalled() else {
-            throw FzfError.notInstalled
-        }
-
         // Use find + fzf pipeline for file search
         // find . -type f | fzf --filter=pattern
         let findArgs =
