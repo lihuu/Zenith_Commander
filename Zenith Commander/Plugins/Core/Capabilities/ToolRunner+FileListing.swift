@@ -26,7 +26,10 @@ struct FileListConfig: Sendable {
     /// Whether to follow symlinks.
     var followSymlinks: Bool = true
 
-    init(excludes: [String] = [".git", "node_modules", "DerivedData", ".build", ".swiftpm"], includeHidden: Bool = true, followSymlinks: Bool = true) {
+    init(
+        excludes: [String] = [".git", "node_modules", "DerivedData", ".build", ".swiftpm"],
+        includeHidden: Bool = true, followSymlinks: Bool = true
+    ) {
         self.excludes = excludes
         self.includeHidden = includeHidden
         self.followSymlinks = followSymlinks
@@ -48,10 +51,10 @@ struct ExternalToolchain: Sendable {
     let fzfPath: String?
 
     init() {
-        self.rgPath = ExternalToolchain.which("rg")
-        self.fdPath = ExternalToolchain.which("fd")
-        self.fzfPath = ExternalToolchain.which("fzf")
-        self.findPath = ExternalToolchain.which("find") ?? "/usr/bin/find"
+        self.rgPath = Self.resolveTool("rg")
+        self.fdPath = Self.resolveTool("fd")
+        self.fzfPath = Self.resolveTool("fzf")
+        self.findPath = Self.resolveTool("find") ?? "/usr/bin/find"
     }
 
     var preferredListTool: FileListTool {
@@ -60,9 +63,23 @@ struct ExternalToolchain: Sendable {
         return .find
     }
 
-    /// Best-effort `which`. Returns absolute path if found.
-    fileprivate static func which(_ name: String) -> String? {
-        // Use /usr/bin/env which <name>
+    /// Resolve tool path using predefined paths first, fallback to which.
+    private static func resolveTool(_ name: String) -> String? {
+        // 1) Try predefined paths
+        let candidates = ToolPathUtils.generateCandidatePaths(
+            executableName: name,
+            additionalPaths: ToolPathUtils.candidatePaths.map { "\($0)\(name)" }
+        )
+        if let found = ToolPathUtils.resolveFirstExecutablePath(candidatePaths: candidates) {
+            return found
+        }
+
+        // 2) Fallback to which command
+        return whichFallback(name)
+    }
+
+    /// Fallback: use which command to locate tool.
+    private static func whichFallback(_ name: String) -> String? {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         p.arguments = ["which", name]
@@ -76,7 +93,8 @@ struct ExternalToolchain: Sendable {
         guard p.terminationStatus == 0 else { return nil }
 
         let data = out.fileHandleForReading.readDataToEndOfFile()
-        let path = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+        let path = String(decoding: data, as: UTF8.self).trimmingCharacters(
+            in: .whitespacesAndNewlines)
         return path.isEmpty ? nil : path
     }
 }
@@ -159,21 +177,26 @@ func listFilesThenFuzzyFilter(
     toolchain: ExternalToolchain = ExternalToolchain()
 ) async throws -> [String] {
 
-    let (_, listReq) = buildFileListRequest(toolchain: toolchain, root: root, scope: scope, config: config)
+    let (_, listReq) = buildFileListRequest(
+        toolchain: toolchain, root: root, scope: scope, config: config)
     let list = try await runner.runData(listReq)
 
     let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
     if trimmed.isEmpty {
-        return list.stdoutString.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+        return list.stdoutString.split(separator: "\n", omittingEmptySubsequences: true).map(
+            String.init)
     }
 
     if let fzfBase = buildFzfBaseRequest(toolchain: toolchain) {
-        let filtered = try await runner.listThenFzfFilter(listRequest: listReq, fzfRequest: fzfBase, query: trimmed)
-        return filtered.stdoutString.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+        let filtered = try await runner.listThenFzfFilter(
+            listRequest: listReq, fzfRequest: fzfBase, query: trimmed)
+        return filtered.stdoutString.split(separator: "\n", omittingEmptySubsequences: true).map(
+            String.init)
     }
 
     // fzf not installed -> fallback
-    let all = list.stdoutString.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+    let all = list.stdoutString.split(separator: "\n", omittingEmptySubsequences: true).map(
+        String.init)
     return all.filter { $0.localizedCaseInsensitiveContains(trimmed) }
 }
 
