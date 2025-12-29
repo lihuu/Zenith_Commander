@@ -9,6 +9,7 @@ import Combine
 import Foundation
 import SwiftUI
 
+@MainActor
 class PaneState: ObservableObject {
     var side: PaneSide
     @Published var tabs: [TabState]
@@ -19,20 +20,25 @@ class PaneState: ObservableObject {
     var visualAnchor: Int?  // Visual 模式的锚点位置
 
     /// Grid View 每行的列数（用于键盘导航）
-    var gridColumnCount: Int = 4
+    var gridColumnCount = 4
 
     private var tabCancellables: [UUID: AnyCancellable] = [:]
 
     init(side: PaneSide, initialPath: URL, drive: DriveInfo) {
         self.side = side
-        self.tabs = [TabState(drive: drive, path: initialPath)]
-        self.activeTabIndex = 0
-        self.viewMode = .list
-        self.selections = []
-        self.visualAnchor = nil
+        tabs = [TabState(drive: drive, path: initialPath)]
+        activeTabIndex = 0
+        viewMode = .list
+        selections = []
+        visualAnchor = nil
 
         // 订阅初始标签页的变化
         subscribeToTabChanges()
+    }
+
+    deinit {
+        // 清理所有订阅，避免悬空引用
+        tabCancellables.removeAll()
     }
 
     /// 订阅所有标签页的变化，转发到 PaneState
@@ -69,9 +75,9 @@ class PaneState: ObservableObject {
             if let idx = activeTab.files.firstIndex(where: {
                 $0.id == activeTab.cursorFileId
             }) {
-                return idx
+                idx
             } else {
-                return 0
+                0
             }
         }
         set {
@@ -111,7 +117,7 @@ class PaneState: ObservableObject {
 
     /// 切换到指定标签页
     func switchTab(to index: Int) {
-        guard index >= 0 && index < tabs.count else { return }
+        guard index >= 0, index < tabs.count else { return }
         activeTabIndex = index
     }
 
@@ -187,12 +193,33 @@ class PaneState: ObservableObject {
             }
         }
     }
-    
-    func refreshActiveTab() async{
-        let files = await FileSystemService.shared.loadDirectory(
-            at: activeTab.currentPath
-        )
+
+    func refresh(using fileSystem: FileSysteming) async {
+        let files = await fileSystem.loadDirectory(at: activeTab.currentPath)
         activeTab.files = files
     }
-    
+}
+
+extension PaneState {
+    static func stub(
+        side: PaneSide = .left,
+        path: URL = URL(fileURLWithPath: "/"),
+        drive: DriveInfo? = nil,
+        files: [FileItem] = []
+    ) -> PaneState {
+        let fallbackDrive = DriveInfo(
+            id: "stub-drive",
+            name: "Stub Drive",
+            path: path,
+            type: .system,
+            totalCapacity: 0,
+            availableCapacity: 0
+        )
+        let pane = PaneState(side: side, initialPath: path, drive: drive ?? fallbackDrive)
+        pane.activeTab.files = files
+        if let first = files.first {
+            pane.activeTab.cursorFileId = first.id
+        }
+        return pane
+    }
 }

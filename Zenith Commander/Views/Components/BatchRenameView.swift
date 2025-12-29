@@ -12,11 +12,11 @@ struct BatchRenameView: View {
     @Binding var findText: String
     @Binding var replaceText: String
     @Binding var useRegex: Bool
-    
+
     let selectedFiles: [FileItem]
     let onApply: () -> Void
-    var onDismiss: (() -> Void)? = nil  // 关闭时的回调
-    
+    var onDismiss: (() -> Void)? // 关闭时的回调
+
     var body: some View {
         VStack(spacing: 0) {
             // 标题栏
@@ -28,9 +28,9 @@ struct BatchRenameView: View {
                 Text("(\(selectedFiles.count) items)")
                     .font(.system(size: 12))
                     .foregroundColor(Theme.textTertiary)
-                
+
                 Spacer()
-                
+
                 Button(action: { dismissView() }) {
                     Image(systemName: "xmark")
                         .font(.system(size: 12, weight: .medium))
@@ -45,10 +45,10 @@ struct BatchRenameView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .background(Theme.backgroundTertiary)
-            
+
             Divider()
                 .background(Theme.border)
-            
+
             // 输入区域
             VStack(spacing: 16) {
                 // 查找
@@ -56,7 +56,7 @@ struct BatchRenameView: View {
                     Text("Find (Match string)")
                         .font(.system(size: 11))
                         .foregroundColor(Theme.textTertiary)
-                    
+
                     TextField("e.g. IMG_", text: $findText)
                         .textFieldStyle(.plain)
                         .font(.system(size: 13))
@@ -68,13 +68,13 @@ struct BatchRenameView: View {
                                 .stroke(Theme.borderLight, lineWidth: 1)
                         )
                 }
-                
+
                 // 替换
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Replace with")
                         .font(.system(size: 11))
                         .foregroundColor(Theme.textTertiary)
-                    
+
                     TextField("e.g. Photo_{n}", text: $replaceText)
                         .textFieldStyle(.plain)
                         .font(.system(size: 13))
@@ -86,7 +86,7 @@ struct BatchRenameView: View {
                                 .stroke(Theme.borderLight, lineWidth: 1)
                         )
                 }
-                
+
                 // 选项
                 HStack(spacing: 12) {
                     // Regex 开关
@@ -99,51 +99,47 @@ struct BatchRenameView: View {
                         }
                     }
                     .toggleStyle(CheckboxToggleStyle())
-                    
+
                     Spacer()
-                    
+
                     // 动态变量按钮
                     Button(action: { replaceText += "{n}" }) {
                         Text("+ {n}")
                             .font(.system(size: 10, weight: .medium))
                     }
                     .buttonStyle(SmallButtonStyle())
-                    
+
                     Button(action: { replaceText += "{date}" }) {
                         Text("+ {date}")
                             .font(.system(size: 10, weight: .medium))
                     }
                     .buttonStyle(SmallButtonStyle())
-                    
-                    
+
                     Button(action: { replaceText += "{name}" }) {
                         Text("+ {name}")
                             .font(.system(size: 10, weight: .medium))
                     }
                     .buttonStyle(SmallButtonStyle())
-                    
-                    
+
                     Button(action: { replaceText += "{ext}" }) {
                         Text("+ {ext}")
                             .font(.system(size: 10, weight: .medium))
                     }
                     .buttonStyle(SmallButtonStyle())
-
-                    
                 }
             }
             .padding(16)
             .background(Theme.backgroundSecondary)
-            
+
             Divider()
                 .background(Theme.border)
-            
+
             // 预览区域
             VStack(alignment: .leading, spacing: 8) {
                 Text("Preview")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(Theme.textTertiary)
-                
+
                 ScrollView {
                     VStack(spacing: 0) {
                         // 表头
@@ -152,7 +148,7 @@ struct BatchRenameView: View {
                                 .font(.system(size: 10, weight: .medium))
                                 .foregroundColor(Theme.textTertiary)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                            
+
                             Text("New Name Preview")
                                 .font(.system(size: 10, weight: .medium))
                                 .foregroundColor(Theme.textTertiary)
@@ -161,19 +157,19 @@ struct BatchRenameView: View {
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(Theme.backgroundTertiary)
-                        
+
                         // 文件列表
                         ForEach(Array(selectedFiles.enumerated()), id: \.element.id) { index, file in
                             let newName = previewNewName(file: file, index: index)
                             let hasChange = newName != file.name
-                            
+
                             HStack {
                                 Text(file.name)
                                     .font(.system(size: 11, design: .monospaced))
                                     .foregroundColor(Theme.textSecondary)
                                     .lineLimit(1)
                                     .frame(maxWidth: .infinity, alignment: .leading)
-                                
+
                                 Text(newName)
                                     .font(.system(size: 11, design: .monospaced))
                                     .foregroundColor(hasChange ? Theme.success : Theme.textTertiary)
@@ -196,19 +192,19 @@ struct BatchRenameView: View {
             }
             .padding(16)
             .background(Theme.backgroundSecondary)
-            
+
             Divider()
                 .background(Theme.border)
-            
+
             // 底部按钮
             HStack {
                 Spacer()
-                
+
                 Button("Cancel") {
                     dismissView()
                 }
                 .buttonStyle(SecondaryButtonStyle())
-                
+
                 Button("Apply Rename") {
                     onApply()
                     dismissView()
@@ -228,30 +224,30 @@ struct BatchRenameView: View {
                 .stroke(Theme.borderLight, lineWidth: 1)
         )
     }
-    
+
     // MARK: - 辅助方法
-    
+
     /// 关闭视图并调用回调
     private func dismissView() {
         isPresented = false
         onDismiss?()
     }
-    
+
     // MARK: - 预览新文件名
-    
+
     private func previewNewName(file: FileItem, index: Int) -> String {
         guard !findText.isEmpty else { return file.name }
-        
+
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd"
         let dateString = formatter.string(from: Date())
-        
+
         let processedReplace = replaceText
             .replacingOccurrences(of: "{n}", with: String(format: "%03d", index + 1))
             .replacingOccurrences(of: "{date}", with: dateString)
             .replacingOccurrences(of: "{name}", with: file.name)
             .replacingOccurrences(of: "{ext}", with: file.fileExtension)
-        
+
         if useRegex {
             if let regex = try? NSRegularExpression(pattern: findText, options: []) {
                 let range = NSRange(file.name.startIndex..., in: file.name)
@@ -319,7 +315,7 @@ struct CheckboxToggleStyle: ToggleStyle {
             Image(systemName: configuration.isOn ? "checkmark.square.fill" : "square")
                 .font(.system(size: 12))
                 .foregroundColor(configuration.isOn ? Theme.accent : Theme.textTertiary)
-            
+
             configuration.label
                 .foregroundColor(Theme.textSecondary)
         }
@@ -332,7 +328,7 @@ struct CheckboxToggleStyle: ToggleStyle {
 #Preview {
     ZStack {
         Theme.background.ignoresSafeArea()
-        
+
         BatchRenameView(
             isPresented: .constant(true),
             findText: .constant("IMG_"),
@@ -340,7 +336,7 @@ struct CheckboxToggleStyle: ToggleStyle {
             useRegex: .constant(false),
             selectedFiles: [
                 FileItem(id: "1", name: "IMG_001.jpg", path: URL(fileURLWithPath: "/test"), type: .file, size: 1024, modifiedDate: Date(), createdDate: Date(), isHidden: false, permissions: "644", fileExtension: "jpg"),
-                FileItem(id: "2", name: "IMG_002.jpg", path: URL(fileURLWithPath: "/test"), type: .file, size: 1024, modifiedDate: Date(), createdDate: Date(), isHidden: false, permissions: "644", fileExtension: "jpg")
+                FileItem(id: "2", name: "IMG_002.jpg", path: URL(fileURLWithPath: "/test"), type: .file, size: 1024, modifiedDate: Date(), createdDate: Date(), isHidden: false, permissions: "644", fileExtension: "jpg"),
             ],
             onApply: { }
         )

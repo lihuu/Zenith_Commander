@@ -9,30 +9,32 @@ import SwiftUI
 
 struct StatusBarView: View {
     @ObservedObject private var themeManager = ThemeManager.shared
-    
+
     let mode: AppMode
     let statusText: String
     let driveName: String
     let itemCount: Int
     let selectedCount: Int
-    var gitInfo: GitRepositoryInfo? = nil
-    var onDriveClick: (() -> Void)? = nil
-    
+    var gitInfo: GitRepositoryInfo?
+    var onDriveClick: (() -> Void)?
+
+    @State private var cursorVisible = true
+
     var body: some View {
         HStack(spacing: 8) {
             // 模式指示器
             ModeIndicator(mode: mode)
-            
+
             // Git 分支信息
-            if let gitInfo = gitInfo, gitInfo.isGitRepository {
+            if let gitInfo, gitInfo.isGitRepository {
                 GitBranchIndicator(gitInfo: gitInfo)
             }
-            
+
             // 状态文本 - 驱动器名称可点击
             statusContent
-            
+
             Spacer()
-            
+
             // 选中计数
             if selectedCount > 0 {
                 Text("\(selectedCount) selected")
@@ -43,12 +45,12 @@ struct StatusBarView: View {
                     .background(Theme.accent.opacity(0.15))
                     .cornerRadius(3)
             }
-            
+
             // 项目计数
             Text("\(itemCount) items")
                 .font(.system(size: 10, weight: .medium))
                 .foregroundColor(Theme.textTertiary)
-            
+
             // 快捷键提示
             Text(keyHint)
                 .font(.system(size: 10))
@@ -57,47 +59,69 @@ struct StatusBarView: View {
         .padding(.horizontal, 12)
         .frame(height: 24)
         .background(Theme.backgroundSecondary)
+        .onAppear {
+            startCursorBlink()
+        }
     }
-    
+
     private var keyHint: String {
         switch mode {
         case .normal:
-            return "? for help"
+            "? for help"
         case .visual:
-            return "ESC to exit"
+            "ESC to exit"
         case .command:
-            return "Enter to execute"
+            "Enter to execute"
         case .filter:
-            return "Enter to confirm"
+            "Enter to confirm"
         case .driveSelect:
-            return "j/k to navigate"
+            "j/k to navigate"
         case .aiAnalysis:
-            return "ESC to close"
+            "ESC to close"
         case .rename:
-            return "ESC to cancel"
+            "ESC to cancel"
         case .settings:
-            return "ESC to close"
+            "ESC to close"
         case .help:
-            return "ESC or ? to close"
+            "ESC or ? to close"
         default:
-            return "ESC to close"
+            "ESC to close"
         }
-        
     }
-    
+
+    private func startCursorBlink() {
+        // 启动光标闪烁定时器（仅在 filter 或 command 模式下）
+        if mode == .filter || mode == .command {
+            Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+                withAnimation(.easeInOut(duration: 0.1)) {
+                    cursorVisible.toggle()
+                }
+            }
+        }
+    }
+
     /// 状态内容 - 根据模式显示不同内容
     @ViewBuilder
     private var statusContent: some View {
         switch mode {
         case .command, .filter:
             // 命令模式和过滤模式显示输入内容
-            Text(statusText)
-                .accessibilityLabel(statusText)
-                .accessibilityValue(statusText)
-                .accessibilityIdentifier("status_text")
-                .font(.system(size: 11, weight: .medium, design: .monospaced))
-                .foregroundColor(Theme.textSecondary)
-                .lineLimit(1)
+            HStack(spacing: 0) {
+                Text(statusText)
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundColor(Theme.textSecondary)
+                    .lineLimit(1)
+
+                // 闪烁光标
+                if cursorVisible {
+                    Rectangle()
+                        .frame(width: 2, height: 11)
+                        .foregroundColor(Theme.textSecondary)
+                }
+            }
+            .accessibilityLabel(statusText)
+            .accessibilityValue(statusText)
+            .accessibilityIdentifier("status_text")
         default:
             // 普通模式显示可点击的驱动器名称
             HStack(spacing: 0) {
@@ -114,7 +138,7 @@ struct StatusBarView: View {
                     }
                     .help("Click to switch drive (Shift+D)")
                     .accessibilityIdentifier("drive_name_button")
-                
+
                 // 分隔符和当前文件名
                 Text(" | \(currentFileName)")
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
@@ -125,7 +149,7 @@ struct StatusBarView: View {
             .accessibilityIdentifier("status_text")
         }
     }
-    
+
     /// 从 statusText 中提取当前文件名
     private var currentFileName: String {
         if let separatorIndex = statusText.firstIndex(of: "|") {
@@ -138,9 +162,9 @@ struct StatusBarView: View {
 
 struct ModeIndicator: View {
     @ObservedObject private var themeManager = ThemeManager.shared
-    
+
     let mode: AppMode
-    
+
     var body: some View {
         Text(mode.rawValue)
             .font(.system(size: 10, weight: .bold, design: .monospaced))
@@ -159,14 +183,14 @@ struct ModeIndicator: View {
 struct GitBranchIndicator: View {
     @ObservedObject private var themeManager = ThemeManager.shared
     let gitInfo: GitRepositoryInfo
-    
+
     var body: some View {
         HStack(spacing: 4) {
             // 分支图标
             Image(systemName: "arrow.triangle.branch")
                 .font(.system(size: 9, weight: .medium))
                 .foregroundColor(branchColor)
-            
+
             // 分支名
             if let branch = gitInfo.branchDisplayText {
                 Text(branch)
@@ -174,14 +198,14 @@ struct GitBranchIndicator: View {
                     .foregroundColor(branchColor)
                     .lineLimit(1)
             }
-            
+
             // ahead/behind 状态
             if let syncStatus = gitInfo.syncStatusText {
                 Text(syncStatus)
                     .font(.system(size: 9, weight: .medium, design: .monospaced))
                     .foregroundColor(Theme.textTertiary)
             }
-            
+
             // 未提交更改标记
             if gitInfo.hasUncommittedChanges {
                 Circle()
@@ -196,7 +220,7 @@ struct GitBranchIndicator: View {
         .accessibilityLabel("Git branch: \(gitInfo.branchDisplayText ?? "unknown")")
         .accessibilityIdentifier("git_branch_indicator")
     }
-    
+
     private var branchColor: Color {
         if gitInfo.isDetachedHead {
             return .orange
@@ -214,7 +238,7 @@ struct GitBranchIndicator: View {
             itemCount: 42,
             selectedCount: 0
         )
-        
+
         StatusBarView(
             mode: .visual,
             statusText: "Macintosh HD | file.txt",
@@ -222,7 +246,7 @@ struct GitBranchIndicator: View {
             itemCount: 42,
             selectedCount: 3
         )
-        
+
         StatusBarView(
             mode: .command,
             statusText: ":ai summarize this folder",
@@ -230,7 +254,6 @@ struct GitBranchIndicator: View {
             itemCount: 42,
             selectedCount: 0
         )
-       
     }
     .background(Theme.background)
 }

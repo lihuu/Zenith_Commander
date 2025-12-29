@@ -16,56 +16,56 @@ enum ConnectionProtocol: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .ftp: return "FTP"
-        case .sftp: return "SFTP (SSH)"
-        case .smb: return "SMB"
+        case .ftp: "FTP"
+        case .sftp: "SFTP (SSH)"
+        case .smb: "SMB"
         }
     }
-    
+
     var scheme: String {
         switch self {
-        case .ftp: return "ftp"
-        case .sftp: return "sftp"
-        case .smb: return "smb"
+        case .ftp: "ftp"
+        case .sftp: "sftp"
+        case .smb: "smb"
         }
     }
 }
 
 struct Connection: Identifiable, Codable, Hashable {
-    var id: UUID = UUID()
+    var id: UUID = .init()
     var name: String
     var protocolType: ConnectionProtocol
     var host: String
     var port: String
     var username: String
-    var password: String = ""
+    var password = ""
     var path: String
-    
+
     var url: URL? {
         var components = URLComponents()
         components.scheme = protocolType.scheme
         components.host = host
-        
+
         if let portInt = Int(port) {
             components.port = portInt
         }
-        
+
         if !username.isEmpty {
             components.user = username
         }
-        
+
         if !password.isEmpty {
             components.password = password
         }
-        
+
         if !path.isEmpty {
             // Ensure path starts with /
             components.path = path.hasPrefix("/") ? path : "/" + path
         }
-        
+
         return components.url
     }
-    
+
     static var empty: Connection {
         Connection(
             name: "",

@@ -1,0 +1,24 @@
+--swift-version 5.9
+# --- 基础格式设置 ---
+--indent 4                  # 使用 4 个空格缩进
+--allman false              # 括号紧跟在行尾，不另起一行（Swift 标准风格）
+--linebreaks lf             # 使用换行符 (LF)
+--trimwhitespace always     # 自动删除行尾空格
+
+# --- SwiftUI 专项优化 ---
+--closurevoid remove        # 移除闭包中多余的 () -> Void
+--trailingclosures always   # 强制使用尾随闭包（对 SwiftUI 视图结构至关重要）
+--emptybraces spaced       # 空括号之间保留一个空格 {} -> { }
+
+# --- 语法规范 ---
+--semicolons never          # 禁止使用分号
+--commas always             # 强制使用尾随逗号（便于在 SwiftUI 列表中增删元素）
+--importgrouping alpha      # Import 语句按字母顺序排序
+--operatorfunc spaced      # 运算符前后保留空格
+
+# --- 代码精简 ---
+--redundanttype inferred    # 尽可能使用类型推断
+
+# --- 排除路径 ---
+# 排除第三方库和自动生成的文件
+--exclude **/Pods,**/Generated,**/.build,**/Package.swift,mft/**

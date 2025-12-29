@@ -6,13 +6,46 @@
 //
 
 import Combine
+import Foundation
 import SwiftUI
 import os.log
 
 struct MainView: View {
-    @StateObject private var appState = AppState()
-    @StateObject private var bookmarkManager = BookmarkManager()
-    @ObservedObject private var themeManager = ThemeManager.shared
+    @StateObject private var appState: AppState
+    @StateObject private var bookmarkManager: BookmarkManager
+    private let pluginManager: PluginManager
+    private let pluginContext: PluginContext
+
+    init(environment: AppEnvironment) {
+        let appState = AppState(environment: environment)
+        _appState = StateObject(wrappedValue: appState)
+
+        let bookmarkManager = BookmarkManager.shared
+        _bookmarkManager = StateObject(wrappedValue: bookmarkManager)
+
+        self.pluginManager = PluginManager.shared
+
+        let plugContext = PluginContext(
+            panes: { @MainActor in
+                appState.makePaneSnapshot()
+            },
+            dispatch: { action in
+                await appState.dispatch(action)
+            },
+            logger: Logger.plugin,
+            toolRunner: ProcessToolRunner()
+        )
+        self.pluginContext = plugContext
+
+        environment.plugins.forEach { plugin in
+            pluginManager.register(plugin, context: plugContext)
+        }
+    }
+
+    init() {
+        self.init(environment: AppEnvironment.current)
+    }
+
     private var showSettings: Binding<Bool> {
         Binding<Bool>(
             get: { appState.mode == .settings },
@@ -35,13 +68,12 @@ struct MainView: View {
         )
     }  // 帮助视图显示状态
 
-    @State private var showBookmarkBar = true  // 书签栏显示状态
     @State private var gitHistoryPanelHeight: CGFloat = 250  // Git 历史面板高度（本地状态，避免触发全局刷新）
 
     var body: some View {
         VStack(spacing: 0) {
             // 书签栏
-            if showBookmarkBar {
+            if appState.showBookmarkBar {
                 BookmarkBarView(
                     bookmarkManager: bookmarkManager,
                     onBookmarkClicked: { bookmark in
@@ -78,32 +110,19 @@ struct MainView: View {
 
                     // Git History 底部面板
                     if appState.showGitHistory {
-
                         ResizableBottomPanel(
                             height: $gitHistoryPanelHeight,
                             isVisible: $appState.showGitHistory,
                             minHeight: 100,
                             maxHeight: geometry.size.height * 0.6
                         ) {
-                            GitHistoryPanelView(
-                                fileName: appState.gitHistoryFile?.name
-                                    ?? LocalizationManager.shared.localized(
-                                        .gitRepoHistory
-                                    ),
-                                commits: appState.gitHistoryCommits,
-                                isLoading: appState.gitHistoryLoading,
-                                onClose: {
-                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                        appState.closeGitHistory()
-                                    }
-                                },
-                                onCommitSelected: { commit in
-                                    Logger.git.debug(
-                                        "Commit selected: \(commit.shortHash, privacy: .public)"
-                                    )
-                                    // TODO: 显示 commit 详情或 diff
+                            Group {
+                                if let gitPanelView = pluginManager.view(for: .gitPanel) {
+                                    gitPanelView
+                                } else {
+                                    Text("Error: Git Panel Plugin not found")
                                 }
-                            )
+                            }
                         }
                     }
                 }
@@ -161,7 +180,7 @@ struct MainView: View {
                         useRegex: $appState.renameUseRegex,
                         selectedFiles: appState.selectedFiles(),
                         onApply: {
-                            Task { await performBatchRename() }
+                            Task { await appState.performBatchRename() }
                         },
                         onDismiss: {
                             appState.exitMode()  // 退出 BATCH_RENAME 模式
@@ -195,33 +214,20 @@ struct MainView: View {
             ) {
                 HelpView()
             }
-            .sheet(
-                isPresented: $appState.rsyncUIState.showConfigSheet,
-                onDismiss: {
-                    appState.dismissRsyncSheet()
-                }
-            ) {
-                if let config = appState.rsyncUIState.config {
-                    RsyncSyncSheetView(config: config)
-                        .environmentObject(appState)
-                }
-            }
+            .pluginSheetHost(
+                appState: appState, pluginContext: pluginContext, pluginManager: pluginManager
+            )
             .focusable()
             .onKeyPress { keyPress in
                 handleKeyPress(keyPress)
             }
             .onAppear {
-                // 加载可用驱动器 - 使用异步更新避免在视图更新期间修改 @Published 属性
-                DispatchQueue.main.async {
-                    appState.availableDrives = FileSystemService.shared
-                        .getMountedVolumes()
-                }
+                appState.startRuntime()
             }
-            .onReceive(NotificationCenter.default.publisher(for: .openSettings))
-        {
-            _ in
-            appState.enterMode(.settings)
-        }
+            .onReceive(NotificationCenter.default.publisher(for: .openSettings)) {
+                _ in
+                appState.enterMode(.settings)
+            }
             .onReceive(NotificationCenter.default.publisher(for: .showHelp)) {
                 _ in
                 appState.enterMode(.help)
@@ -242,19 +248,27 @@ struct MainView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: .switchPane)) {
                 _ in
-                appState.toggleActivePane()
+                Task { @MainActor in
+                    await appState.dispatch(.pane(.toggleActivePane))
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: .newTab)) {
                 _ in
                 Task { @MainActor in
-                    await appState.newTab()
+                    await appState.dispatch(.paneAsync(.newTab))
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .closeTab)) {
                 _ in
-                appState.closeTab()
+                Task { @MainActor in
+                    await appState.dispatch(.pane(.closeTab))
+                }
             }
-            .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
+            .onReceive(
+                NotificationCenter.default.publisher(
+                    for: NSApplication.willTerminateNotification
+                )
+            ) { _ in
                 // 应用退出时保存当前路径
                 appState.saveCurrentPaths()
             }
@@ -266,198 +280,10 @@ struct MainView: View {
         }
 
         Task { @MainActor in
-            await apply(action)
+            await appState.dispatch(action)
         }
 
         return .handled
-
-    }
-
-    @MainActor
-    private func apply(_ action: AppAction) async {
-        switch action {
-        case .none:
-            break
-        case .enterMode(let mode):
-            appState.enterMode(mode)
-        case .exitMode:
-            appState.exitMode()
-        case .moveCursor(let direction):
-            await appState.moveCursor(direction)
-        case .moveVisualCursor(let direction):
-            await appState.moveVisualCursor(direction)
-        case .jumpToTop:
-            appState.jumpToTop()
-        case .jumpToBottom:
-            appState.jumpToBottom()
-
-        // MARK: - 鼠标操作
-        case .mouseClick(let index, let paneSide):
-            appState.handleMouseClick(at: index, paneSide: paneSide)
-        case .mouseCommandClick(let index, let paneSide):
-            appState.handleMouseCommandClick(at: index, paneSide: paneSide)
-        case .mouseShiftClick(let index, let paneSide):
-            appState.handleMouseShiftClick(at: index, paneSide: paneSide)
-        case .mouseDoubleClick(let fileId, let paneSide):
-            await appState.handleMouseDoubleClick(
-                fileId: fileId,
-                paneSide: paneSide
-            )
-
-        case .enterDirectory:
-            await appState.enterDirectory()
-        case .leaveDirectory:
-            await appState.leaveDirectory()
-        case .toggleActivePane:
-            appState.toggleActivePane()
-        case .newTab:
-            await appState.newTab()
-        case .closeTab:
-            appState.closeTab()
-            break
-        case .previousTab:
-            appState.currentPane.previousTab()
-            await appState.refreshCurrentPane()
-        case .nextTab:
-            appState.currentPane.nextTab()
-            await appState.refreshCurrentPane()
-        case .toggleBookmarkBar:
-            withAnimation(.easeInOut(duration: 0.2)) {
-                showBookmarkBar.toggle()
-            }
-            appState.showToast(
-                showBookmarkBar
-                    ? LocalizationManager.shared.localized(
-                        .toastBookmarkBarShown
-                    )
-                    : LocalizationManager.shared.localized(
-                        .toastBookmarkBarHidden
-                    )
-            )
-        case .addBookmark:
-            addCurrentToBookmark()
-
-        case .openHelp:
-            appState.enterMode(.help)
-
-        case .closeHelp:
-            appState.exitMode()
-
-        case .openSettings:
-            appState.enterMode(.settings)
-
-        case .yank:
-            appState.yankSelectedFiles()
-        case .visualModeYank:
-            let pane = appState.currentPane
-            appState.yankSelectedFiles()
-            appState.exitMode()
-            pane.clearSelections()
-        case .paste:
-            await appState.pasteFiles()
-        case .deleteSelectedFiles:
-            await appState.deleteSelectedFiles()
-            appState.exitMode()
-
-        case .batchRename:
-            appState.enterMode(.batchRename)
-        case .startRenamingFile(let fileName, let filePath):
-            // 创建临时 FileItem 用于启动编辑
-            let fileItem = FileItem(
-                id: UUID().uuidString,
-                name: fileName,
-                path: URL(fileURLWithPath: filePath),
-                type: .file,
-                size: 0,
-                modifiedDate: Date(),
-                createdDate: Date(),
-                isHidden: fileName.hasPrefix("."),
-                permissions: "",
-                fileExtension: (fileName as NSString).pathExtension
-            )
-            appState.startEditingFile(fileItem)
-        case .refreshCurrentPane:
-            await appState.refreshCurrentPane()
-
-        case .enterDriveSelection:
-            appState.enterMode(.driveSelect)
-        case .moveDriveCursor(let direction):
-            if direction == .up {
-                if appState.driveSelectorCursor > 0 {
-                    appState.driveSelectorCursor -= 1
-                    appState.objectWillChange.send()
-                }
-            }
-
-            if direction == .down {
-                if appState.driveSelectorCursor < appState.availableDrives.count
-                    - 1
-                {
-                    appState.driveSelectorCursor += 1
-                    appState.objectWillChange.send()
-                }
-            }
-
-        case .selectDrive:
-            if let drive = appState.availableDrives[
-                safe: appState.driveSelectorCursor
-            ] {
-                await appState.selectDrive(drive)
-            }
-        case .cycleTheme:
-            themeManager.cycleTheme()
-            appState.showToast(
-                LocalizationManager.shared.localized(
-                    .toastTheme,
-                    themeManager.mode.displayName
-                )
-            )
-        case .deleteCommand:
-            if !appState.commandInput.isEmpty {
-                appState.commandInput.removeLast()
-            }
-        case .executeCommand:
-            await appState.executeCommand()
-        case .insertCommand(let char):
-            if char.isLetter || char.isNumber || char.isWhitespace
-                || char.isPunctuation
-            {
-                appState.commandInput.append(char)
-            }
-        case .deleteFilterCharacter:
-            if !appState.filterInput.isEmpty {
-                appState.filterInput.removeLast()
-                // 实时更新过滤
-                appState.applyFilter()
-            }
-        case .inputFilterCharacter(let char):
-            // 普通过滤支持常用字符，正则表达式支持更多特殊字符
-            let isValidChar: Bool
-            if appState.filterUseRegex {
-                // 正则表达式模式：支持更多字符
-                isValidChar =
-                    char.isLetter || char.isNumber || char.isWhitespace
-                    || "._-*+?^$[](){}|\\".contains(char)
-            } else {
-                // 普通模式：支持基本字符
-                isValidChar =
-                    char.isLetter || char.isNumber || "._- ".contains(char)
-            }
-
-            if isValidChar {
-                appState.filterInput.append(char)
-                // 实时过滤
-                appState.applyFilter()
-            }
-
-        case .doFilter:
-            appState.doFilter()
-            
-        case .openRsync:
-            // Open rsync sync sheet with left pane as source
-            appState.presentRsyncSheet(sourceIsLeft: true)
-        }
-
     }
 
     /// 导航到书签位置
@@ -486,182 +312,20 @@ struct MainView: View {
         }
     }
 
-    /// 添加当前选中项到书签
-    private func addCurrentToBookmark() {
-        let pane = appState.currentPane
-
-        // 如果有选中的文件，添加所有选中项
-        if !pane.selections.isEmpty {
-            var addedCount = 0
-            for fileId in pane.selections {
-                if let file = pane.activeTab.files.first(where: {
-                    $0.id == fileId
-                }) {
-                    if !bookmarkManager.contains(path: file.path) {
-                        bookmarkManager.addBookmark(for: file)
-                        addedCount += 1
-                    }
-                }
-            }
-            if addedCount <= 0 {
-                appState.showToast(
-                    LocalizationManager.shared.localized(
-                        .toastAlreadyBookmarked
-                    )
-                )
-            }
-        } else {
-            // 否则添加当前光标所在的文件
-            let files = pane.activeTab.files
-            guard pane.cursorIndex < files.count else { return }
-
-            let file = files[pane.cursorIndex]
-            if bookmarkManager.contains(path: file.path) {
-                appState.showToast(
-                    LocalizationManager.shared.localized(
-                        .toastAlreadyBookmarked
-                    )
-                )
-            } else {
-                bookmarkManager.addBookmark(for: file)
-                appState.showToast(
-                    LocalizationManager.shared.localized(.toastBookmarkAdded)
-                )
-            }
-        }
-    }
-
-    // MARK: - 批量重命名
-
-    /// 执行批量重命名
-    private func performBatchRename() async {
-        let selectedFiles = appState.selectedFiles()
-        guard !selectedFiles.isEmpty else {
-            appState.showToast(
-                LocalizationManager.shared.localized(.toastNoFilesForRename)
-            )
-            return
-        }
-
-        let findText = appState.renameFindText
-        let replaceText = appState.renameReplaceText
-        let useRegex = appState.renameUseRegex
-
-        guard !findText.isEmpty else {
-            appState.showToast(
-                LocalizationManager.shared.localized(.toastFindTextEmpty)
-            )
-            return
-        }
-
-        var successCount = 0
-        var errorMessages: [String] = []
-
-        for (index, file) in selectedFiles.enumerated() {
-            let newName = generateNewName(
-                originalName: file.name,
-                findText: findText,
-                replaceText: replaceText,
-                useRegex: useRegex,
-                index: index
-            )
-
-            // 如果新名称与原名称相同，跳过
-            if newName == file.name {
-                continue
-            }
-
-            let newPath = file.path.deletingLastPathComponent()
-                .appendingPathComponent(newName)
-
-            do {
-                try FileManager.default.moveItem(at: file.path, to: newPath)
-                successCount += 1
-            } catch {
-                errorMessages.append(
-                    "\(file.name): \(error.localizedDescription)"
-                )
-            }
-        }
-
-        // 清空重命名状态
-        appState.renameFindText = ""
-        appState.renameReplaceText = ""
-        appState.renameUseRegex = false
-
-        // 退出 Visual 模式并刷新
-        appState.currentPane.clearSelections()
-        appState.exitMode()
-        await appState.refreshCurrentPane()
-
-        // 显示结果
-        if errorMessages.isEmpty {
-            appState.showToast(
-                LocalizationManager.shared.localized(
-                    .toastFilesRenamed,
-                    successCount
-                )
-            )
-        } else {
-            appState.showToast(
-                LocalizationManager.shared.localized(
-                    .toastRenamedWithErrors,
-                    successCount,
-                    errorMessages.count
-                )
-            )
-        }
-    }
-
-    /// 生成新文件名
-    private func generateNewName(
-        originalName: String,
-        findText: String,
-        replaceText: String,
-        useRegex: Bool,
-        index: Int
-    ) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyyMMdd"
-        let dateString = formatter.string(from: Date())
-
-        let processedReplace =
-            replaceText
-            .replacingOccurrences(
-                of: "{n}",
-                with: String(format: "%03d", index + 1)
-            )
-            .replacingOccurrences(of: "{date}", with: dateString)
-
-        if useRegex {
-            if let regex = try? NSRegularExpression(
-                pattern: findText,
-                options: []
-            ) {
-                let range = NSRange(
-                    originalName.startIndex...,
-                    in: originalName
-                )
-                return regex.stringByReplacingMatches(
-                    in: originalName,
-                    options: [],
-                    range: range,
-                    withTemplate: processedReplace
-                )
-            }
-            return originalName
-        } else {
-            return originalName.replacingOccurrences(
-                of: findText,
-                with: processedReplace
-            )
-        }
-    }
-
 }
 
 #Preview {
-    MainView()
-        .frame(width: 1200, height: 800)
-        .environmentObject(AppState())
+    MainView(
+        environment: .test(
+            tempRoot: FileManager.default.temporaryDirectory
+        )
+    )
+    .frame(width: 1200, height: 800)
+    .environmentObject(
+        AppState(
+            environment: .test(
+                tempRoot: FileManager.default.temporaryDirectory
+            )
+        )
+    )
 }

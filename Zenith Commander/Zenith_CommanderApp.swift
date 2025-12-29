@@ -5,8 +5,8 @@
 //  Created by Hu Li on 11/27/25.
 //
 
-import SwiftUI
 import AppKit
+import SwiftUI
 
 @main
 struct Zenith_CommanderApp: App {
@@ -22,13 +22,28 @@ struct Zenith_CommanderApp: App {
                 testDirectory = URL(fileURLWithPath: arguments[index + 1])
             }
         }
-        _appState = StateObject(wrappedValue: AppState(testDirectory: testDirectory))
+        let environment: AppEnvironment
+        if let testDirectory {
+            environment = AppEnvironment.test(
+                tempRoot: testDirectory,
+                suiteName: "ZenithCommanderUITests",
+                initPath: testDirectory
+            )
+        } else {
+            environment = AppEnvironment.live()
+        }
+        AppEnvironment.current = environment
+        _appState = StateObject(
+            wrappedValue: AppState(
+                environment: AppEnvironment.current
+            )
+        )
     }
-    
+
     private func L(_ key: LocalizedStringKey) -> String {
         LocalizationManager.shared.localized(key)
     }
-    
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -40,75 +55,72 @@ struct Zenith_CommanderApp: App {
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1200, height: 800)
         .commands {
-            CommandGroup(replacing: .newItem) { }
-            
+            CommandGroup(replacing: .newItem) {}
+
             // 应用菜单（About/Settings/Hide/Quit）使用应用内语言
             CommandGroup(replacing: .appInfo) {
                 Button(L(.menuAbout)) {
                     NSApp.orderFrontStandardAboutPanel(nil)
                 }
             }
-            
+
             CommandGroup(replacing: .appSettings) {
                 Button(L(.menuSettings)) {
                     NotificationCenter.default.post(name: .openSettings, object: nil)
                 }
                 .keyboardShortcut(",", modifiers: .command)
             }
-            
+
             CommandGroup(replacing: .appVisibility) {
                 Button(L(.menuHide)) {
                     NSApp.hide(nil)
                 }
                 .keyboardShortcut("h", modifiers: .command)
-                
+
                 Button(L(.menuHideOthers)) {
                     NSApp.hideOtherApplications(nil)
                 }
                 .keyboardShortcut("h", modifiers: [.command, .option])
-                
+
                 Button(L(.menuShowAll)) {
                     NSApp.unhideAllApplications(nil)
                 }
             }
-            
+
             CommandGroup(replacing: .appTermination) {
                 Button(L(.menuQuit)) {
                     NSApp.terminate(nil)
                 }
                 .keyboardShortcut("q", modifiers: .command)
             }
-            
+
             // 替换系统默认的 Edit 菜单（使用应用内语言设置）
-            CommandGroup(replacing: .textEditing) { }
+            CommandGroup(replacing: .textEditing) {}
             CommandGroup(replacing: .pasteboard) {
                 Button(L(.menuCut)) {
                     NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil)
                 }
-                .keyboardShortcut("x", modifiers: .command)
-                
+
                 Button(L(.menuCopy)) {
                     NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
                 }
-                .keyboardShortcut("c", modifiers: .command)
-                
+
                 Button(L(.menuPaste)) {
                     NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
                 }
-                .keyboardShortcut("v", modifiers: .command)
-                
+
                 Button(L(.menuSelectAll)) {
                     NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
                 }
                 .keyboardShortcut("a", modifiers: .command)
             }
-            
+
             CommandGroup(replacing: .undoRedo) {
                 Button(L(.menuUndo)) {
                     NSApp.sendAction(Selector(("undo:")), to: nil, from: nil)
                 }
                 .keyboardShortcut("z", modifiers: .command)
-                
+
                 Button(L(.menuRedo)) {
                     NSApp.sendAction(Selector(("redo:")), to: nil, from: nil)
                 }
@@ -119,8 +131,9 @@ struct Zenith_CommanderApp: App {
 }
 
 // MARK: - App Delegate
+
 class AppDelegate: NSObject, NSApplicationDelegate {
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    func applicationDidFinishLaunching(_: Notification) {
         // 配置窗口外观
         if let window = NSApp.windows.first {
             window.titlebarAppearsTransparent = true
@@ -129,13 +142,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             window.isMovableByWindowBackground = false
         }
     }
-    
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        return true
+
+    func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
+        true
     }
 }
 
 // MARK: - Notification Names
+
 extension Notification.Name {
     static let goToParent = Notification.Name("goToParent")
     static let enterDirectory = Notification.Name("enterDirectory")

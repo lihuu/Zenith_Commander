@@ -9,12 +9,12 @@ import SwiftUI
 
 struct DriveSelectorView: View {
     @ObservedObject private var themeManager = ThemeManager.shared
-    
+
     let drives: [DriveInfo]
     let cursorIndex: Int
     let onSelect: (DriveInfo) -> Void
     let onDismiss: () -> Void
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // 标题栏
@@ -32,10 +32,10 @@ struct DriveSelectorView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
             .background(Theme.backgroundTertiary)
-            
+
             Divider()
                 .background(Theme.border)
-            
+
             // 驱动器列表
             ScrollView {
                 VStack(spacing: 2) {
@@ -63,13 +63,13 @@ struct DriveSelectorView: View {
 
 struct DriveRowView: View {
     @ObservedObject private var themeManager = ThemeManager.shared
-    
+
     let drive: DriveInfo
     let isSelected: Bool
     let onSelect: () -> Void
-    
+
     @State private var isHovering = false
-    
+
     var body: some View {
         HStack(spacing: 12) {
             // 图标
@@ -77,13 +77,13 @@ struct DriveRowView: View {
                 .font(.system(size: 24))
                 .foregroundColor(iconColor)
                 .frame(width: 32)
-            
+
             VStack(alignment: .leading, spacing: 2) {
                 // 名称
                 Text(drive.name)
                     .font(.system(size: 13, weight: .medium))
                     .foregroundColor(isSelected ? .white : Theme.textPrimary)
-                
+
                 // 容量信息
                 HStack(spacing: 4) {
                     // 进度条
@@ -97,15 +97,15 @@ struct DriveRowView: View {
                         }
                     }
                     .frame(width: 60, height: 4)
-                    
+
                     Text(drive.formattedCapacity)
                         .font(.system(size: 10))
                         .foregroundColor(isSelected ? Theme.textSecondary : Theme.textTertiary)
                 }
             }
-            
+
             Spacer()
-            
+
             // 类型标签
             Text(driveTypeLabel)
                 .font(.system(size: 9, weight: .medium))
@@ -124,27 +124,27 @@ struct DriveRowView: View {
             isHovering = hovering
         }
     }
-    
+
     private var backgroundColor: Color {
         if isSelected {
             return Theme.selection
         }
         return isHovering ? Theme.backgroundTertiary : .clear
     }
-    
+
     private var iconColor: Color {
         switch drive.type {
         case .system:
-            return Theme.accent
+            Theme.accent
         case .external:
-            return Theme.folder
+            Theme.folder
         case .network:
-            return Theme.info
+            Theme.info
         case .removable:
-            return Theme.warning
+            Theme.warning
         }
     }
-    
+
     private var progressColor: Color {
         if drive.usedPercentage > 90 {
             return Theme.error
@@ -153,13 +153,13 @@ struct DriveRowView: View {
         }
         return Theme.success
     }
-    
+
     private var driveTypeLabel: String {
         switch drive.type {
-        case .system: return "System"
-        case .external: return "External"
-        case .network: return "Network"
-        case .removable: return "Removable"
+        case .system: "System"
+        case .external: "External"
+        case .network: "Network"
+        case .removable: "Removable"
         }
     }
 }
@@ -167,12 +167,12 @@ struct DriveRowView: View {
 #Preview {
     ZStack {
         Theme.background
-        
+
         DriveSelectorView(
             drives: [
-                DriveInfo(id: "1", name: "Macintosh HD", path: URL(fileURLWithPath: "/"), type: .system, totalCapacity: 1000000000000, availableCapacity: 500000000000),
-                DriveInfo(id: "2", name: "Samsung T7", path: URL(fileURLWithPath: "/Volumes/T7"), type: .external, totalCapacity: 2000000000000, availableCapacity: 800000000000),
-                DriveInfo(id: "3", name: "NAS", path: URL(fileURLWithPath: "/Volumes/NAS"), type: .network, totalCapacity: 12000000000000, availableCapacity: 3000000000000)
+                DriveInfo(id: "1", name: "Macintosh HD", path: URL(fileURLWithPath: "/"), type: .system, totalCapacity: 1_000_000_000_000, availableCapacity: 500_000_000_000),
+                DriveInfo(id: "2", name: "Samsung T7", path: URL(fileURLWithPath: "/Volumes/T7"), type: .external, totalCapacity: 2_000_000_000_000, availableCapacity: 800_000_000_000),
+                DriveInfo(id: "3", name: "NAS", path: URL(fileURLWithPath: "/Volumes/NAS"), type: .network, totalCapacity: 12_000_000_000_000, availableCapacity: 3_000_000_000_000),
             ],
             cursorIndex: 0,
             onSelect: { _ in },
@@ -180,5 +180,4 @@ struct DriveRowView: View {
         )
     }
     .frame(width: 600, height: 500)
-   
 }

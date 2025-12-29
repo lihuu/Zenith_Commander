@@ -24,7 +24,7 @@ class FileSystemService {
     static let shared = FileSystemService()
 
     private let fileManager = FileManager.default
-    
+
     // Provider Registry
     private var providers: [String: FileSystemProvider] = [:]
     private let localProvider = LocalFileSystemProvider()
@@ -32,7 +32,7 @@ class FileSystemService {
     private init() {
         // Register default local provider
         register(provider: localProvider)
-        
+
         // Register SFTP provider
         let sftpProvider = SFTPFileSystemProvider()
         register(provider: sftpProvider)
@@ -40,7 +40,7 @@ class FileSystemService {
 
     /// Helper to temporarily inject an UndoManager into the localProvider for undo registration.
     private func withUndoManager<T>(manager: UndoManager?, perform action: () async throws -> T) async throws -> T {
-        if let manager = manager {
+        if let manager {
             localProvider.undoManager = manager
         }
         defer {
@@ -48,23 +48,23 @@ class FileSystemService {
         }
         return try await action()
     }
-    
+
     // MARK: - Provider Management
-    
+
     func register(provider: FileSystemProvider) {
         providers[provider.scheme] = provider
     }
-    
+
     private func getProvider(for url: URL) -> FileSystemProvider {
         // Default to local provider if scheme is file or empty
         if url.isFileURL || url.scheme == nil || url.scheme == "file" {
             return localProvider
         }
-        
+
         if let scheme = url.scheme, let provider = providers[scheme] {
             return provider
         }
-        
+
         // Fallback to local provider (or handle error)
         Logger.fileSystem.warning("No provider found for scheme: \(url.scheme ?? "nil"), defaulting to local")
         return localProvider
@@ -126,7 +126,7 @@ class FileSystemService {
     func openSystemPreferencesPrivacy() {
         if let url = URL(
             string:
-                "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
         ) {
             NSWorkspace.shared.open(url)
         }
@@ -140,7 +140,7 @@ class FileSystemService {
         showHidden: Bool = false
     ) async -> DirectoryLoadResult {
         let provider = getProvider(for: path)
-        
+
         do {
             let files = try await provider.loadDirectory(at: path)
             // Filter hidden files if needed (though providers might handle this)
@@ -149,10 +149,10 @@ class FileSystemService {
         } catch {
             // Handle specific errors
             let nsError = error as NSError
-            if nsError.domain == NSCocoaErrorDomain && (nsError.code == NSFileReadNoPermissionError || nsError.code == 257) {
+            if nsError.domain == NSCocoaErrorDomain, nsError.code == NSFileReadNoPermissionError || nsError.code == 257 {
                 return .permissionDenied(path)
             }
-            if nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileReadNoSuchFileError {
+            if nsError.domain == NSCocoaErrorDomain, nsError.code == NSFileReadNoSuchFileError {
                 return .notFound(path)
             }
             return .error(error)
@@ -168,13 +168,12 @@ class FileSystemService {
             showHidden: showHidden
         )
         switch result {
-        case .success(let files):
+        case let .success(files):
             return files
         default:
             return []
         }
     }
-
 
     /// 获取上级目录
     func parentDirectory(of path: URL) -> URL {
@@ -238,15 +237,14 @@ class FileSystemService {
                 let isRemovable = resourceValues.volumeIsRemovable ?? false
                 let isLocal = resourceValues.volumeIsLocal ?? true
 
-                let driveType: DriveType
-                if volumeURL.path == "/" {
-                    driveType = .system
+                let driveType: DriveType = if volumeURL.path == "/" {
+                    .system
                 } else if !isLocal {
-                    driveType = .network
+                    .network
                 } else if isRemovable {
-                    driveType = .removable
+                    .removable
                 } else {
-                    driveType = .external
+                    .external
                 }
 
                 let drive = DriveInfo(
@@ -280,7 +278,7 @@ class FileSystemService {
         guard !files.isEmpty else { return }
         let provider = getProvider(for: files.first!.path)
         let destProvider = getProvider(for: destination)
-        
+
         guard provider.scheme == destProvider.scheme else {
             throw NSError(domain: "FileSystemService", code: 2, userInfo: [NSLocalizedDescriptionKey: "Cross-provider copy not implemented yet"])
         }
@@ -300,7 +298,7 @@ class FileSystemService {
         guard !files.isEmpty else { return }
         let provider = getProvider(for: files.first!.path)
         let destProvider = getProvider(for: destination)
-        
+
         guard provider.scheme == destProvider.scheme else {
             throw NSError(domain: "FileSystemService", code: 2, userInfo: [NSLocalizedDescriptionKey: "Cross-provider move not implemented yet"])
         }
@@ -319,7 +317,7 @@ class FileSystemService {
     func trashFiles(_ files: [FileItem], undoManager: UndoManager? = nil) async throws {
         guard !files.isEmpty else { return }
         let provider = getProvider(for: files.first!.path)
-        
+
         if provider is LocalFileSystemProvider {
             try await withUndoManager(manager: undoManager) {
                 try await provider.delete(items: files)
@@ -339,7 +337,7 @@ class FileSystemService {
     /// 创建目录
     func createDirectory(at path: URL, name: String, undoManager: UndoManager? = nil) async throws -> URL {
         let provider = getProvider(for: path)
-        
+
         if provider is LocalFileSystemProvider {
             return try await withUndoManager(manager: undoManager) {
                 let createdItem = try await provider.createDirectory(at: path, name: name)
@@ -354,7 +352,7 @@ class FileSystemService {
     /// 创建空文件
     func createFile(at path: URL, name: String, undoManager: UndoManager? = nil) async throws -> URL {
         let provider = getProvider(for: path)
-        
+
         if provider is LocalFileSystemProvider {
             return try await withUndoManager(manager: undoManager) {
                 let createdItem = try await provider.createFile(at: path, name: name)
@@ -387,7 +385,7 @@ class FileSystemService {
     func openInTerminal(path: URL) {
         // Only support local paths for now
         guard path.isFileURL else { return }
-        
+
         // 获取用户设置的默认终端
         let settings = SettingsManager.shared.settings
         let terminalOption = settings.terminal.currentTerminal
@@ -426,11 +424,11 @@ class FileSystemService {
 
         // 脚本内容：cd 到目录，然后清理自身，启动交互式 shell
         let scriptContent = """
-            #!/bin/bash
-            cd '\(escapedPath)'
-            rm -f "\(tempScript.path)"
-            exec bash -l
-            """
+        #!/bin/bash
+        cd '\(escapedPath)'
+        rm -f "\(tempScript.path)"
+        exec bash -l
+        """
 
         do {
             try scriptContent.write(
@@ -459,7 +457,7 @@ class FileSystemService {
 
     /// 在 iTerm2 打开
     private func openInITerm(path: URL) {
-        let _ = path.path.replacingOccurrences(of: "'", with: "'\\''")
+        _ = path.path.replacingOccurrences(of: "'", with: "'\\''")
 
         // iTerm2 支持通过 URL scheme 打开
         // 或者使用 open -a 打开目录
@@ -555,4 +553,3 @@ class FileSystemService {
         }
     }
 }
-

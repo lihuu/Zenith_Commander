@@ -13,37 +13,40 @@ struct SettingsView: View {
     @ObservedObject private var localizationManager = LocalizationManager.shared
     @Environment(\.dismiss) private var dismiss
     
+    private let pluginManager = PluginManager.shared
+
     var body: some View {
         VStack(spacing: 0) {
             // 标题栏
             SettingsTitleBar(onClose: { dismiss() })
-            
+
             // 设置内容
             ScrollView {
                 VStack(spacing: 24) {
                     // 外观设置
                     AppearanceSection(settings: $settingsManager.settings.appearance)
-                    
+
                     Divider()
                         .background(themeManager.current.borderLight)
-                    
+
                     // 终端设置
                     TerminalSection(settings: $settingsManager.settings.terminal)
                     
-                    Divider()
-                        .background(themeManager.current.borderLight)
-                    
-                    // Git 设置
-                    GitSection(settings: $settingsManager.settings.git)
-                    
-                    Divider()
-                        .background(themeManager.current.borderLight)
-                    
-                    // Rsync 设置
-                    RsyncSection(settings: $settingsManager.settings.rsync)
-                    
+                    // 插件提供的设置区域
+                    ForEach(Array(pluginManager.allSettingsProviders().enumerated()), id: \.offset) { _, provider in
+                        Divider()
+                            .background(themeManager.current.borderLight)
+                        
+                        SettingsSection(
+                            title: provider.settingsTitle,
+                            icon: provider.settingsIcon
+                        ) {
+                            provider.settingsView()
+                        }
+                    }
+
                     Spacer(minLength: 20)
-                    
+
                     // 重置按钮
                     ResetButton {
                         settingsManager.resetToDefaults()
@@ -63,15 +66,15 @@ struct SettingsTitleBar: View {
     @ObservedObject private var themeManager = ThemeManager.shared
     @ObservedObject private var localizationManager = LocalizationManager.shared
     let onClose: () -> Void
-    
+
     var body: some View {
         HStack {
             Text(L(.settings))
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(themeManager.current.textPrimary)
-            
+
             Spacer()
-            
+
             Button(action: onClose) {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 18))
@@ -84,7 +87,7 @@ struct SettingsTitleBar: View {
         .padding(.vertical, 16)
         .background(themeManager.current.backgroundSecondary)
     }
-    
+
     private func L(_ key: LocalizedStringKey) -> String {
         localizationManager.localized(key)
     }
@@ -96,7 +99,7 @@ struct AppearanceSection: View {
     @Binding var settings: AppearanceSettings
     @ObservedObject private var themeManager = ThemeManager.shared
     @ObservedObject private var localizationManager = LocalizationManager.shared
-    
+
     var body: some View {
         SettingsSection(title: L(.settingsAppearance), icon: "paintbrush.fill") {
             VStack(spacing: 16) {
@@ -115,25 +118,25 @@ struct AppearanceSection: View {
                         }
                     }
                 ))
-                
+
                 Divider()
                     .background(themeManager.current.borderLight)
-                
+
                 // 字体大小
                 SettingsSlider(
                     label: L(.settingsFontSize),
                     value: $settings.fontSize,
-                    range: 10...24,
+                    range: 10 ... 24,
                     step: 1,
                     defaultValue: AppearanceSettings.default.fontSize,
                     format: "%.0f pt"
                 )
-                
+
                 // 行高
                 SettingsSlider(
                     label: L(.settingsLineHeight),
                     value: $settings.lineHeight,
-                    range: 1.0...2.0,
+                    range: 1.0 ... 2.0,
                     step: 0.1,
                     defaultValue: AppearanceSettings.default.lineHeight,
                     format: "%.1f"
@@ -141,7 +144,7 @@ struct AppearanceSection: View {
             }
         }
     }
-    
+
     private func L(_ key: LocalizedStringKey) -> String {
         localizationManager.localized(key)
     }
@@ -153,21 +156,21 @@ struct ThemeSelector: View {
     @Binding var selectedTheme: String
     @ObservedObject private var themeManager = ThemeManager.shared
     @ObservedObject private var localizationManager = LocalizationManager.shared
-    
+
     private var themes: [(id: String, nameKey: LocalizedStringKey, icon: String)] {
         [
             ("light", .settingsThemeLight, "sun.max.fill"),
             ("dark", .settingsThemeDark, "moon.fill"),
-            ("auto", .settingsThemeAuto, "circle.lefthalf.filled")
+            ("auto", .settingsThemeAuto, "circle.lefthalf.filled"),
         ]
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L(.settingsTheme))
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(themeManager.current.textSecondary)
-            
+
             HStack(spacing: 12) {
                 ForEach(themes, id: \.id) { theme in
                     ThemeButton(
@@ -184,7 +187,7 @@ struct ThemeSelector: View {
             }
         }
     }
-    
+
     private func L(_ key: LocalizedStringKey) -> String {
         localizationManager.localized(key)
     }
@@ -196,10 +199,10 @@ struct ThemeButton: View {
     let icon: String
     let isSelected: Bool
     let action: () -> Void
-    
+
     @ObservedObject private var themeManager = ThemeManager.shared
     @State private var isHovered = false
-    
+
     var body: some View {
         Button(action: action) {
             VStack(spacing: 8) {
@@ -211,12 +214,12 @@ struct ThemeButton: View {
                             RoundedRectangle(cornerRadius: 12)
                                 .stroke(isSelected ? themeManager.current.accent : themeManager.current.borderSubtle, lineWidth: isSelected ? 2 : 1)
                         )
-                    
+
                     Image(systemName: icon)
                         .font(.system(size: 20))
                         .foregroundColor(previewForeground)
                 }
-                
+
                 Text(name)
                     .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
                     .foregroundColor(isSelected ? themeManager.current.accent : themeManager.current.textSecondary)
@@ -227,20 +230,20 @@ struct ThemeButton: View {
         .scaleEffect(isHovered ? 1.02 : 1.0)
         .animation(.easeInOut(duration: 0.15), value: isHovered)
     }
-    
+
     private var previewBackground: Color {
         switch id {
-        case "light": return Color(hex: "#ffffff")
-        case "dark": return Color(hex: "#1e1e1e")
-        default: return themeManager.current.backgroundTertiary
+        case "light": Color(hex: "#ffffff")
+        case "dark": Color(hex: "#1e1e1e")
+        default: themeManager.current.backgroundTertiary
         }
     }
-    
+
     private var previewForeground: Color {
         switch id {
-        case "light": return Color(hex: "#f57c00")
-        case "dark": return Color(hex: "#ffd54f")
-        default: return themeManager.current.accent
+        case "light": Color(hex: "#f57c00")
+        case "dark": Color(hex: "#ffd54f")
+        default: themeManager.current.accent
         }
     }
 }
@@ -253,29 +256,29 @@ struct SettingsSlider: View {
     let range: ClosedRange<Double>
     let step: Double
     let defaultValue: Double
-    var format: String = "%.0f"
-    
+    var format = "%.0f"
+
     @ObservedObject private var themeManager = ThemeManager.shared
-    
+
     private var isDefault: Bool {
         abs(value - defaultValue) < 0.01
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(label)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(themeManager.current.textSecondary)
-                
+
                 Spacer()
-                
+
                 // 当前值显示
                 Text(String(format: format, value))
                     .font(.system(size: 12, weight: .medium, design: .monospaced))
                     .foregroundColor(themeManager.current.accent)
                     .frame(minWidth: 50, alignment: .trailing)
-                
+
                 // 恢复默认按钮
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.15)) {
@@ -290,16 +293,16 @@ struct SettingsSlider: View {
                 .disabled(isDefault)
                 .help(isDefault ? "Already at default" : "Reset to default (\(String(format: format, defaultValue)))")
             }
-            
+
             HStack(spacing: 12) {
                 Text(String(format: format, range.lowerBound))
                     .font(.system(size: 10))
                     .foregroundColor(themeManager.current.textMuted)
                     .frame(width: 36, alignment: .leading)
-                
+
                 Slider(value: $value, in: range, step: step)
                     .tint(themeManager.current.accent)
-                
+
                 Text(String(format: format, range.upperBound))
                     .font(.system(size: 10))
                     .foregroundColor(themeManager.current.textMuted)
@@ -315,17 +318,17 @@ struct TerminalSection: View {
     @Binding var settings: TerminalSettings
     @ObservedObject private var themeManager = ThemeManager.shared
     @ObservedObject private var localizationManager = LocalizationManager.shared
-    
+
     var body: some View {
         SettingsSection(title: L(.settingsTerminal), icon: "terminal.fill") {
             VStack(alignment: .leading, spacing: 12) {
                 Text(L(.settingsDefaultTerminal))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(themeManager.current.textSecondary)
-                
+
                 LazyVGrid(columns: [
                     GridItem(.flexible()),
-                    GridItem(.flexible())
+                    GridItem(.flexible()),
                 ], spacing: 10) {
                     ForEach(TerminalSettings.availableTerminals) { terminal in
                         TerminalOptionButton(
@@ -339,7 +342,7 @@ struct TerminalSection: View {
             }
         }
     }
-    
+
     private func L(_ key: LocalizedStringKey) -> String {
         localizationManager.localized(key)
     }
@@ -407,191 +410,26 @@ struct TerminalOptionButton: View {
     
     private var terminalIcon: String {
         switch terminal.id {
-        case "terminal": return "terminal"
-        case "iterm": return "rectangle.split.3x1"
-        case "warp": return "bolt.horizontal"
-        case "alacritty": return "a.square"
-        case "kitty": return "cat"
-        case "hyper": return "h.square"
-        default: return "terminal"
-        }
-    }
-}
-
-// MARK: - Git 设置区域
-
-struct GitSection: View {
-    @Binding var settings: GitSettings
-    @ObservedObject private var themeManager = ThemeManager.shared
-    @ObservedObject private var localizationManager = LocalizationManager.shared
-    
-    private var isGitAvailable: Bool {
-        GitService.shared.isGitInstalled()
-    }
-    
-    var body: some View {
-        SettingsSection(title: L(.settingsGit), icon: "arrow.triangle.branch") {
-            VStack(alignment: .leading, spacing: 16) {
-                // Git 可用性状态
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(isGitAvailable ? themeManager.current.success : themeManager.current.warning)
-                        .frame(width: 8, height: 8)
-                    
-                    Text(isGitAvailable ? L(.settingsGitInstalled) : L(.settingsGitNotInstalled))
-                        .font(.system(size: 11))
-                        .foregroundColor(themeManager.current.textSecondary)
-                }
-                
-                // 启用 Git 集成
-                GitToggleRow(
-                    title: L(.settingsGitEnabled),
-                    description: L(.settingsGitEnabledDescription),
-                    isOn: $settings.enabled,
-                    isDisabled: !isGitAvailable
-                )
-                
-                if settings.enabled && isGitAvailable {
-                    Divider()
-                        .background(themeManager.current.borderLight)
-                    
-                    // 显示未追踪文件
-                    GitToggleRow(
-                        title: L(.settingsGitShowUntracked),
-                        description: L(.settingsGitShowUntrackedDescription),
-                        isOn: $settings.showUntrackedFiles
-                    )
-                    
-                    // 显示被忽略文件
-                    GitToggleRow(
-                        title: L(.settingsGitShowIgnored),
-                        description: L(.settingsGitShowIgnoredDescription),
-                        isOn: $settings.showIgnoredFiles
-                    )
-                }
-            }
+            case "terminal": "terminal"
+            case "iterm": "rectangle.split.3x1"
+            case "warp": "bolt.horizontal"
+            case "alacritty": "a.square"
+            case "kitty": "cat"
+            case "hyper": "h.square"
+            default: "terminal"
         }
     }
     
-    private func L(_ key: LocalizedStringKey) -> String {
-        localizationManager.localized(key)
-    }
 }
-
-struct GitToggleRow: View {
-    let title: String
-    let description: String
-    @Binding var isOn: Bool
-    var isDisabled: Bool = false
-    
-    @ObservedObject private var themeManager = ThemeManager.shared
-    
-    var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(isDisabled ? themeManager.current.textMuted : themeManager.current.textPrimary)
-                
-                Text(description)
-                    .font(.system(size: 10))
-                    .foregroundColor(themeManager.current.textMuted)
-                    .lineLimit(2)
-            }
-            
-            Spacer()
-            
-            Toggle("", isOn: $isOn)
-                .toggleStyle(.switch)
-                .scaleEffect(0.8)
-                .disabled(isDisabled)
-        }
-        .opacity(isDisabled ? 0.6 : 1.0)
-    }
-}
-
-// MARK: - Rsync 设置区域
-
-struct RsyncSection: View {
-    @Binding var settings: RsyncSettings
-    @ObservedObject private var themeManager = ThemeManager.shared
-    @ObservedObject private var localizationManager = LocalizationManager.shared
-    
-    private var isRsyncAvailable: Bool {
-        RsyncService.shared.isRsyncInstalled()
-    }
-    
-    var body: some View {
-        SettingsSection(title: L(.settingsRsync), icon: "arrow.triangle.2.circlepath") {
-            VStack(alignment: .leading, spacing: 16) {
-                // Rsync 可用性状态
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(isRsyncAvailable ? themeManager.current.success : themeManager.current.warning)
-                        .frame(width: 8, height: 8)
-                    
-                    Text(isRsyncAvailable ? L(.settingsRsyncInstalled) : L(.settingsRsyncNotInstalled))
-                        .font(.system(size: 11))
-                        .foregroundColor(themeManager.current.textSecondary)
-                }
-                
-                // 启用 Rsync 集成
-                RsyncToggleRow(
-                    title: L(.settingsRsyncEnabled),
-                    description: L(.settingsRsyncEnabledDescription),
-                    isOn: $settings.enabled,
-                    isDisabled: !isRsyncAvailable
-                )
-            }
-        }
-    }
-    
-    private func L(_ key: LocalizedStringKey) -> String {
-        localizationManager.localized(key)
-    }
-}
-
-struct RsyncToggleRow: View {
-    let title: String
-    let description: String
-    @Binding var isOn: Bool
-    var isDisabled: Bool = false
-    
-    @ObservedObject private var themeManager = ThemeManager.shared
-    
-    var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(isDisabled ? themeManager.current.textMuted : themeManager.current.textPrimary)
-                
-                Text(description)
-                    .font(.system(size: 10))
-                    .foregroundColor(themeManager.current.textMuted)
-                    .lineLimit(2)
-            }
-            
-            Spacer()
-            
-            Toggle("", isOn: $isOn)
-            .toggleStyle(.switch)
-            .scaleEffect(0.8)
-            .disabled(isDisabled)
-        }
-        .opacity(isDisabled ? 0.6 : 1.0)
-    }
-}
-
 // MARK: - 设置区域容器
 
 struct SettingsSection<Content: View>: View {
     let title: String
     let icon: String
     @ViewBuilder let content: Content
-    
+
     @ObservedObject private var themeManager = ThemeManager.shared
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             // 标题
@@ -599,12 +437,12 @@ struct SettingsSection<Content: View>: View {
                 Image(systemName: icon)
                     .font(.system(size: 14))
                     .foregroundColor(themeManager.current.accent)
-                
+
                 Text(title)
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(themeManager.current.textPrimary)
             }
-            
+
             // 内容
             VStack(alignment: .leading, spacing: 12) {
                 content
@@ -622,18 +460,18 @@ struct SettingsSection<Content: View>: View {
 
 struct ResetButton: View {
     let action: () -> Void
-    
+
     @ObservedObject private var themeManager = ThemeManager.shared
     @ObservedObject private var localizationManager = LocalizationManager.shared
     @State private var isHovered = false
     @State private var showConfirmation = false
-    
+
     var body: some View {
         Button(action: { showConfirmation = true }) {
             HStack(spacing: 6) {
                 Image(systemName: "arrow.counterclockwise")
                     .font(.system(size: 12))
-                
+
                 Text(L(.settingsResetToDefaults))
                     .font(.system(size: 12, weight: .medium))
             }
@@ -660,7 +498,7 @@ struct ResetButton: View {
             Text(L(.settingsResetConfirmMessage))
         }
     }
-    
+
     private func L(_ key: LocalizedStringKey) -> String {
         localizationManager.localized(key)
     }
