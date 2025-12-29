@@ -126,50 +126,52 @@ extension ToolRunner {
         config: FileListConfig? = nil,
         toolchain: ExternalToolchain? = nil
     ) async throws -> [String] {
+        // 1) Early return on empty query (do not list files)
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { return [] }
+
+        // 2) Resolve config/toolchain and build listing request (rg/fd/find)
         let effectiveConfig = config ?? FileListConfig()
         let effectiveToolchain = toolchain ?? ExternalToolchain.shared
-
         let (_, listReq) = buildFileListRequest(
             toolchain: effectiveToolchain, root: root, scope: scope, config: effectiveConfig
         )
-        let list = try await runData(listReq)
 
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty {
-            return list.stdoutString.split(separator: "\n", omittingEmptySubsequences: true).map(
-                String.init)
-        }
-
+        // If fzf exists, list once then filter by piping stdout -> fzf stdin.
         if let fzfBase = buildFzfBaseRequest(toolchain: effectiveToolchain) {
-            let filtered = try await listThenFzfFilter(
-                listRequest: listReq, fzfRequest: fzfBase, query: trimmed
+            let list = try await runData(listReq)
+            let fzfReq = ToolRequest(
+                executable: fzfBase.executable,
+                args: fzfBase.args + ["--filter", trimmed],
+                workingDirectory: fzfBase.workingDirectory
             )
-            return filtered.stdoutString.split(separator: "\n", omittingEmptySubsequences: true)
-                .map(
-                    String.init)
+            let filtered = try await runData(fzfReq, stdin: list.stdout)
+            return filtered.stdoutString
+                .split(separator: "\n", omittingEmptySubsequences: true)
+                .map(String.init)
         }
 
-        // fzf not installed -> fallback
-        let all = list.stdoutString.split(separator: "\n", omittingEmptySubsequences: true).map(
-            String.init)
+        // fzf not installed -> fallback (still only list once)
+        let list = try await runData(listReq)
+        let all = list.stdoutString
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .map(String.init)
         return all.filter { $0.localizedCaseInsensitiveContains(trimmed) }
     }
 
     /// Convenience: list files (rg/fd/find), then fuzzy-filter using fzf (non-interactive).
     /// - Important: this helper keeps everything within ToolRunner.
     func listThenFzfFilter(
-        listRequest: ToolRequest,
+        listStdout: Data,
         fzfRequest: ToolRequest,
         query: String
     ) async throws -> ToolResponseData {
-        // 1) list candidates
-        let list = try await runData(listRequest)
-        // 2) fzf filter (stdin = list stdout)
+        // fzf filter (stdin = list stdout)
         let fzfReq = ToolRequest(
             executable: fzfRequest.executable,
             args: fzfRequest.args + ["--filter", query],
             workingDirectory: fzfRequest.workingDirectory
         )
-        return try await runData(fzfReq, stdin: list.stdout)
+        return try await runData(fzfReq, stdin: listStdout)
     }
 }
