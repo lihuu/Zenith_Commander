@@ -104,7 +104,9 @@ extension ToolRunner {
             }
             args += ["-type", "f", "-print"]
         }
-        return (.find, ToolRequest(executable: toolchain.findPath, args: args, workingDirectory: nil))
+        return (
+            .find, ToolRequest(executable: toolchain.findPath, args: args, workingDirectory: nil)
+        )
     }
 
     /// Build a ToolRequest for non-interactive fzf filtering.
@@ -126,7 +128,7 @@ extension ToolRunner {
     ) async throws -> [String] {
         let effectiveConfig = config ?? FileListConfig()
         let effectiveToolchain = toolchain ?? ExternalToolchain.shared
-        
+
         let (_, listReq) = buildFileListRequest(
             toolchain: effectiveToolchain, root: root, scope: scope, config: effectiveConfig
         )
@@ -142,8 +144,9 @@ extension ToolRunner {
             let filtered = try await listThenFzfFilter(
                 listRequest: listReq, fzfRequest: fzfBase, query: trimmed
             )
-            return filtered.stdoutString.split(separator: "\n", omittingEmptySubsequences: true).map(
-                String.init)
+            return filtered.stdoutString.split(separator: "\n", omittingEmptySubsequences: true)
+                .map(
+                    String.init)
         }
 
         // fzf not installed -> fallback
