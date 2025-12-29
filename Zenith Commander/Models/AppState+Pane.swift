@@ -87,6 +87,8 @@ extension AppState {
             jumpToTop()
         case .jumpToBottom:
             jumpToBottom()
+        case .updatePane(let files):
+            updatePaneFiles(files)
         }
     }
 
@@ -417,6 +419,30 @@ extension AppState {
         }
     }
 
+    /// 更新面板的文件列表（用于搜索结果等场景）
+    func updatePaneFiles(_ files: [FileItem]) {
+        let pane = currentPane
+
+        // 保存未过滤的文件列表（如果还没有保存）
+        if pane.activeTab.unfilteredFiles.isEmpty {
+            pane.activeTab.unfilteredFiles = pane.activeTab.files
+        }
+
+        // 更新文件列表
+        pane.activeTab.files = files
+
+        // 重置光标到第一个文件
+        pane.cursorIndex = files.isEmpty ? 0 : 0
+
+        // 清除选择
+        pane.clearSelections()
+
+        // 退出 Visual 模式
+        if mode == .visual {
+            exitMode()
+        }
+    }
+
     /// 处理双击
     /// - 文件夹：进入目录
     /// - 文件：使用默认应用打开
@@ -470,7 +496,6 @@ extension AppState {
     }
 }
 
-
 enum PaneAction {
     case toggleActivePane
     case closeTab
@@ -482,6 +507,7 @@ enum PaneAction {
     case mouseShiftClick(index: Int, paneSide: PaneSide)  // Shift+Click 范围选择
     case jumpToTop
     case jumpToBottom
+    case updatePane(files: [FileItem])  // 更新面板文件列表
 }
 
 // split async actions and common actions to avoid Sendable issues
