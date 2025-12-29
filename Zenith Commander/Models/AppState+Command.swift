@@ -103,7 +103,7 @@ extension AppState {
         case .help:
             // help or ? - 显示帮助
             enterMode(.help)
-            return  // 不要退出 command 模式，因为 help 会显示为 sheet
+            return // 不要退出 command 模式，因为 help 会显示为 sheet
 
         case .ls:
             // ls - 刷新当前目录（相当于重新加载文件列表）
@@ -120,7 +120,7 @@ extension AppState {
         case .rsync:
             let (valid, _, error) = CommandParser.validateRsync(command)
             if valid {
-                await dispatch(.ui(.openRsync))
+                await dispatch(.ui(.showSheet(.rsyncSheet)))
             } else if let error {
                 showToast(error)
             }
@@ -132,8 +132,8 @@ extension AppState {
     func deleteSelectedFiles() async {
         let pane = currentPane
         if pane.selections.isEmpty,
-            let file = pane.activeTab.files[safe: pane.cursorIndex],
-            file.isParentDirectory
+           let file = pane.activeTab.files[safe: pane.cursorIndex],
+           file.isParentDirectory
         {
             showToast(
                 LocalizationManager.shared.localized(.toastCannotDeleteParent)
@@ -178,7 +178,7 @@ extension AppState {
         if selections.isEmpty {
             // 如果没有选中，返回当前光标所在的文件
             if let file = pane.activeTab.files[safe: pane.cursorIndex],
-                !file.isParentDirectory
+               !file.isParentDirectory
             {
                 return [file]
             }
@@ -194,7 +194,7 @@ extension AppState {
     func currentFile() -> FileItem? {
         let pane = currentPane
         guard let file = pane.activeTab.files[safe: pane.cursorIndex],
-            !file.isParentDirectory
+              !file.isParentDirectory
         else {
             return nil
         }

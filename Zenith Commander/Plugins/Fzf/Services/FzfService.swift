@@ -19,30 +19,9 @@ class FzfService {
 
     init(toolRunner: ToolRunner = ProcessToolRunner()) {
         self.toolRunner = toolRunner
-        fzfExecutablePath =
-            ToolPathUtils.resolveFirstExecutablePath(
-                candidatePaths: [
-                    "/opt/homebrew/bin/fzf",
-                    "/usr/local/bin/fzf",
-                    "/usr/bin/fzf",
-                ]
-            ) ?? "fzf"
-        findExecuatablePath =
-            ToolPathUtils.resolveFirstExecutablePath(candidatePaths: [
-                "/opt/homebrew/bin/fd",
-                "/usr/local/bin/fd",
-                "/usr/bin/fd",
-            ]) ?? ToolPathUtils.resolveFirstExecutablePath(candidatePaths: [
-                "/opt/homebrew/bin/find",
-                "/usr/local/bin/find",
-                "/usr/bin/find",
-            ]) ?? "find"
-        rgExecutablePath =
-            ToolPathUtils.resolveFirstExecutablePath(candidatePaths: [
-                "/opt/homebrew/bin/rg",
-                "/usr/local/bin/rg",
-                "/usr/bin/rg",
-            ]) ?? "rg"
+        fzfExecutablePath = ExternalToolchain.shared.fzfPath ?? "fzf"
+        findExecuatablePath = ExternalToolchain.shared.findPath
+        rgExecutablePath = ExternalToolchain.shared.rgPath ?? "rg"
     }
 
     /// Performs fuzzy search using fzf
@@ -65,7 +44,7 @@ class FzfService {
 
         // First get file list with find
         let findRequest = ToolRequest(
-            executable: "/usr/bin/find",
+            executable: ExternalToolchain.shared.fdPath ?? ExternalToolchain.shared.findPath,
             args: findArgs,
             workingDirectory: directory.path
         )
@@ -93,12 +72,18 @@ class FzfService {
         let results = fzfResponse.stdout
             .filter { !$0.isEmpty }
             .compactMap { path -> URL? in
-                let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+                let trimmed = path.trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                )
                 guard !trimmed.isEmpty else { return nil }
                 return URL(fileURLWithPath: trimmed)
             }
 
         return results
+    }
+
+    func isFzfInstalled() -> Bool {
+        return ExternalToolchain.shared.isToolAvailable(.fzf)
     }
 }
 
@@ -111,9 +96,9 @@ enum FzfError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notInstalled:
-            return "fzf is not installed. Please install it using: brew install fzf"
+            "fzf is not installed. Please install it using: brew install fzf"
         case .searchFailed(let message):
-            return "Search failed: \(message)"
+            "Search failed: \(message)"
         }
     }
 }

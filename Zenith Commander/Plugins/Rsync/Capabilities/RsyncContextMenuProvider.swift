@@ -11,7 +11,7 @@ final class RsyncContextMenuProvider: ContextMenuProvider {
     private let pluginContext: PluginContext
 
     init(context: PluginContext) {
-        self.pluginContext = context
+        pluginContext = context
     }
 
     func menuItems() -> [MenuElement] {
@@ -28,12 +28,12 @@ final class RsyncContextMenuProvider: ContextMenuProvider {
                     action: { [weak self] in
                         await self?.handleConfigureSync()
                     }
-                ))
+                )),
         ]
     }
 
     @MainActor
     private func handleConfigureSync() async {
-        await pluginContext.dispatch(.ui(.openRsync))
+        await pluginContext.dispatch(.ui(.showSheet(.rsyncSheet)))
     }
 }

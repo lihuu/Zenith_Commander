@@ -7,8 +7,8 @@
 
 import Combine
 import Foundation
-import SwiftUI
 import os.log
+import SwiftUI
 
 /// 全局应用状态
 @MainActor
@@ -28,6 +28,7 @@ class AppState: ObservableObject {
             subscribeToPaneChanges()
         }
     }
+
     @Published var activePane: PaneSide = .left
 
     // MARK: - 订阅管理
@@ -72,8 +73,8 @@ class AppState: ObservableObject {
 
     // MARK: - 单个文件内联编辑状态
 
-    @Published var editingFileId: String? = nil  // 当前正在编辑的文件ID
-    @Published var editingFileName = ""  // 编辑中的文件名
+    @Published var editingFileId: String? = nil // 当前正在编辑的文件ID
+    @Published var editingFileName = "" // 编辑中的文件名
 
     @Published var activeSheet: UIRequest?
 
@@ -116,8 +117,8 @@ class AppState: ObservableObject {
     let env: AppEnvironment
     private var runtimeStarted = false
 
-    init(environment: AppEnvironment, initialDirectory: URL? = nil) {
-        self.env = environment
+    init(environment: AppEnvironment, initialDirectory _: URL? = nil) {
+        env = environment
         // 获取默认驱动器
         let defaultDrive = DriveInfo(
             id: "macintosh-hd",
@@ -245,7 +246,7 @@ class AppState: ObservableObject {
             let tab = pane.activeTab
             let currentFile =
                 tab.files.isEmpty
-                ? "" : tab.files[safe: pane.cursorIndex]?.name ?? ""
+                    ? "" : tab.files[safe: pane.cursorIndex]?.name ?? ""
             return "\(tab.drive.name) | \(currentFile)"
         }
     }
@@ -256,36 +257,37 @@ class AppState: ObservableObject {
         switch action {
         case .none:
             break
-        case .mode(let modeAction):
+        case let .mode(modeAction):
             handleAction(modeAction)
-        case .pane(let paneAction):
+        case let .pane(paneAction):
             handleAction(paneAction)
-        case .paneAsync(let paneAsyncAction):
+        case let .paneAsync(paneAsyncAction):
             await handleAction(paneAsyncAction)
-        case .file(let fileAction):
+        case let .file(fileAction):
             await handleAction(fileAction)
-        case .ui(let uiAction):
+        case let .ui(uiAction):
             handleAction(uiAction)
-        case .command(let commandAction):
+        case let .command(commandAction):
             handleAction(commandAction)
-        case .commandAsync(let commandAsyncAction):
+        case let .commandAsync(commandAsyncAction):
             await handleAction(commandAsyncAction)
-        case .filter(let filterAction):
+        case let .filter(filterAction):
             handleAction(filterAction)
-        case .drive(let driveAction):
+        case let .drive(driveAction):
             await handleAction(driveAction)
-        case .moveCursor(let direction):
+        case let .moveCursor(direction):
             await moveCursor(direction)
-        case .moveVisualCursor(let direction):
+        case let .moveVisualCursor(direction):
             await moveVisualCursor(direction)
+
         // MARK: - 鼠标操作
-        case .mouseClick(let index, let paneSide):
+        case let .mouseClick(index, paneSide):
             handleMouseClick(at: index, paneSide: paneSide)
-        case .mouseCommandClick(let index, let paneSide):
+        case let .mouseCommandClick(index, paneSide):
             handleMouseCommandClick(at: index, paneSide: paneSide)
-        case .mouseShiftClick(let index, let paneSide):
+        case let .mouseShiftClick(index, paneSide):
             handleMouseShiftClick(at: index, paneSide: paneSide)
-        case .mouseDoubleClick(let fileId, let paneSide):
+        case let .mouseDoubleClick(fileId, paneSide):
             await handleMouseDoubleClick(
                 fileId: fileId,
                 paneSide: paneSide
@@ -311,7 +313,7 @@ class AppState: ObservableObject {
         switch action {
         case .deleteCommand:
             deleteCommand()
-        case .insertCommand(let char):
+        case let .insertCommand(char):
             insertCommand(char)
         }
     }
@@ -325,7 +327,7 @@ class AppState: ObservableObject {
 
     func handleAction(_ action: ModeAction) {
         switch action {
-        case .enterMode(let mode):
+        case let .enterMode(mode):
             enterMode(mode)
         case .exitMode:
             exitMode()
@@ -334,7 +336,7 @@ class AppState: ObservableObject {
 
     func handleAction(_ action: UIAction) {
         switch action {
-        case .toast(let message):
+        case let .toast(message):
             showToast(message)
         case .cycleTheme:
             let themeManager = ThemeManager.shared
@@ -345,9 +347,7 @@ class AppState: ObservableObject {
                     themeManager.mode.displayName
                 )
             )
-        case .openRsync:
-            break
-        case .showSheet(let req):
+        case let .showSheet(req):
             activeSheet = req
             enterMode(.modal)
         case .dismissSheet:
@@ -364,7 +364,7 @@ class AppState: ObservableObject {
                 // 实时更新过滤
                 applyFilter()
             }
-        case .inputFilterCharacter(let char):
+        case let .inputFilterCharacter(char):
             // 普通过滤支持常用字符，正则表达式支持更多特殊字符
             let isValidChar: Bool =
                 if filterUseRegex {
@@ -388,7 +388,7 @@ class AppState: ObservableObject {
 
     func handleAction(_ action: DriveAction) async {
         switch action {
-        case .moveDriveCursor(let direction):
+        case let .moveDriveCursor(direction):
             if direction == .up {
                 if driveSelectorCursor > 0 {
                     driveSelectorCursor -= 1
@@ -431,7 +431,7 @@ class AppState: ObservableObject {
             await pasteFiles()
         case .batchRename:
             enterMode(.batchRename)
-        case .startRenamingFile(let fileName, let filePath):
+        case let .startRenamingFile(fileName, filePath):
             let fileItem = FileItem(
                 id: UUID().uuidString,
                 name: fileName,
@@ -537,7 +537,7 @@ class AppState: ObservableObject {
     private func refreshOtherPane() async {
         let otherPane =
             activePane == .left
-            ? rightPane : leftPane
+                ? rightPane : leftPane
         let files = await env.fileSystem.loadDirectory(
             at: otherPane.activeTab.currentPath
         )
@@ -652,11 +652,11 @@ class AppState: ObservableObject {
 
         let processedReplace =
             replaceText
-            .replacingOccurrences(
-                of: "{n}",
-                with: String(format: "%03d", index + 1)
-            )
-            .replacingOccurrences(of: "{date}", with: dateString)
+                .replacingOccurrences(
+                    of: "{n}",
+                    with: String(format: "%03d", index + 1)
+                )
+                .replacingOccurrences(of: "{date}", with: dateString)
 
         if useRegex {
             if let regex = try? NSRegularExpression(
@@ -684,7 +684,7 @@ class AppState: ObservableObject {
     }
 
     func makePaneSnapshot() -> PanesSnapshot {
-        return PanesSnapshot(
+        PanesSnapshot(
             leftPath: leftPane.activeTab.currentPath.path,
             rightPath: rightPane.activeTab.currentPath.path,
             active: activePane == .left ? .left : .right

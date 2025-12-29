@@ -22,9 +22,9 @@ struct FileListConfig: Sendable {
     /// Directory names to exclude (e.g. .git, node_modules).
     var excludes: [String] = [".git", "node_modules", "DerivedData", ".build", ".swiftpm"]
     /// Whether to include hidden files.
-    var includeHidden: Bool = true
+    var includeHidden = true
     /// Whether to follow symlinks.
-    var followSymlinks: Bool = true
+    var followSymlinks = true
 
     init(
         excludes: [String] = [".git", "node_modules", "DerivedData", ".build", ".swiftpm"],
@@ -41,62 +41,9 @@ enum FileListTool: String, Sendable {
     case rg
     case fd
     case find
-}
-
-/// Resolve external tools and pick the best available one.
-struct ExternalToolchain: Sendable {
-    let rgPath: String?
-    let fdPath: String?
-    let findPath: String
-    let fzfPath: String?
-
-    init() {
-        self.rgPath = Self.resolveTool("rg")
-        self.fdPath = Self.resolveTool("fd")
-        self.fzfPath = Self.resolveTool("fzf")
-        self.findPath = Self.resolveTool("find") ?? "/usr/bin/find"
-    }
-
-    var preferredListTool: FileListTool {
-        if rgPath != nil { return .rg }
-        if fdPath != nil { return .fd }
-        return .find
-    }
-
-    /// Resolve tool path using predefined paths first, fallback to which.
-    private static func resolveTool(_ name: String) -> String? {
-        // 1) Try predefined paths
-        let candidates = ToolPathUtils.generateCandidatePaths(
-            executableName: name,
-            additionalPaths: ToolPathUtils.candidatePaths.map { "\($0)\(name)" }
-        )
-        if let found = ToolPathUtils.resolveFirstExecutablePath(candidatePaths: candidates) {
-            return found
-        }
-
-        // 2) Fallback to which command
-        return whichFallback(name)
-    }
-
-    /// Fallback: use which command to locate tool.
-    private static func whichFallback(_ name: String) -> String? {
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        p.arguments = ["which", name]
-
-        let out = Pipe()
-        p.standardOutput = out
-        p.standardError = Pipe()
-
-        do { try p.run() } catch { return nil }
-        p.waitUntilExit()
-        guard p.terminationStatus == 0 else { return nil }
-
-        let data = out.fileHandleForReading.readDataToEndOfFile()
-        let path = String(decoding: data, as: UTF8.self).trimmingCharacters(
-            in: .whitespacesAndNewlines)
-        return path.isEmpty ? nil : path
-    }
+    case git
+    case rsync
+    case fzf
 }
 
 /// Build a ToolRequest for listing files under `root` with automatic tool fallback.
@@ -107,10 +54,9 @@ func buildFileListRequest(
     scope: FileListScope,
     config: FileListConfig = .init()
 ) -> (tool: FileListTool, request: ToolRequest) {
-
     // 1) rg: only for recursive listing (fastest), because rg lacks a clean max-depth flag.
     if scope == .recursive, let rg = toolchain.rgPath {
-        var args: [String] = ["--files"]
+        var args = ["--files"]
         if config.includeHidden { args.append("--hidden") }
         if config.followSymlinks { args.append("--follow") }
         for ex in config.excludes {
@@ -176,9 +122,9 @@ func listFilesThenFuzzyFilter(
     config: FileListConfig = .init(),
     toolchain: ExternalToolchain = ExternalToolchain()
 ) async throws -> [String] {
-
     let (_, listReq) = buildFileListRequest(
-        toolchain: toolchain, root: root, scope: scope, config: config)
+        toolchain: toolchain, root: root, scope: scope, config: config
+    )
     let list = try await runner.runData(listReq)
 
     let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -189,7 +135,8 @@ func listFilesThenFuzzyFilter(
 
     if let fzfBase = buildFzfBaseRequest(toolchain: toolchain) {
         let filtered = try await runner.listThenFzfFilter(
-            listRequest: listReq, fzfRequest: fzfBase, query: trimmed)
+            listRequest: listReq, fzfRequest: fzfBase, query: trimmed
+        )
         return filtered.stdoutString.split(separator: "\n", omittingEmptySubsequences: true).map(
             String.init)
     }
@@ -201,7 +148,6 @@ func listFilesThenFuzzyFilter(
 }
 
 extension ToolRunner {
-
     /// Convenience: list files (rg/fd/find), then fuzzy-filter using fzf (non-interactive).
     /// - Important: this helper keeps everything within ToolRunner.
     func listThenFzfFilter(
