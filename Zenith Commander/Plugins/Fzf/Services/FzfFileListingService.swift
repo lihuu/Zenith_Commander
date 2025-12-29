@@ -119,6 +119,7 @@ extension ToolRunner {
 
     /// A high-level helper: list files with automatic tool fallback, then fuzzy-filter via fzf (if available).
     /// - If fzf is not installed, falls back to a simple case-insensitive contains filter in Swift.
+    /// - Uses streaming shell pipeline: listProcess.stdout → Pipe → fzfProcess.stdin
     func listFilesThenFuzzyFilter(
         root: String,
         scope: FileListScope,
@@ -143,9 +144,8 @@ extension ToolRunner {
         let listCwd = listReq.workingDirectory ?? "."
         print("[ToolRunner][fzf] list (\(listTool.rawValue)) cmd: \(listCmd) | cwd=\(listCwd)")
 
-        // If fzf exists, list once then filter by piping stdout -> fzf stdin.
+        // If fzf exists, use streaming pipeline: listProcess stdout → pipe → fzf stdin
         if let fzfBase = buildFzfBaseRequest(toolchain: effectiveToolchain) {
-            let list = try await runData(listReq)
             let fzfReq = ToolRequest(
                 executable: fzfBase.executable,
                 args: fzfBase.args + ["--filter", trimmed],
@@ -154,18 +154,125 @@ extension ToolRunner {
             let fzfCmd = ([fzfReq.executable] + fzfReq.args).joined(separator: " ")
             let fzfCwd = fzfReq.workingDirectory ?? "."
             print("[ToolRunner][fzf] filter cmd: \(fzfCmd) | cwd=\(fzfCwd)")
-            let filtered = try await runData(fzfReq, stdin: list.stdout)
-            return filtered.stdoutString
-                .split(separator: "\n", omittingEmptySubsequences: true)
-                .map(String.init)
+
+            do {
+                let result = try await runShellPipeline(upstream: listReq, downstream: fzfReq)
+                return result.stdoutString
+                    .split(separator: "\n", omittingEmptySubsequences: true)
+                    .map(String.init)
+            } catch {
+                // fzf execution failed -> fallback to Swift filter
+                print("[ToolRunner][fzf] pipeline failed: \(error), falling back to Swift filter")
+            }
         }
 
-        // fzf not installed -> fallback (still only list once)
+        // fzf not installed or pipeline failed -> fallback (load into memory)
         let list = try await runData(listReq)
         let all = list.stdoutString
             .split(separator: "\n", omittingEmptySubsequences: true)
             .map(String.init)
         return all.filter { $0.localizedCaseInsensitiveContains(trimmed) }
+    }
+
+    // MARK: - Private Helpers
+
+    /// Run a shell pipeline: upstream.stdout → Pipe → downstream.stdin
+    /// Returns the downstream process's stdout/stderr.
+    /// - Note: Starts downstream first, then upstream. Only waits for downstream to finish.
+    ///         Upstream is terminated naturally when the pipe closes.
+    private func runShellPipeline(
+        upstream: ToolRequest,
+        downstream: ToolRequest
+    ) async throws -> ToolResponseData {
+        try await withCheckedThrowingContinuation { cont in
+            // 1) Create the shared pipe connecting upstream stdout → downstream stdin
+            let sharedPipe = Pipe()
+
+            // 2) Configure downstream process (fzf)
+            let downstreamProcess = Process()
+            downstreamProcess.executableURL = URL(fileURLWithPath: downstream.executable)
+            downstreamProcess.arguments = downstream.args
+            if let wd = downstream.workingDirectory {
+                downstreamProcess.currentDirectoryURL = URL(fileURLWithPath: wd)
+            }
+            downstreamProcess.standardInput = sharedPipe
+            let downstreamStdout = Pipe()
+            let downstreamStderr = Pipe()
+            downstreamProcess.standardOutput = downstreamStdout
+            downstreamProcess.standardError = downstreamStderr
+
+            // 3) Configure upstream process (rg/fd/find)
+            let upstreamProcess = Process()
+            upstreamProcess.executableURL = URL(fileURLWithPath: upstream.executable)
+            upstreamProcess.arguments = upstream.args
+            if let wd = upstream.workingDirectory {
+                upstreamProcess.currentDirectoryURL = URL(fileURLWithPath: wd)
+            }
+            upstreamProcess.standardOutput = sharedPipe
+            // Discard upstream stderr
+            upstreamProcess.standardError = FileHandle.nullDevice
+
+            // 4) Resume-once guard
+            let lock = NSLock()
+            var didResume = false
+            func resumeOnce(_ body: () -> Void) {
+                lock.lock()
+                defer { lock.unlock() }
+                guard !didResume else { return }
+                didResume = true
+                body()
+            }
+
+            // 5) Set downstream termination handler - only wait for downstream
+            downstreamProcess.terminationHandler = { proc in
+                proc.terminationHandler = nil
+
+                // Close the shared pipe's write end to ensure upstream sees EOF if still running
+                try? sharedPipe.fileHandleForWriting.close()
+
+                let outData = downstreamStdout.fileHandleForReading.readDataToEndOfFile()
+                let errData = downstreamStderr.fileHandleForReading.readDataToEndOfFile()
+                let resp = ToolResponseData(
+                    exitCode: proc.terminationStatus,
+                    stdout: outData,
+                    stderr: errData
+                )
+                resumeOnce {
+                    cont.resume(returning: resp)
+                }
+            }
+
+            // 6) Start downstream first (so it's ready to receive data)
+            do {
+                try downstreamProcess.run()
+            } catch {
+                downstreamProcess.terminationHandler = nil
+                resumeOnce {
+                    cont.resume(throwing: error)
+                }
+                return
+            }
+
+            // 7) Start upstream (its stdout flows into the shared pipe)
+            do {
+                try upstreamProcess.run()
+            } catch {
+                // Upstream failed to start - terminate downstream and report
+                downstreamProcess.terminationHandler = nil
+                downstreamProcess.terminate()
+                try? sharedPipe.fileHandleForWriting.close()
+                resumeOnce {
+                    cont.resume(throwing: error)
+                }
+                return
+            }
+
+            // 8) When upstream finishes, close the write end so downstream gets EOF
+            upstreamProcess.terminationHandler = { proc in
+                proc.terminationHandler = nil
+                try? sharedPipe.fileHandleForWriting.close()
+            }
+        }
     }
 
     /// Convenience: list files (rg/fd/find), then fuzzy-filter using fzf (non-interactive).
