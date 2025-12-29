@@ -121,11 +121,14 @@ extension ToolRunner {
         root: String,
         scope: FileListScope,
         query: String,
-        config: FileListConfig = .init(),
-        toolchain: ExternalToolchain = .shared
+        config: FileListConfig? = nil,
+        toolchain: ExternalToolchain? = nil
     ) async throws -> [String] {
+        let effectiveConfig = config ?? FileListConfig()
+        let effectiveToolchain = toolchain ?? ExternalToolchain.shared
+        
         let (_, listReq) = buildFileListRequest(
-            toolchain: toolchain, root: root, scope: scope, config: config
+            toolchain: effectiveToolchain, root: root, scope: scope, config: effectiveConfig
         )
         let list = try await runData(listReq)
 
@@ -135,7 +138,7 @@ extension ToolRunner {
                 String.init)
         }
 
-        if let fzfBase = buildFzfBaseRequest(toolchain: toolchain) {
+        if let fzfBase = buildFzfBaseRequest(toolchain: effectiveToolchain) {
             let filtered = try await listThenFzfFilter(
                 listRequest: listReq, fzfRequest: fzfBase, query: trimmed
             )

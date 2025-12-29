@@ -12,16 +12,9 @@ class FzfService {
     static let shared = FzfService()
 
     private let toolRunner: ToolRunner
-    private var fzfInstalledCache: Bool?
-    private let fzfExecutablePath: String
-    private let findExecuatablePath: String
-    private let rgExecutablePath: String
 
     init(toolRunner: ToolRunner = ProcessToolRunner()) {
         self.toolRunner = toolRunner
-        fzfExecutablePath = ExternalToolchain.shared.fzfPath ?? "fzf"
-        findExecuatablePath = ExternalToolchain.shared.findPath
-        rgExecutablePath = ExternalToolchain.shared.rgPath ?? "rg"
     }
 
     /// Performs fuzzy search using fzf
@@ -35,51 +28,13 @@ class FzfService {
         directory: URL,
         recursive: Bool = true
     ) async throws -> [URL] {
-        // Use find + fzf pipeline for file search
-        // find . -type f | fzf --filter=pattern
-        let findArgs =
-            recursive
-            ? [directory.path, "-type", "f"]
-            : [directory.path, "-maxdepth", "1", "-type", "f"]
-
-        // First get file list with find
-        let findRequest = ToolRequest(
-            executable: ExternalToolchain.shared.fdPath ?? ExternalToolchain.shared.findPath,
-            args: findArgs,
-            workingDirectory: directory.path
+        let scope: FileListScope = recursive ? .recursive : .nonRecursive
+        let results = try await toolRunner.listFilesThenFuzzyFilter(
+            root: directory.path,
+            scope: scope,
+            query: pattern
         )
-
-        let findResponse = try await toolRunner.run(findRequest)
-        let files = findResponse.stdout.joined(separator: "\n")
-
-        guard !files.isEmpty else {
-            return []
-        }
-
-        // Then filter with fzf
-        let fzfRequest = ToolRequest(
-            executable: "/usr/bin/env",
-            args: [
-                "bash", "-c",
-                "echo '\(files.replacingOccurrences(of: "'", with: "'\\''"))' | fzf --filter='\(pattern.replacingOccurrences(of: "'", with: "'\\''"))'",
-            ],
-            workingDirectory: directory.path
-        )
-
-        let fzfResponse = try await toolRunner.run(fzfRequest)
-
-        // Parse results
-        let results = fzfResponse.stdout
-            .filter { !$0.isEmpty }
-            .compactMap { path -> URL? in
-                let trimmed = path.trimmingCharacters(
-                    in: .whitespacesAndNewlines
-                )
-                guard !trimmed.isEmpty else { return nil }
-                return URL(fileURLWithPath: trimmed)
-            }
-
-        return results
+        return results.map { URL(fileURLWithPath: $0) }
     }
 
     func isFzfInstalled() -> Bool {
