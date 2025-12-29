@@ -128,14 +128,20 @@ extension ToolRunner {
     ) async throws -> [String] {
         // 1) Early return on empty query (do not list files)
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty { return [] }
+        if trimmed.isEmpty {
+            print("[ToolRunner][fzf] query empty -> return []")
+            return []
+        }
 
         // 2) Resolve config/toolchain and build listing request (rg/fd/find)
         let effectiveConfig = config ?? FileListConfig()
         let effectiveToolchain = toolchain ?? ExternalToolchain.shared
-        let (_, listReq) = buildFileListRequest(
+        let (listTool, listReq) = buildFileListRequest(
             toolchain: effectiveToolchain, root: root, scope: scope, config: effectiveConfig
         )
+        let listCmd = ([listReq.executable] + listReq.args).joined(separator: " ")
+        let listCwd = listReq.workingDirectory ?? "."
+        print("[ToolRunner][fzf] list (\(listTool.rawValue)) cmd: \(listCmd) | cwd=\(listCwd)")
 
         // If fzf exists, list once then filter by piping stdout -> fzf stdin.
         if let fzfBase = buildFzfBaseRequest(toolchain: effectiveToolchain) {
@@ -145,6 +151,9 @@ extension ToolRunner {
                 args: fzfBase.args + ["--filter", trimmed],
                 workingDirectory: fzfBase.workingDirectory
             )
+            let fzfCmd = ([fzfReq.executable] + fzfReq.args).joined(separator: " ")
+            let fzfCwd = fzfReq.workingDirectory ?? "."
+            print("[ToolRunner][fzf] filter cmd: \(fzfCmd) | cwd=\(fzfCwd)")
             let filtered = try await runData(fzfReq, stdin: list.stdout)
             return filtered.stdoutString
                 .split(separator: "\n", omittingEmptySubsequences: true)
