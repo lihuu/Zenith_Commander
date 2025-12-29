@@ -289,7 +289,13 @@ struct FzfSearchSheetView: View {
     }
     
     private func showResultsInPane() {
-        // TODO: Show search results as virtual file list in pane
+        // Convert search results to FileItem array
+        let _ = searchResults.compactMap { FileItem.fromURL($0) }
+        
+        // TODO: Display fileItems in pane
+        // Future implementation will handle showing these items in the active pane
+        // possibly as a virtual file list or temporary search results view
+        
         dismiss()
     }
 }
