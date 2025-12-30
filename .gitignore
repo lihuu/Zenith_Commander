@@ -81,3 +81,6 @@ tools/class-audit/.build/
 BuildArtifacts/
 build.log
 warnings.txt
+build_final.log
+test-build.log
+warnings_final.txt
