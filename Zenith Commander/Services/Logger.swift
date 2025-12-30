@@ -21,12 +21,12 @@ import os.log
 ///          Logger.fileSystem.error("文件操作失败: \(error)")
 extension Logger {
     /// 子系统标识符（使用 Bundle ID）
-    private static let subsystem = "com.zenithcommander"
+    nonisolated private static let subsystem = "com.zenithcommander"
 
     // MARK: - 日志类别
 
     /// 通用应用日志
-    static let app = Logger(subsystem: subsystem, category: "app")
+    nonisolated static let app = Logger(subsystem: subsystem, category: "app")
 
     /// 文件系统操作日志
     nonisolated static let fileSystem = Logger(
@@ -35,21 +35,21 @@ extension Logger {
     )
 
     /// 目录监控日志
-    static let monitor = Logger(subsystem: subsystem, category: "monitor")
+    nonisolated static let monitor = Logger(subsystem: subsystem, category: "monitor")
 
     /// 设置/配置日志
-    static let settings = Logger(subsystem: subsystem, category: "settings")
+    nonisolated static let settings = Logger(subsystem: subsystem, category: "settings")
 
     /// UI 相关日志
-    static let ui = Logger(subsystem: subsystem, category: "ui")
+    nonisolated static let ui = Logger(subsystem: subsystem, category: "ui")
 
     /// 导航日志
-    static let navigation = Logger(subsystem: subsystem, category: "navigation")
+    nonisolated static let navigation = Logger(subsystem: subsystem, category: "navigation")
 
     /// Git 操作日志
-    static let git = Logger(subsystem: subsystem, category: "git")
+    nonisolated static let git = Logger(subsystem: subsystem, category: "git")
     
-    static let plugin = Logger(subsystem: subsystem, category: "plugin")
+    nonisolated static let plugin = Logger(subsystem: subsystem, category: "plugin")
 }
 
 // MARK: - 便捷日志函数（可选）

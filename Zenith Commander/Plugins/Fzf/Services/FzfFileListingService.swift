@@ -215,7 +215,7 @@ extension ToolRunner {
             // 4) Resume-once guard
             let lock = NSLock()
             var didResume = false
-            func resumeOnce(_ body: () -> Void) {
+            let resumeOnce: @Sendable (@Sendable () -> Void) -> Void = { body in
                 lock.lock()
                 defer { lock.unlock() }
                 guard !didResume else { return }

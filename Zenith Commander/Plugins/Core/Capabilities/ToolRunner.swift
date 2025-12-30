@@ -21,7 +21,7 @@ struct ToolResponse {
     let stderr: [String]
 }
 
-protocol ToolRunner: PluginCapability {
+protocol ToolRunner: PluginCapability, Sendable {
     func run(_ request: ToolRequest) async throws -> ToolResponse
     func runSync(_ request: ToolRequest) throws -> ToolResponse
 }

@@ -249,7 +249,7 @@ struct TestFileSystem: FileSysteming {
         }
     }
 
-    private func runFileOperation(_ work: @escaping () throws -> Void) async throws {
+    private func runFileOperation(_ work: @escaping @Sendable () throws -> Void) async throws {
         try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .utility).async {
                 do {

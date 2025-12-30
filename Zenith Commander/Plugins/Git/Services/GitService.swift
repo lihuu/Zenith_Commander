@@ -190,53 +190,60 @@ class GitService {
             return []
         }
 
+        let toolRunner = self.toolRunner
+        let gitExecutableURL = gitExecutableURL
+
         // 在后台线程执行 Git 命令
-        return await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async { [self] in
-                // 获取仓库根目录
-                guard let rootPath = getRepositoryRoot(for: file) else {
-                    Logger.git.warning(
-                        "Could not find repository root for: \(file.path, privacy: .public)")
-                    continuation.resume(returning: [])
-                    return
-                }
-
-                Logger.git.debug("Repository root: \(rootPath.path, privacy: .public)")
-
-                // 计算相对路径
-                let relativePath = file.path.replacingOccurrences(of: rootPath.path + "/", with: "")
-                Logger.git.debug("Relative path: \(relativePath, privacy: .public)")
-
-                // 运行 git log 命令
-                // 格式: hash|short_hash|author|email|timestamp|subject|body|parent_hashes
-                let format = "%H|%h|%an|%ae|%at|%s|%b|%P"
-                let args = [
-                    "log",
-                    "--format=\(format)",
-                    "-n", "\(limit)",
-                    "--follow",  // 跟踪文件重命名
-                    "--",
-                    relativePath,
-                ]
-
-                Logger.git.debug(
-                    "Running git command with args: \(args.joined(separator: " "), privacy: .public)"
-                )
-
-                guard let output = runGitCommand(args, at: rootPath) else {
-                    Logger.git.error("git log command failed or returned nil")
-                    continuation.resume(returning: [])
-                    return
-                }
-
-                Logger.git.debug("git log output length: \(output.count) characters")
-
-                let commits = parseGitLogOutput(output)
-                Logger.git.info("Parsed \(commits.count) commits from git log output")
-
-                continuation.resume(returning: commits)
+        return await Task.detached(priority: .userInitiated) {
+            guard let rootPath = Self.getRepositoryRoot(
+                for: file,
+                gitExecutableURL: gitExecutableURL,
+                toolRunner: toolRunner
+            ) else {
+                Logger.git.warning(
+                    "Could not find repository root for: \(file.path, privacy: .public)")
+                return []
             }
-        }
+
+            Logger.git.debug("Repository root: \(rootPath.path, privacy: .public)")
+
+            // 计算相对路径
+            let relativePath = file.path.replacingOccurrences(of: rootPath.path + "/", with: "")
+            Logger.git.debug("Relative path: \(relativePath, privacy: .public)")
+
+            // 运行 git log 命令
+            // 格式: hash|short_hash|author|email|timestamp|subject|body|parent_hashes
+            let format = "%H|%h|%an|%ae|%at|%s|%b|%P"
+            let args = [
+                "log",
+                "--format=\(format)",
+                "-n", "\(limit)",
+                "--follow",  // 跟踪文件重命名
+                "--",
+                relativePath,
+            ]
+
+            Logger.git.debug(
+                "Running git command with args: \(args.joined(separator: " "), privacy: .public)"
+            )
+
+            guard let output = Self.runGitCommand(
+                args,
+                at: rootPath,
+                gitExecutableURL: gitExecutableURL,
+                toolRunner: toolRunner
+            ) else {
+                Logger.git.error("git log command failed or returned nil")
+                return []
+            }
+
+            Logger.git.debug("git log output length: \(output.count) characters")
+
+            let commits = Self.parseGitLogOutput(output)
+            Logger.git.info("Parsed \(commits.count) commits from git log output")
+
+            return commits
+        }.value
     }
 
     /// 获取整个仓库的 Git 历史记录
@@ -247,29 +254,36 @@ class GitService {
     func getRepositoryHistory(at directory: URL, limit: Int = 50) async -> [GitCommit] {
         guard isGitAvailable else { return [] }
 
-        return await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async { [self] in
-                guard let rootPath = getRepositoryRoot(for: directory) else {
-                    continuation.resume(returning: [])
-                    return
-                }
+        let toolRunner = self.toolRunner
+        let gitExecutableURL = gitExecutableURL
 
-                let format = "%H|%h|%an|%ae|%at|%s|%b|%P"
-                let args = [
-                    "log",
-                    "--format=\(format)",
-                    "-n", "\(limit)",
-                ]
-
-                guard let output = runGitCommand(args, at: rootPath) else {
-                    continuation.resume(returning: [])
-                    return
-                }
-
-                let commits = parseGitLogOutput(output)
-                continuation.resume(returning: commits)
+        return await Task.detached(priority: .userInitiated) {
+            guard let rootPath = Self.getRepositoryRoot(
+                for: directory,
+                gitExecutableURL: gitExecutableURL,
+                toolRunner: toolRunner
+            ) else {
+                return []
             }
-        }
+
+            let format = "%H|%h|%an|%ae|%at|%s|%b|%P"
+            let args = [
+                "log",
+                "--format=\(format)",
+                "-n", "\(limit)",
+            ]
+
+            guard let output = Self.runGitCommand(
+                args,
+                at: rootPath,
+                gitExecutableURL: gitExecutableURL,
+                toolRunner: toolRunner
+            ) else {
+                return []
+            }
+
+            return Self.parseGitLogOutput(output)
+        }.value
     }
 
     /// 获取指定 commit 的变更文件列表
@@ -301,7 +315,7 @@ class GitService {
     }
 
     /// 解析 git log 输出
-    private func parseGitLogOutput(_ output: String) -> [GitCommit] {
+    private nonisolated static func parseGitLogOutput(_ output: String) -> [GitCommit] {
         Logger.git.debug("parseGitLogOutput called")
         var commits: [GitCommit] = []
 
@@ -349,6 +363,63 @@ class GitService {
 
         Logger.git.debug("parseGitLogOutput completed with \(commits.count) commits")
         return commits
+    }
+
+    private nonisolated static func getRepositoryRoot(
+        for path: URL,
+        gitExecutableURL: URL?,
+        toolRunner: any ToolRunner
+    ) -> URL? {
+        // 如果是文件，使用其父目录
+        var directory = path
+        var isDirectory: ObjCBool = false
+        if FileManager.default.fileExists(atPath: path.path, isDirectory: &isDirectory) {
+            if !isDirectory.boolValue {
+                directory = path.deletingLastPathComponent()
+            }
+        }
+
+        guard let result = runGitCommand(
+            ["rev-parse", "--show-toplevel"],
+            at: directory,
+            gitExecutableURL: gitExecutableURL,
+            toolRunner: toolRunner
+        ) else {
+            return nil
+        }
+
+        let rootPath = result.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !rootPath.isEmpty else { return nil }
+
+        return URL(fileURLWithPath: rootPath)
+    }
+
+    private nonisolated static func runGitCommand(
+        _ arguments: [String],
+        at directory: URL,
+        gitExecutableURL: URL?,
+        toolRunner: any ToolRunner
+    ) -> String? {
+        guard let gitURL = gitExecutableURL else {
+            return nil
+        }
+
+        let request = ToolRequest(
+            executable: gitURL.path,
+            args: arguments,
+            workingDirectory: directory.path
+        )
+
+        do {
+            let response = try toolRunner.runSync(request)
+            if response.exitCode == 0 {
+                return response.stdout.joined(separator: "\n")
+            }
+        } catch {
+            Logger.fileSystem.error("Git command failed: \(error.localizedDescription)")
+        }
+
+        return nil
     }
 
     /// 解析 commit 变更文件

@@ -201,7 +201,12 @@ class FileSystemService {
 
     /// 获取所有挂载的卷
     func getMountedVolumes() -> [DriveInfo] {
+        Self.loadMountedVolumes()
+    }
+
+    nonisolated static func loadMountedVolumes() -> [DriveInfo] {
         var drives: [DriveInfo] = []
+        let fileManager = FileManager.default
 
         // 获取所有挂载的卷
         let volumeURLs =
