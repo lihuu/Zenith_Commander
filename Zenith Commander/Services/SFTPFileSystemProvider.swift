@@ -15,7 +15,9 @@ class SFTPFileSystemProvider: FileSystemProvider {
     var scheme: String { "sftp" }
 
     // Cache connections by "user@host:port" key
-    private var connections: [String: MFTSftpConnection] = [:]
+    // Using nonisolated(unsafe) because MFTSftpConnection is not Sendable,
+    // but we ensure thread safety via connectionLock
+    private nonisolated(unsafe) var connections: [String: MFTSftpConnection] = [:]
     private let connectionLock = NSLock()
 
     // MARK: - Connection Management
@@ -27,7 +29,7 @@ class SFTPFileSystemProvider: FileSystemProvider {
         return "\(user)@\(host):\(port)"
     }
 
-    private func getOrCreateConnection(for url: URL) throws -> MFTSftpConnection
+    private nonisolated func getOrCreateConnection(for url: URL) throws -> MFTSftpConnection
     {
         let key = getConnectionKey(for: url)
 
@@ -88,7 +90,7 @@ class SFTPFileSystemProvider: FileSystemProvider {
         Logger.fileSystem.debug("Loading SFTP directory: \(path.path)")
         return try await Task.detached { [weak self] in
             guard let self else { return [] }
-            let sftp = try await getOrCreateConnection(for: path)
+            let sftp = try getOrCreateConnection(for: path)
 
             let remotePath = path.path
             // mft contentsOfDirectory returns [MFTFileItem] (inferred name, checking README it says 'item.filename')
@@ -163,7 +165,7 @@ class SFTPFileSystemProvider: FileSystemProvider {
             guard let self else {
                 throw NSError(domain: "SFTP", code: -1, userInfo: nil)
             }
-            let sftp = try await getOrCreateConnection(for: path)
+            let sftp = try getOrCreateConnection(for: path)
 
             let newPath = path.appendingPathComponent(name)
             try sftp.createDirectory(atPath: newPath.path)
@@ -190,7 +192,7 @@ class SFTPFileSystemProvider: FileSystemProvider {
             guard let self else {
                 throw NSError(domain: "SFTP", code: -1, userInfo: nil)
             }
-            let sftp = try await getOrCreateConnection(for: path)
+            let sftp = try getOrCreateConnection(for: path)
 
             let newPath = path.appendingPathComponent(name)
             // Create empty file
@@ -225,7 +227,7 @@ class SFTPFileSystemProvider: FileSystemProvider {
         try await Task.detached { [weak self] in
             guard let self else { return }
             if let first = items.first {
-                let sftp = try await getOrCreateConnection(for: first.path)
+                let sftp = try getOrCreateConnection(for: first.path)
 
                 for item in items {
                     if item.type == .folder {
@@ -242,7 +244,7 @@ class SFTPFileSystemProvider: FileSystemProvider {
         try await Task.detached { [weak self] in
             guard let self else { return }
             if let first = items.first {
-                let sftp = try await getOrCreateConnection(for: first.path)
+                let sftp = try getOrCreateConnection(for: first.path)
 
                 for item in items {
                     let destPath = destination.appendingPathComponent(item.name)
@@ -261,7 +263,7 @@ class SFTPFileSystemProvider: FileSystemProvider {
         try await Task.detached { [weak self] in
             guard let self else { return }
             if let first = items.first {
-                let sftp = try await getOrCreateConnection(for: first.path)
+                let sftp = try getOrCreateConnection(for: first.path)
 
                 for item in items {
                     let destPath = destination.appendingPathComponent(item.name)
@@ -299,13 +301,12 @@ class SFTPFileSystemProvider: FileSystemProvider {
             else { return }
             outStream.open()
 
-            try await Task.detached {
-                try sftp.contents(
-                    atPath: file.path.path,
-                    toStream: outStream,
-                    fromPosition: 0
-                ) { _, _ in true }
-            }.value
+            // Download - use synchronous call on detached task since sftp is non-Sendable
+            try sftp.contents(
+                atPath: file.path.path,
+                toStream: outStream,
+                fromPosition: 0
+            ) { _, _ in true }
 
             outStream.close()
 

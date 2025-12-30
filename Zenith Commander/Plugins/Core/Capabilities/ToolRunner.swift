@@ -33,7 +33,7 @@ extension ToolRunner {
 
 struct ProcessToolRunner: ToolRunner {
 
-    private func setupProcess(for request: ToolRequest) -> (
+    private nonisolated func setupProcess(for request: ToolRequest) -> (
         process: Process, stdout: Pipe, stderr: Pipe
     ) {
         let p = Process()

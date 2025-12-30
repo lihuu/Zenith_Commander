@@ -6,7 +6,7 @@
 //  使用 DispatchSource 监控特定目录（轻量级方案）
 //
 
-import Foundation
+@preconcurrency import Foundation
 import os.log
 
 // MARK: - DispatchSource 目录监控器（轻量级方案）
@@ -26,17 +26,17 @@ class DispatchSourceDirectoryMonitor {
     /// DispatchSource
     private var source: DispatchSourceFileSystemObject?
 
-    /// 变化回调
-    private var onChange: (() -> Void)?
+    /// 变化回调 - nonisolated(unsafe) to allow deinit access
+    private nonisolated(unsafe) var onChange: (() -> Void)?
 
-    /// 目录被删除/移动/重命名时的回调
-    private var onDirectoryInvalidated: (() -> Void)?
+    /// 目录被删除/移动/重命名时的回调 - nonisolated(unsafe) to allow deinit access
+    private nonisolated(unsafe) var onDirectoryInvalidated: (() -> Void)?
 
     /// 是否正在监控
     private(set) var isMonitoring = false
 
-    /// 防抖相关
-    private var debounceWorkItem: DispatchWorkItem?
+    /// 防抖相关 - nonisolated(unsafe) to allow deinit access
+    private nonisolated(unsafe) var debounceWorkItem: DispatchWorkItem?
     private let debounceDelay: TimeInterval = 0.3
     private let monitorQueue = DispatchQueue(label: "com.zenithcommander.directorymonitor", qos: .utility)
 
@@ -54,7 +54,14 @@ class DispatchSourceDirectoryMonitor {
     }
 
     deinit {
-        stop()
+        // Inline cleanup to avoid calling potentially MainActor-isolated methods from deinit
+        debounceWorkItem?.cancel()
+        debounceWorkItem = nil
+        source?.cancel()
+        source = nil
+        isMonitoring = false
+        onChange = nil
+        onDirectoryInvalidated = nil
     }
 
     // MARK: - Public Methods

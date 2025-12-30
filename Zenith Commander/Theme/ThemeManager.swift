@@ -5,7 +5,7 @@
 //  主题管理器 - 管理主题切换和持久化
 //
 
-import Combine
+@preconcurrency import Combine
 import SwiftUI
 
 /// 主题模式
@@ -158,8 +158,12 @@ final class ThemeManager: ObservableObject {
     }
 
     deinit {
-        if let observer = appearanceObserver {
-            DistributedNotificationCenter.default().removeObserver(observer)
+        // Use MainActor.assumeIsolated since ThemeManager is @MainActor and deinit
+        // cannot directly access non-Sendable appearanceObserver
+        MainActor.assumeIsolated {
+            if let observer = appearanceObserver {
+                DistributedNotificationCenter.default().removeObserver(observer)
+            }
         }
     }
 

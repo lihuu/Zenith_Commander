@@ -7,9 +7,11 @@
 
 import Foundation
 
-// Helper function for localization
-private func L(_ key: LocalizedStringKey) -> String {
-    LocalizationManager.shared.localized(key)
+// Helper function for localization (nonisolated for use in error descriptions)
+private nonisolated func L(_ key: LocalizedStringKey) -> String {
+    MainActor.assumeIsolated {
+        LocalizationManager.shared.localized(key)
+    }
 }
 
 /// Service responsible for rsync operations

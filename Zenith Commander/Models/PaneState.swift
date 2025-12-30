@@ -5,7 +5,7 @@
 //  Created by Hu Li on 12/2/25.
 //
 
-import Combine
+@preconcurrency import Combine
 import Foundation
 import SwiftUI
 
@@ -38,7 +38,11 @@ class PaneState: ObservableObject {
 
     deinit {
         // 清理所有订阅，避免悬空引用
-        tabCancellables.removeAll()
+        // Use MainActor.assumeIsolated since PaneState is @MainActor and deinit
+        // cannot directly access non-Sendable tabCancellables
+        MainActor.assumeIsolated {
+            tabCancellables.removeAll()
+        }
     }
 
     /// 订阅所有标签页的变化，转发到 PaneState

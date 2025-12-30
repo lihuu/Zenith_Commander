@@ -93,8 +93,11 @@ struct StatusBarView: View {
         // 启动光标闪烁定时器（仅在 filter 或 command 模式下）
         if mode == .filter || mode == .command {
             Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
-                withAnimation(.easeInOut(duration: 0.1)) {
-                    cursorVisible.toggle()
+                // Use DispatchQueue.main.async for MainActor-safe mutation
+                DispatchQueue.main.async {
+                    withAnimation(.easeInOut(duration: 0.1)) {
+                        self.cursorVisible.toggle()
+                    }
                 }
             }
         }

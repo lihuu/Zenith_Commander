@@ -252,7 +252,7 @@ struct DriveInfo: Identifiable, Hashable, Sendable {
     }
 }
 
-enum DriveType: Sendable {
+nonisolated enum DriveType: Sendable, Equatable {
     case system
     case external
     case network
