@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Synchronization
 
 // MARK: - Fzf File Listing Service
 
@@ -214,12 +215,12 @@ extension ToolRunner {
 
             // 4) Resume-once guard
             let lock = NSLock()
-            var didResume = false
+            let didResume = Atomic<Bool>(false)
             let resumeOnce: @Sendable (@Sendable () -> Void) -> Void = { body in
                 lock.lock()
                 defer { lock.unlock() }
-                guard !didResume else { return }
-                didResume = true
+                guard !didResume.load(ordering: .acquiring) else { return }
+                didResume.store(true, ordering: .releasing)
                 body()
             }
 

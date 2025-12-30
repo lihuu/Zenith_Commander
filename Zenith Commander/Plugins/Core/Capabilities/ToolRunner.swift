@@ -8,7 +8,6 @@
 import Foundation
 import Synchronization
 
-
 struct ToolRequest {
     let executable: String
     let args: [String]
@@ -23,7 +22,7 @@ struct ToolResponse {
 
 protocol ToolRunner: PluginCapability, Sendable {
     func run(_ request: ToolRequest) async throws -> ToolResponse
-    func runSync(_ request: ToolRequest) throws -> ToolResponse
+    nonisolated func runSync(_ request: ToolRequest) throws -> ToolResponse
 }
 
 extension ToolRunner {
@@ -33,7 +32,7 @@ extension ToolRunner {
 }
 
 struct ProcessToolRunner: ToolRunner {
-    
+
     private func setupProcess(for request: ToolRequest) -> (
         process: Process, stdout: Pipe, stderr: Pipe
     ) {
@@ -53,7 +52,9 @@ struct ProcessToolRunner: ToolRunner {
         return (p, out, err)
     }
 
-    private nonisolated static func parseOutput(stdout: Pipe, stderr: Pipe, exitCode: Int32) -> ToolResponse {
+    private nonisolated static func parseOutput(stdout: Pipe, stderr: Pipe, exitCode: Int32)
+        -> ToolResponse
+    {
         let outData = stdout.fileHandleForReading.readDataToEndOfFile()
         let errData = stderr.fileHandleForReading.readDataToEndOfFile()
 
@@ -112,7 +113,7 @@ struct ProcessToolRunner: ToolRunner {
         }
     }
 
-    func runSync(_ request: ToolRequest) throws -> ToolResponse {
+    nonisolated func runSync(_ request: ToolRequest) throws -> ToolResponse {
         if let wd = request.workingDirectory {
             print("[ToolRunner] Working directory: \(wd)")
         }
@@ -122,14 +123,15 @@ struct ProcessToolRunner: ToolRunner {
         try p.run()
         p.waitUntilExit()
 
-        let response = ProcessToolRunner.parseOutput(stdout: out, stderr: err, exitCode: p.terminationStatus)
+        let response = ProcessToolRunner.parseOutput(
+            stdout: out, stderr: err, exitCode: p.terminationStatus)
         if !response.stdout.isEmpty {
             print("[ToolRunner] stdout: \(response.stdout.joined(separator: "\\n"))")
         }
         if !response.stderr.isEmpty {
             print("[ToolRunner] stderr: \(response.stderr.joined(separator: "\\n"))")
         }
-        
+
         print("[ToolRunner] Process exited with code: \(response.exitCode)")
 
         return response

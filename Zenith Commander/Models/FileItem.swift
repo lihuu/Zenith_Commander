@@ -87,7 +87,7 @@ struct FileItem: Identifiable, Hashable {
     private func iconForExtension(_ ext: String) -> String {
         switch ext.lowercased() {
         case "swift", "m", "h", "c", "cpp", "py", "js", "ts", "java", "rb",
-             "go", "rs":
+            "go", "rs":
             "chevron.left.forwardslash.chevron.right"
         case "json", "xml", "yaml", "yml", "plist":
             "curlybraces"
@@ -130,20 +130,21 @@ struct FileItem: Identifiable, Hashable {
             return nil
         }
 
-        let fileType: FileType = if let typeAttr = attributes[.type] as? FileAttributeType {
-            switch typeAttr {
-            case .typeDirectory:
-                .folder
-            case .typeSymbolicLink:
-                .symlink
-            case .typeRegular:
-                .file
-            default:
+        let fileType: FileType =
+            if let typeAttr = attributes[.type] as? FileAttributeType {
+                switch typeAttr {
+                case .typeDirectory:
+                    .folder
+                case .typeSymbolicLink:
+                    .symlink
+                case .typeRegular:
+                    .file
+                default:
+                    .unknown
+                }
+            } else {
                 .unknown
             }
-        } else {
-            .unknown
-        }
 
         let size = (attributes[.size] as? Int64) ?? 0
         let modifiedDate = (attributes[.modificationDate] as? Date) ?? Date()
@@ -155,7 +156,7 @@ struct FileItem: Identifiable, Hashable {
         let isHidden = name.hasPrefix(".")
 
         return FileItem(
-            id: url.path, // Ensure stable ID using path
+            id: url.path,  // Ensure stable ID using path
             name: name,
             path: url,
             type: fileType,
@@ -211,7 +212,7 @@ struct FileItem: Identifiable, Hashable {
 }
 
 /// 驱动器/卷信息
-struct DriveInfo: Identifiable, Hashable {
+struct DriveInfo: Identifiable, Hashable, Sendable {
     let id: String
     let name: String
     let path: URL
@@ -251,7 +252,7 @@ struct DriveInfo: Identifiable, Hashable {
     }
 }
 
-enum DriveType {
+enum DriveType: Sendable {
     case system
     case external
     case network
