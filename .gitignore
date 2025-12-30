@@ -77,3 +77,7 @@ buildServer.json
 tools/class-audit/.build/
 
 *.xctestplan
+
+BuildArtifacts/
+build.log
+warnings.txt
