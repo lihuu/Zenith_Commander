@@ -134,7 +134,8 @@ class GitService {
         // 如果是文件，使用其父目录
         var directory = standardizedPath
         var isDirectory: ObjCBool = false
-        if FileManager.default.fileExists(atPath: standardizedPath.path, isDirectory: &isDirectory) {
+        if FileManager.default.fileExists(atPath: standardizedPath.path, isDirectory: &isDirectory)
+        {
             if !isDirectory.boolValue {
                 directory = standardizedPath.deletingLastPathComponent()
             }
