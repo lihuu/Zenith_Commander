@@ -464,8 +464,7 @@ struct PaneView: View {
                 }
             }
         } else {
-            Button(LocalizationManager.shared.localized(.contextAddToBookmarks))
-            {
+            Button(LocalizationManager.shared.localized(.contextAddToBookmarks)) {
                 bookmarkManager.addBookmark(for: file)
             }
         }
