@@ -7,8 +7,8 @@
 
 import Combine
 import Foundation
-import os.log
 import SwiftUI
+import os.log
 
 /// 全局应用状态
 @MainActor
@@ -73,8 +73,8 @@ class AppState: ObservableObject {
 
     // MARK: - 单个文件内联编辑状态
 
-    @Published var editingFileId: String? = nil // 当前正在编辑的文件ID
-    @Published var editingFileName = "" // 编辑中的文件名
+    @Published var editingFileId: String? = nil  // 当前正在编辑的文件ID
+    @Published var editingFileName = ""  // 编辑中的文件名
 
     @Published var activeSheet: UIRequest?
 
@@ -255,7 +255,7 @@ class AppState: ObservableObject {
             let tab = pane.activeTab
             let currentFile =
                 tab.files.isEmpty
-                    ? "" : tab.files[safe: pane.cursorIndex]?.name ?? ""
+                ? "" : tab.files[safe: pane.cursorIndex]?.name ?? ""
             return "\(tab.drive.name) | \(currentFile)"
         }
     }
@@ -284,7 +284,7 @@ class AppState: ObservableObject {
         switch action {
         case .deleteCommand:
             deleteCommand()
-        case let .insertCommand(char):
+        case .insertCommand(let char):
             insertCommand(char)
         }
     }
@@ -298,7 +298,7 @@ class AppState: ObservableObject {
 
     func handleAction(_ action: ModeAction) {
         switch action {
-        case let .enterMode(mode):
+        case .enterMode(let mode):
             enterMode(mode)
         case .exitMode:
             exitMode()
@@ -307,7 +307,7 @@ class AppState: ObservableObject {
 
     func handleAction(_ action: UIAction) {
         switch action {
-        case let .toast(message):
+        case .toast(let message):
             showToast(message)
         case .cycleTheme:
             let themeManager = ThemeManager.shared
@@ -318,7 +318,7 @@ class AppState: ObservableObject {
                     themeManager.mode.displayName
                 )
             )
-        case let .showSheet(req):
+        case .showSheet(let req):
             activeSheet = req
             enterMode(.modal)
         case .dismissSheet:
@@ -335,7 +335,7 @@ class AppState: ObservableObject {
                 // 实时更新过滤
                 applyFilter()
             }
-        case let .inputFilterCharacter(char):
+        case .inputFilterCharacter(let char):
             // 普通过滤支持常用字符，正则表达式支持更多特殊字符
             let isValidChar: Bool =
                 if filterUseRegex {
@@ -359,7 +359,7 @@ class AppState: ObservableObject {
 
     func handleAction(_ action: DriveAction) async {
         switch action {
-        case let .moveDriveCursor(direction):
+        case .moveDriveCursor(let direction):
             if direction == .up {
                 if driveSelectorCursor > 0 {
                     driveSelectorCursor -= 1
@@ -402,7 +402,7 @@ class AppState: ObservableObject {
             await pasteFiles()
         case .batchRename:
             enterMode(.batchRename)
-        case let .startRenamingFile(fileName, filePath):
+        case .startRenamingFile(let fileName, let filePath):
             let fileItem = FileItem(
                 id: UUID().uuidString,
                 name: fileName,
@@ -508,7 +508,7 @@ class AppState: ObservableObject {
     private func refreshOtherPane() async {
         let otherPane =
             activePane == .left
-                ? rightPane : leftPane
+            ? rightPane : leftPane
         let files = await env.fileSystem.loadDirectory(
             at: otherPane.activeTab.currentPath
         )
@@ -623,11 +623,11 @@ class AppState: ObservableObject {
 
         let processedReplace =
             replaceText
-                .replacingOccurrences(
-                    of: "{n}",
-                    with: String(format: "%03d", index + 1)
-                )
-                .replacingOccurrences(of: "{date}", with: dateString)
+            .replacingOccurrences(
+                of: "{n}",
+                with: String(format: "%03d", index + 1)
+            )
+            .replacingOccurrences(of: "{date}", with: dateString)
 
         if useRegex {
             if let regex = try? NSRegularExpression(
@@ -664,8 +664,6 @@ class AppState: ObservableObject {
 }
 
 // MARK: - AppReducer
-
-
 
 /// 剪贴板操作类型
 enum ClipboardOperation {

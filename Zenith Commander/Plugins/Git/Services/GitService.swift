@@ -196,11 +196,13 @@ class GitService {
 
         // 在后台线程执行 Git 命令
         return await Task.detached(priority: .userInitiated) {
-            guard let rootPath = Self.getRepositoryRoot(
-                for: file,
-                gitExecutableURL: gitExecutableURL,
-                toolRunner: toolRunner
-            ) else {
+            guard
+                let rootPath = Self.getRepositoryRoot(
+                    for: file,
+                    gitExecutableURL: gitExecutableURL,
+                    toolRunner: toolRunner
+                )
+            else {
                 Logger.git.warning(
                     "Could not find repository root for: \(file.path, privacy: .public)")
                 return []
@@ -233,12 +235,14 @@ class GitService {
                 "Running git command with args: \(args.joined(separator: " "), privacy: .public)"
             )
 
-            guard let output = Self.runGitCommand(
-                args,
-                at: rootPath,
-                gitExecutableURL: gitExecutableURL,
-                toolRunner: toolRunner
-            ) else {
+            guard
+                let output = Self.runGitCommand(
+                    args,
+                    at: rootPath,
+                    gitExecutableURL: gitExecutableURL,
+                    toolRunner: toolRunner
+                )
+            else {
                 Logger.git.error("git log command failed or returned nil")
                 return []
             }
@@ -258,18 +262,22 @@ class GitService {
     ///   - limit: 最大返回数量，默认 50
     ///   - skip: 跳过前 N 条记录，用于分页
     /// - Returns: Git 提交列表
-    func getRepositoryHistory(at directory: URL, limit: Int = 50, skip: Int = 0) async -> [GitCommit] {
+    func getRepositoryHistory(at directory: URL, limit: Int = 50, skip: Int = 0) async
+        -> [GitCommit]
+    {
         guard isGitAvailable else { return [] }
 
         let toolRunner = self.toolRunner
         let gitExecutableURL = gitExecutableURL
 
         return await Task.detached(priority: .userInitiated) {
-            guard let rootPath = Self.getRepositoryRoot(
-                for: directory,
-                gitExecutableURL: gitExecutableURL,
-                toolRunner: toolRunner
-            ) else {
+            guard
+                let rootPath = Self.getRepositoryRoot(
+                    for: directory,
+                    gitExecutableURL: gitExecutableURL,
+                    toolRunner: toolRunner
+                )
+            else {
                 return []
             }
 
@@ -283,12 +291,14 @@ class GitService {
                 args.append(contentsOf: ["--skip", "\(skip)"])
             }
 
-            guard let output = Self.runGitCommand(
-                args,
-                at: rootPath,
-                gitExecutableURL: gitExecutableURL,
-                toolRunner: toolRunner
-            ) else {
+            guard
+                let output = Self.runGitCommand(
+                    args,
+                    at: rootPath,
+                    gitExecutableURL: gitExecutableURL,
+                    toolRunner: toolRunner
+                )
+            else {
                 return []
             }
 
@@ -389,12 +399,14 @@ class GitService {
             }
         }
 
-        guard let result = runGitCommand(
-            ["rev-parse", "--show-toplevel"],
-            at: directory,
-            gitExecutableURL: gitExecutableURL,
-            toolRunner: toolRunner
-        ) else {
+        guard
+            let result = runGitCommand(
+                ["rev-parse", "--show-toplevel"],
+                at: directory,
+                gitExecutableURL: gitExecutableURL,
+                toolRunner: toolRunner
+            )
+        else {
             return nil
         }
 

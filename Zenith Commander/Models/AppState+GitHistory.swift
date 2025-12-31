@@ -43,8 +43,9 @@ extension AppState {
     /// 加载更多文件历史
     func loadMoreGitHistoryForFile() {
         guard let file = gitHistoryFile,
-              !gitHistoryLoadingMore,
-              gitHistoryHasMore else { return }
+            !gitHistoryLoadingMore,
+            gitHistoryHasMore
+        else { return }
 
         gitHistoryLoadingMore = true
         let currentCount = gitHistoryCommits.count
@@ -137,9 +138,10 @@ extension AppState {
     /// 加载更多仓库历史
     func loadMoreGitHistoryForRepo() {
         guard gitHistoryFile == nil,
-              let repoPath = gitHistoryRepoPath,
-              !gitHistoryLoadingMore,
-              gitHistoryHasMore else { return }
+            let repoPath = gitHistoryRepoPath,
+            !gitHistoryLoadingMore,
+            gitHistoryHasMore
+        else { return }
 
         gitHistoryLoadingMore = true
         let currentCount = gitHistoryCommits.count
