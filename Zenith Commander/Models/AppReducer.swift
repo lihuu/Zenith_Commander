@@ -1,3 +1,11 @@
+//
+//  AppReducer.swift
+//  Zenith Commander
+//
+//  Created by Hu Li on 12/31/25.
+//
+
+
 import Combine
 import Foundation
 import os.log

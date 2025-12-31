@@ -115,10 +115,16 @@ class AppState: ObservableObject {
     @Published var contextMenuFile: FileItem?
 
     let env: AppEnvironment
+
+    // MARK: - Reducer
+
+    private let reducer: AppReducer
+
     private var runtimeStarted = false
 
     init(environment: AppEnvironment, initialDirectory _: URL? = nil) {
         env = environment
+        reducer = AppReducer()
         // 获取默认驱动器
         let defaultDrive = DriveInfo(
             id: "macintosh-hd",
@@ -254,45 +260,7 @@ class AppState: ObservableObject {
     // MARK: - Action Dispatch
 
     func dispatch(_ action: AppAction) async {
-        switch action {
-        case .none:
-            break
-        case let .mode(modeAction):
-            handleAction(modeAction)
-        case let .pane(paneAction):
-            handleAction(paneAction)
-        case let .paneAsync(paneAsyncAction):
-            await handleAction(paneAsyncAction)
-        case let .file(fileAction):
-            await handleAction(fileAction)
-        case let .ui(uiAction):
-            handleAction(uiAction)
-        case let .command(commandAction):
-            handleAction(commandAction)
-        case let .commandAsync(commandAsyncAction):
-            await handleAction(commandAsyncAction)
-        case let .filter(filterAction):
-            handleAction(filterAction)
-        case let .drive(driveAction):
-            await handleAction(driveAction)
-        case let .moveCursor(direction):
-            await moveCursor(direction)
-        case let .moveVisualCursor(direction):
-            await moveVisualCursor(direction)
-
-        // MARK: - 鼠标操作
-        case let .mouseClick(index, paneSide):
-            handleMouseClick(at: index, paneSide: paneSide)
-        case let .mouseCommandClick(index, paneSide):
-            handleMouseCommandClick(at: index, paneSide: paneSide)
-        case let .mouseShiftClick(index, paneSide):
-            handleMouseShiftClick(at: index, paneSide: paneSide)
-        case let .mouseDoubleClick(fileId, paneSide):
-            await handleMouseDoubleClick(
-                fileId: fileId,
-                paneSide: paneSide
-            )
-        }
+        await reducer.reduce(action, state: self)
     }
 
     func deleteCommand() {
@@ -691,6 +659,10 @@ class AppState: ObservableObject {
         )
     }
 }
+
+// MARK: - AppReducer
+
+
 
 /// 剪贴板操作类型
 enum ClipboardOperation {
