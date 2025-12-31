@@ -181,8 +181,9 @@ class GitService {
     /// - Parameters:
     ///   - file: 文件 URL
     ///   - limit: 最大返回数量，默认 50
+    ///   - skip: 跳过前 N 条记录，用于分页
     /// - Returns: Git 提交列表
-    func getFileHistory(for file: URL, limit: Int = 50) async -> [GitCommit] {
+    func getFileHistory(for file: URL, limit: Int = 50, skip: Int = 0) async -> [GitCommit] {
         Logger.git.info("getFileHistory called for: \(file.path, privacy: .public)")
 
         guard isGitAvailable else {
@@ -214,14 +215,19 @@ class GitService {
             // 运行 git log 命令
             // 格式: hash|short_hash|author|email|timestamp|subject|body|parent_hashes
             let format = "%H|%h|%an|%ae|%at|%s|%b|%P"
-            let args = [
+            var args = [
                 "log",
                 "--format=\(format)",
                 "-n", "\(limit)",
+            ]
+            if skip > 0 {
+                args.append(contentsOf: ["--skip", "\(skip)"])
+            }
+            args.append(contentsOf: [
                 "--follow",  // 跟踪文件重命名
                 "--",
                 relativePath,
-            ]
+            ])
 
             Logger.git.debug(
                 "Running git command with args: \(args.joined(separator: " "), privacy: .public)"
@@ -250,8 +256,9 @@ class GitService {
     /// - Parameters:
     ///   - directory: 仓库目录
     ///   - limit: 最大返回数量，默认 50
+    ///   - skip: 跳过前 N 条记录，用于分页
     /// - Returns: Git 提交列表
-    func getRepositoryHistory(at directory: URL, limit: Int = 50) async -> [GitCommit] {
+    func getRepositoryHistory(at directory: URL, limit: Int = 50, skip: Int = 0) async -> [GitCommit] {
         guard isGitAvailable else { return [] }
 
         let toolRunner = self.toolRunner
@@ -267,11 +274,14 @@ class GitService {
             }
 
             let format = "%H|%h|%an|%ae|%at|%s|%b|%P"
-            let args = [
+            var args = [
                 "log",
                 "--format=\(format)",
                 "-n", "\(limit)",
             ]
+            if skip > 0 {
+                args.append(contentsOf: ["--skip", "\(skip)"])
+            }
 
             guard let output = Self.runGitCommand(
                 args,

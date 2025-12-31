@@ -108,6 +108,9 @@ class AppState: ObservableObject {
     @Published var gitHistoryFile: FileItem?
     @Published var gitHistoryCommits: [GitCommit] = []
     @Published var gitHistoryLoading = false
+    @Published var gitHistoryLoadingMore = false
+    @Published var gitHistoryHasMore = true
+    @Published var gitHistoryRepoPath: URL?
 
     // MARK: - 右键菜单状态
 

@@ -333,6 +333,8 @@ enum LocalizedStringKey: String, CaseIterable {
     case gitCommitParent
     case gitShowDetails
     case gitCopyHash
+    case gitLoadMore
+    case gitLoadingMore
 
     // MARK: - 错误消息
 
@@ -618,6 +620,8 @@ class LocalizedStrings {
             .gitCommitParent: "Parent",
             .gitShowDetails: "Show Details",
             .gitCopyHash: "Copy Hash",
+            .gitLoadMore: "Load More",
+            .gitLoadingMore: "Loading more...",
 
             // 帮助页面
             .help: "Help",
@@ -980,6 +984,8 @@ class LocalizedStrings {
             .gitCommitParent: "父提交",
             .gitShowDetails: "显示详情",
             .gitCopyHash: "复制哈希",
+            .gitLoadMore: "加载更多",
+            .gitLoadingMore: "加载中...",
 
             // 帮助页面
             .help: "帮助",

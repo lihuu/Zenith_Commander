@@ -8,6 +8,11 @@
 import Foundation
 import os.log
 
+/// Git 历史分页常量
+private enum GitHistoryPagination {
+    static let pageSize = 50
+}
+
 extension AppState {
     /// 显示文件的 Git 历史
     func showGitHistoryForFile(_ file: FileItem) {
@@ -16,14 +21,45 @@ extension AppState {
 
         gitHistoryFile = file
         gitHistoryLoading = true
+        gitHistoryLoadingMore = false
+        gitHistoryHasMore = true
         showGitHistory = true
+        gitHistoryCommits = []
 
         // 异步加载历史
         Task {
-            let commits = await GitService.shared.getFileHistory(for: filePath)
+            let commits = await GitService.shared.getFileHistory(
+                for: filePath,
+                limit: GitHistoryPagination.pageSize,
+                skip: 0
+            )
 
             self.gitHistoryCommits = commits
             self.gitHistoryLoading = false
+            self.gitHistoryHasMore = commits.count >= GitHistoryPagination.pageSize
+        }
+    }
+
+    /// 加载更多文件历史
+    func loadMoreGitHistoryForFile() {
+        guard let file = gitHistoryFile,
+              !gitHistoryLoadingMore,
+              gitHistoryHasMore else { return }
+
+        gitHistoryLoadingMore = true
+        let currentCount = gitHistoryCommits.count
+        let filePath = file.path
+
+        Task {
+            let moreCommits = await GitService.shared.getFileHistory(
+                for: filePath,
+                limit: GitHistoryPagination.pageSize,
+                skip: currentCount
+            )
+
+            self.gitHistoryCommits.append(contentsOf: moreCommits)
+            self.gitHistoryLoadingMore = false
+            self.gitHistoryHasMore = moreCommits.count >= GitHistoryPagination.pageSize
         }
     }
 
@@ -71,7 +107,11 @@ extension AppState {
         // 清除文件引用，表示是仓库级别的历史
         gitHistoryFile = nil
         gitHistoryLoading = true
+        gitHistoryLoadingMore = false
+        gitHistoryHasMore = true
         showGitHistory = true
+        gitHistoryCommits = []
+        gitHistoryRepoPath = path
 
         Logger.git.debug(
             "State updated: showGitHistory=true, gitHistoryLoading=true"
@@ -79,13 +119,50 @@ extension AppState {
 
         // 异步加载历史
         Task {
-            let commits = await GitService.shared.getRepositoryHistory(at: path)
+            let commits = await GitService.shared.getRepositoryHistory(
+                at: path,
+                limit: GitHistoryPagination.pageSize,
+                skip: 0
+            )
 
             self.gitHistoryCommits = commits
             self.gitHistoryLoading = false
+            self.gitHistoryHasMore = commits.count >= GitHistoryPagination.pageSize
             Logger.git.debug(
                 "State updated: gitHistoryLoading=false, commits: \(commits.count)"
             )
+        }
+    }
+
+    /// 加载更多仓库历史
+    func loadMoreGitHistoryForRepo() {
+        guard gitHistoryFile == nil,
+              let repoPath = gitHistoryRepoPath,
+              !gitHistoryLoadingMore,
+              gitHistoryHasMore else { return }
+
+        gitHistoryLoadingMore = true
+        let currentCount = gitHistoryCommits.count
+
+        Task {
+            let moreCommits = await GitService.shared.getRepositoryHistory(
+                at: repoPath,
+                limit: GitHistoryPagination.pageSize,
+                skip: currentCount
+            )
+
+            self.gitHistoryCommits.append(contentsOf: moreCommits)
+            self.gitHistoryLoadingMore = false
+            self.gitHistoryHasMore = moreCommits.count >= GitHistoryPagination.pageSize
+        }
+    }
+
+    /// 加载更多历史（自动判断是文件还是仓库）
+    func loadMoreGitHistory() {
+        if gitHistoryFile != nil {
+            loadMoreGitHistoryForFile()
+        } else {
+            loadMoreGitHistoryForRepo()
         }
     }
 
@@ -95,6 +172,9 @@ extension AppState {
         showGitHistory = false
         gitHistoryFile = nil
         gitHistoryCommits = []
+        gitHistoryHasMore = true
+        gitHistoryLoadingMore = false
+        gitHistoryRepoPath = nil
         Logger.git.debug("Git history panel closed and state cleared")
     }
 }

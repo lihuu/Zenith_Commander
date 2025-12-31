@@ -22,8 +22,11 @@ struct GitHistoryPanelView: View {
     let fileName: String
     let commits: [GitCommit]
     let isLoading: Bool
+    let isLoadingMore: Bool
+    let hasMore: Bool
     let onClose: () -> Void
     let onCommitSelected: (GitCommit) -> Void
+    let onLoadMore: () -> Void
 
     @State private var selectedCommitId: String?
     @State private var hoveredCommitId: String?
@@ -135,6 +138,48 @@ struct GitHistoryPanelView: View {
                         Divider()
                             .padding(.leading, 12)
                     }
+                }
+
+                // 加载更多区域
+                if hasMore || isLoadingMore {
+                    loadMoreView
+                }
+            }
+        }
+    }
+
+    private var loadMoreView: some View {
+        Group {
+            if isLoadingMore {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                    Text(L(.gitLoadingMore))
+                        .font(.system(size: 11))
+                        .foregroundColor(Theme.textSecondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+            } else if hasMore {
+                Button(action: onLoadMore) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.down.circle")
+                            .font(.system(size: 12))
+                        Text(L(.gitLoadMore))
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .foregroundColor(Theme.accent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(Theme.backgroundSecondary.opacity(0.5))
+                    .cornerRadius(6)
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .onAppear {
+                    // 自动加载更多（无限滚动）
+                    onLoadMore()
                 }
             }
         }
@@ -375,8 +420,11 @@ struct GitCommitRowView: View, Equatable {
         fileName: "GitService.swift",
         commits: sampleCommits,
         isLoading: false,
+        isLoadingMore: false,
+        hasMore: true,
         onClose: {},
-        onCommitSelected: { _ in }
+        onCommitSelected: { _ in },
+        onLoadMore: {}
     )
     .frame(height: 200)
 }
