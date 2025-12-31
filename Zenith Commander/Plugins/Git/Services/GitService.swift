@@ -128,8 +128,10 @@ class GitService {
 
         // 检查缓存
         if let cachedRoot = getCachedRepoRoot(for: standardizedPath) {
+            Logger.git.debug("[Cache HIT] repoRoot for: \(standardizedPath.lastPathComponent, privacy: .public) -> \(cachedRoot?.lastPathComponent ?? "nil", privacy: .public)")
             return cachedRoot
         }
+        Logger.git.debug("[Cache MISS] repoRoot for: \(standardizedPath.lastPathComponent, privacy: .public)")
 
         // 如果是文件，使用其父目录
         var directory = standardizedPath
@@ -179,6 +181,7 @@ class GitService {
 
         // 检查仓库信息缓存（基于仓库根目录）
         if let cachedInfo = getCachedRepoInfo(for: rootPath) {
+            Logger.git.debug("[Cache HIT] repoInfo for: \(rootPath.lastPathComponent, privacy: .public), branch: \(cachedInfo.currentBranch ?? "nil", privacy: .public)")
             return cachedInfo
         }
 
@@ -186,9 +189,11 @@ class GitService {
         if let cached = getCachedEntry(for: standardizedPath),
             !cached.isExpired(ttl: fileStatusCacheTTL)
         {
+            Logger.git.debug("[Cache HIT] fileStatus cache for: \(standardizedPath.lastPathComponent, privacy: .public)")
             return cached.repositoryInfo
         }
 
+        Logger.git.debug("[Cache MISS] repoInfo for: \(rootPath.lastPathComponent, privacy: .public), fetching...")
         // 获取完整仓库信息
         let info = fetchRepositoryInfo(at: standardizedPath, rootPath: rootPath)
 
