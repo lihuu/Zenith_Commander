@@ -919,6 +919,11 @@ struct PaneView: View {
                         pane.gitInfo = nil
                     }
 
+                    // 如果离开了 Git 仓库，关闭 Git History Pane
+                    if appState.showGitHistory && pane.gitInfo?.isGitRepository != true {
+                        appState.closeGitHistory()
+                    }
+
                     pane.activeTab.files = files
                     permissionDeniedPath = nil
                     showPermissionError = false
