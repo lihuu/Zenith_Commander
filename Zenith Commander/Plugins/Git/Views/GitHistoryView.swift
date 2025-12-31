@@ -193,6 +193,9 @@ struct GitHistoryPanelView: View {
             isHovered: hoveredCommitId == commit.id
         )
         .equatable()
+        .onTapGesture(count: 2) {
+            showingCommitDetail = commit
+        }
         .onTapGesture {
             selectedCommitId = commit.id
             onCommitSelected(commit)
