@@ -346,11 +346,13 @@ class GitService {
         let gitExecutableURL = gitExecutableURL
 
         return await Task.detached(priority: .userInitiated) {
-            guard let rootPath = Self.getRepositoryRoot(
-                for: directory,
-                gitExecutableURL: gitExecutableURL,
-                toolRunner: toolRunner
-            ) else {
+            guard
+                let rootPath = Self.getRepositoryRoot(
+                    for: directory,
+                    gitExecutableURL: gitExecutableURL,
+                    toolRunner: toolRunner
+                )
+            else {
                 return ""
             }
 
@@ -358,17 +360,19 @@ class GitService {
             let args = [
                 "show",
                 "--format=",  // 不显示 commit 信息，只显示 diff
-                "--stat",     // 显示统计信息
-                "--patch",    // 显示 patch 内容
+                "--stat",  // 显示统计信息
+                "--patch",  // 显示 patch 内容
                 commitHash,
             ]
 
-            guard let output = Self.runGitCommand(
-                args,
-                at: rootPath,
-                gitExecutableURL: gitExecutableURL,
-                toolRunner: toolRunner
-            ) else {
+            guard
+                let output = Self.runGitCommand(
+                    args,
+                    at: rootPath,
+                    gitExecutableURL: gitExecutableURL,
+                    toolRunner: toolRunner
+                )
+            else {
                 return ""
             }
 

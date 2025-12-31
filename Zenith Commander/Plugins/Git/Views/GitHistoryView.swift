@@ -372,7 +372,8 @@ struct GitDiffView: View {
     var body: some View {
         ScrollView(.horizontal, showsIndicators: true) {
             VStack(alignment: .leading, spacing: 0) {
-                ForEach(Array(diffContent.components(separatedBy: "\n").enumerated()), id: \.offset) { _, line in
+                ForEach(Array(diffContent.components(separatedBy: "\n").enumerated()), id: \.offset)
+                { _, line in
                     diffLineView(line)
                 }
             }
