@@ -334,6 +334,48 @@ class GitService {
         return parseCommitChanges(output)
     }
 
+    /// 获取指定 commit 的 diff 内容
+    /// - Parameters:
+    ///   - commitHash: commit hash
+    ///   - directory: 仓库目录
+    /// - Returns: diff 内容字符串
+    func getCommitDiff(for commitHash: String, at directory: URL) async -> String {
+        guard isGitAvailable else { return "" }
+
+        let toolRunner = self.toolRunner
+        let gitExecutableURL = gitExecutableURL
+
+        return await Task.detached(priority: .userInitiated) {
+            guard let rootPath = Self.getRepositoryRoot(
+                for: directory,
+                gitExecutableURL: gitExecutableURL,
+                toolRunner: toolRunner
+            ) else {
+                return ""
+            }
+
+            // 使用 git show 获取 diff
+            let args = [
+                "show",
+                "--format=",  // 不显示 commit 信息，只显示 diff
+                "--stat",     // 显示统计信息
+                "--patch",    // 显示 patch 内容
+                commitHash,
+            ]
+
+            guard let output = Self.runGitCommand(
+                args,
+                at: rootPath,
+                gitExecutableURL: gitExecutableURL,
+                toolRunner: toolRunner
+            ) else {
+                return ""
+            }
+
+            return output
+        }.value
+    }
+
     /// 解析 git log 输出
     private nonisolated static func parseGitLogOutput(_ output: String) -> [GitCommit] {
         Logger.git.debug("parseGitLogOutput called")

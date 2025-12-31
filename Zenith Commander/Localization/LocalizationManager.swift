@@ -335,6 +335,9 @@ enum LocalizedStringKey: String, CaseIterable {
     case gitCopyHash
     case gitLoadMore
     case gitLoadingMore
+    case gitDiff
+    case gitLoadingDiff
+    case gitNoDiff
 
     // MARK: - 错误消息
 
@@ -622,6 +625,9 @@ class LocalizedStrings {
             .gitCopyHash: "Copy Hash",
             .gitLoadMore: "Load More",
             .gitLoadingMore: "Loading more...",
+            .gitDiff: "Changes",
+            .gitLoadingDiff: "Loading diff...",
+            .gitNoDiff: "No changes in this commit",
 
             // 帮助页面
             .help: "Help",
@@ -986,6 +992,9 @@ class LocalizedStrings {
             .gitCopyHash: "复制哈希",
             .gitLoadMore: "加载更多",
             .gitLoadingMore: "加载中...",
+            .gitDiff: "变更内容",
+            .gitLoadingDiff: "加载差异...",
+            .gitNoDiff: "此提交没有变更",
 
             // 帮助页面
             .help: "帮助",
