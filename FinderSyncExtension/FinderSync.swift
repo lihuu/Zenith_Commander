@@ -151,18 +151,17 @@ class FinderSync: FIFinderSync {
         guard !urls.isEmpty else { return }
 
         let paths = urls.map { $0.path }
+        let textToCopy = paths.joined(separator: "\n")
 
-        // 使用新的请求队列机制
-        let request = FinderRequest(action: .copyPath, paths: paths)
-        let requestId = FinderRequestStore.save(request)
+        // 直接复制到剪贴板
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(textToCopy, forType: .string)
 
-        NSLog(
-            "FinderSyncExtension: Created request id=\(requestId), action=copyPath, paths=\(paths.count)"
-        )
+        NSLog("FinderSyncExtension: Copied %ld paths to clipboard", paths.count)
 
-        // 唤醒主应用
-        let openMethod = openMainApp(requestId: requestId)
-        NSLog("FinderSyncExtension: Opened main app via \(openMethod)")
+        // 显示通知反馈
+        showNotification(title: "复制完整路径", body: "已复制 \(paths.count) 个路径")
     }
 
     // MARK: - App Opening Methods
