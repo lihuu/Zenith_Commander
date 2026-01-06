@@ -87,6 +87,18 @@ class FinderSync: FIFinderSync {
             )
             lowercaseExtItem.target = self
             renameMenu.addItem(lowercaseExtItem)
+            
+            // 分隔符
+            renameMenu.addItem(NSMenuItem.separator())
+            
+            // 自定义规则（打开主应用）
+            let customRenameItem = NSMenuItem(
+                title: "自定义规则...",
+                action: #selector(openMainAppForBatchRename(_:)),
+                keyEquivalent: ""
+            )
+            customRenameItem.target = self
+            renameMenu.addItem(customRenameItem)
 
             let renameItem = NSMenuItem(
                 title: "批量重命名",
@@ -247,6 +259,36 @@ class FinderSync: FIFinderSync {
         notification.informativeText = body
         notification.soundName = NSUserNotificationDefaultSoundName
         center.deliver(notification)
+    }
+    
+    @objc func openMainAppForBatchRename(_ sender: Any?) {
+        let controller = FIFinderSyncController.default()
+        
+        guard let urls = controller.selectedItemURLs(), urls.count >= 2 else {
+            NSLog("FinderSyncExtension: batchRename requires at least 2 selected items")
+            showNotification(title: "批量重命名", body: "请选择至少 2 个文件")
+            return
+        }
+        
+        // 按文件名排序
+        let sortedURLs = urls.sorted {
+            $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending
+        }
+        
+        // 构建 URL Scheme
+        let filePaths = sortedURLs.map { $0.path }.joined(separator: ",")
+        let encodedPaths = filePaths.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let urlString = "zenith-commander://batch-rename?files=\(encodedPaths)"
+        
+        guard let url = URL(string: urlString) else {
+            NSLog("FinderSyncExtension: failed to create URL: %@", urlString as NSString)
+            return
+        }
+        
+        NSLog("FinderSyncExtension: opening main app with URL: %@", url.absoluteString as NSString)
+        
+        // 打开主应用
+        NSWorkspace.shared.open(url)
     }
 
 }
