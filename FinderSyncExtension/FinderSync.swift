@@ -7,6 +7,7 @@
 
 import Cocoa
 import FinderSync
+import UserNotifications
 
 class FinderSync: FIFinderSync {
 
@@ -23,6 +24,19 @@ class FinderSync: FIFinderSync {
         NSLog(
             "FinderSyncExtension loaded from %@, directoryURLs=%@",
             Bundle.main.bundlePath as NSString, homeDir.path as NSString)
+        
+        // 请求通知权限
+        requestNotificationAuthorization()
+    }
+    
+    private func requestNotificationAuthorization() {
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert, .sound]) { granted, error in
+            if let error = error {
+                NSLog("FinderSyncExtension: notification authorization error: %@", error.localizedDescription as NSString)
+            }
+            NSLog("FinderSyncExtension: notification authorization granted: %@", granted ? "YES" : "NO")
+        }
     }
 
     override func menu(for menuKind: FIMenuKind) -> NSMenu? {
@@ -253,12 +267,22 @@ class FinderSync: FIFinderSync {
     }
 
     private func showNotification(title: String, body: String) {
-        let center = NSUserNotificationCenter.default
-        let notification = NSUserNotification()
-        notification.title = title
-        notification.informativeText = body
-        notification.soundName = NSUserNotificationDefaultSoundName
-        center.deliver(notification)
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        
+        let request = UNNotificationRequest(
+            identifier: UUID().uuidString,
+            content: content,
+            trigger: nil
+        )
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                NSLog("FinderSyncExtension: failed to deliver notification: %@", error.localizedDescription as NSString)
+            }
+        }
     }
 
     @objc func openMainAppForBatchRename(_ sender: Any?) {
