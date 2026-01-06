@@ -147,37 +147,37 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
         true
     }
-    
+
     // 处理 URL Scheme
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls {
             handleURLScheme(url)
         }
     }
-    
+
     private func handleURLScheme(_ url: URL) {
         guard url.scheme == "zenith-commander" else { return }
-        
+
         Logger.fileSystem.info("Received URL: \(url.absoluteString)")
-        
+
         // 解析 URL: zenith-commander://batch-rename?files=path1,path2,path3
         if url.host == "batch-rename" {
             handleBatchRename(url: url)
         }
     }
-    
+
     private func handleBatchRename(url: URL) {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-              let queryItems = components.queryItems,
-              let filesParam = queryItems.first(where: { $0.name == "files" })?.value
+            let queryItems = components.queryItems,
+            let filesParam = queryItems.first(where: { $0.name == "files" })?.value
         else {
             Logger.fileSystem.warning("Invalid batch rename URL: \(url.absoluteString)")
             return
         }
-        
+
         let filePaths = filesParam.split(separator: ",").map { String($0) }
         Logger.fileSystem.info("Batch rename requested for \(filePaths.count) files")
-        
+
         // TODO: 打开批量重命名界面
         // 这里可以发送通知或者直接调用批量重命名功能
         DispatchQueue.main.async {
