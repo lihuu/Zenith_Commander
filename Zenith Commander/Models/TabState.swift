@@ -14,6 +14,7 @@ class TabState: Identifiable, ObservableObject {
     @Published var files: [FileItem]
     @Published var cursorFileId: String
     @Published var scrollOffset: CGFloat
+    @Published var sortOption: SortOption = .default
 
     var isRemotePath: Bool {
         !currentPath.isFileURL
@@ -30,6 +31,11 @@ class TabState: Identifiable, ObservableObject {
     /// 如果找不到对应文件，则返回 nil
     var cursorIndexInTab: Int? {
         files.firstIndex(where: { $0.id == self.cursorFileId })
+    }
+    
+    /// 排序后的文件列表
+    var sortedFiles: [FileItem] {
+        sortOption.sort(files)
     }
 
     init(drive: DriveInfo, path: URL) {

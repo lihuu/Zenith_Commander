@@ -189,13 +189,16 @@ struct PaneView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 0) {
+                    // 排序列标题
+                    SortHeaderView(sortOption: $pane.tabs[pane.activeTabIndex].sortOption)
+                    
                     ForEach(
-                        Array(pane.activeTab.files.enumerated()),
+                        Array(pane.activeTab.sortedFiles.enumerated()),
                         id: \.element.id
                     ) { index, file in
                         FileRowView(
                             file: file,
-                            isActive: index == pane.cursorIndex,
+                            isActive: file.id == pane.activeTab.cursorFileId,
                             isSelected: pane.selections.contains(file.id),
                             isPaneActive: isActivePane,
                             rowIndex: index,
@@ -316,12 +319,12 @@ struct PaneView: View {
                         spacing: gridSpacing
                     ) {
                         ForEach(
-                            Array(pane.activeTab.files.enumerated()),
+                            Array(pane.activeTab.sortedFiles.enumerated()),
                             id: \.element.id
                         ) { index, file in
                             FileGridItemView(
                                 file: file,
-                                isActive: index == pane.cursorIndex,
+                                isActive: file.id == pane.activeTab.cursorFileId,
                                 isSelected: pane.selections.contains(file.id),
                                 isPaneActive: isActivePane,
                                 isDropTarget: .init(

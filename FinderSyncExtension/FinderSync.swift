@@ -10,75 +10,74 @@ import FinderSync
 
 class FinderSync: FIFinderSync {
 
-    var myFolderURL = URL(fileURLWithPath: "/Users/Shared/MySyncExtension Documents")
-    
     override init() {
         super.init()
-        
-        NSLog("FinderSync() launched from %@", Bundle.main.bundlePath as NSString)
-        
-        // Set up the directory we are syncing.
-        FIFinderSyncController.default().directoryURLs = [self.myFolderURL]
-        
-        // Set up images for our badge identifiers. For demonstration purposes, this uses off-the-shelf images.
-        FIFinderSyncController.default().setBadgeImage(NSImage(named: NSImage.colorPanelName)!, label: "Status One" , forBadgeIdentifier: "One")
-        FIFinderSyncController.default().setBadgeImage(NSImage(named: NSImage.cautionName)!, label: "Status Two", forBadgeIdentifier: "Two")
+
+        let fm = FileManager.default
+
+        // A small, real directory is required; if the directory doesn't exist,
+        // Finder Sync often won't trigger on it.
+        let testDir = fm.homeDirectoryForCurrentUser.appendingPathComponent("FinderSyncTest", isDirectory: true)
+        do {
+            try fm.createDirectory(at: testDir, withIntermediateDirectories: true)
+        } catch {
+            NSLog("FinderSyncExtension: failed to create testDir=%@, error=%@", testDir.path as NSString, String(describing: error) as NSString)
+        }
+
+        // Desktop is a reliable place to test triggering in Finder.
+        let desktop = (try? fm.url(for: .desktopDirectory, in: .userDomainMask, appropriateFor: nil, create: false))
+
+        var dirs: Set<URL> = [testDir]
+        if let desktop { dirs.insert(desktop) }
+
+        FIFinderSyncController.default().directoryURLs = dirs
+
+        NSLog("FinderSyncExtension loaded from %@, directoryURLs=%@", Bundle.main.bundlePath as NSString, dirs.map { $0.path }.joined(separator: ", ") as NSString)
     }
     
-    // MARK: - Primary Finder Sync protocol methods
-    
-    override func beginObservingDirectory(at url: URL) {
-        // The user is now seeing the container's contents.
-        // If they see it in more than one view at a time, we're only told once.
-        NSLog("beginObservingDirectoryAtURL: %@", url.path as NSString)
-    }
-    
-    
-    override func endObservingDirectory(at url: URL) {
-        // The user is no longer seeing the container's contents.
-        NSLog("endObservingDirectoryAtURL: %@", url.path as NSString)
-    }
-    
-    override func requestBadgeIdentifier(for url: URL) {
-        NSLog("requestBadgeIdentifierForURL: %@", url.path as NSString)
-        
-        // For demonstration purposes, this picks one of our two badges, or no badge at all, based on the filename.
-        let whichBadge = abs(url.path.hash) % 3
-        let badgeIdentifier = ["", "One", "Two"][whichBadge]
-        FIFinderSyncController.default().setBadgeIdentifier(badgeIdentifier, for: url)
-    }
-    
-    // MARK: - Menu and toolbar item support
-    
-    override var toolbarItemName: String {
-        return "FinderSy"
-    }
-    
-    override var toolbarItemToolTip: String {
-        return "FinderSy: Click the toolbar item for a menu."
-    }
-    
-    override var toolbarItemImage: NSImage {
-        return NSImage(named: NSImage.cautionName)!
-    }
-    
-    override func menu(for menuKind: FIMenuKind) -> NSMenu {
-        // Produce a menu for the extension.
+    override func menu(for menuKind: FIMenuKind) -> NSMenu? {
+        guard menuKind == .contextualMenuForItems || menuKind == .contextualMenuForContainer else {
+            return nil
+        }
+
+        NSLog("FinderSyncExtension: building contextual menu (kind=%ld)", menuKind.rawValue)
+
         let menu = NSMenu(title: "")
-        menu.addItem(withTitle: "Example Menu Item", action: #selector(sampleAction(_:)), keyEquivalent: "")
+        let copyItem = NSMenuItem(
+            title: "复制完整路径",
+            action: #selector(copyFullPath(_:)),
+            keyEquivalent: ""
+        )
+        copyItem.target = self
+        menu.addItem(copyItem)
         return menu
     }
     
-    @IBAction func sampleAction(_ sender: AnyObject?) {
-        let target = FIFinderSyncController.default().targetedURL()
-        let items = FIFinderSyncController.default().selectedItemURLs()
-        
-        let item = sender as! NSMenuItem
-        NSLog("sampleAction: menu item: %@, target = %@, items = ", item.title as NSString, target!.path as NSString)
-        for obj in items! {
-            NSLog("    %@", obj.path as NSString)
-        }
+    override func beginObservingDirectory(at url: URL) {
+        NSLog("FinderSyncExtension: beginObservingDirectory %@", url.path as NSString)
+    }
+
+    override func endObservingDirectory(at url: URL) {
+        NSLog("FinderSyncExtension: endObservingDirectory %@", url.path as NSString)
+    }
+    
+    @objc private func copyFullPath(_ sender: Any?) {
+        let controller = FIFinderSyncController.default()
+
+        // 优先使用多选，其次使用当前目标目录
+        let urls = controller.selectedItemURLs()
+            ?? (controller.targetedURL().map { [$0] } ?? [])
+
+        NSLog("FinderSyncExtension: copyFullPath invoked, urls.count=%ld", urls.count)
+
+        guard !urls.isEmpty else { return }
+
+        let paths = urls.map { $0.path }
+        let textToCopy = paths.joined(separator: "\n")
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(textToCopy, forType: .string)
     }
 
 }
-
