@@ -24,18 +24,22 @@ class FinderSync: FIFinderSync {
         NSLog(
             "FinderSyncExtension loaded from %@, directoryURLs=%@",
             Bundle.main.bundlePath as NSString, homeDir.path as NSString)
-        
+
         // 请求通知权限
         requestNotificationAuthorization()
     }
-    
+
     private func requestNotificationAuthorization() {
         let center = UNUserNotificationCenter.current()
         center.requestAuthorization(options: [.alert, .sound]) { granted, error in
             if let error = error {
-                NSLog("FinderSyncExtension: notification authorization error: %@", error.localizedDescription as NSString)
+                NSLog(
+                    "FinderSyncExtension: notification authorization error: %@",
+                    error.localizedDescription as NSString)
             }
-            NSLog("FinderSyncExtension: notification authorization granted: %@", granted ? "YES" : "NO")
+            NSLog(
+                "FinderSyncExtension: notification authorization granted: %@",
+                granted ? "YES" : "NO")
         }
     }
 
@@ -147,11 +151,85 @@ class FinderSync: FIFinderSync {
         guard !urls.isEmpty else { return }
 
         let paths = urls.map { $0.path }
-        let textToCopy = paths.joined(separator: "\n")
 
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(textToCopy, forType: .string)
+        // 使用新的请求队列机制
+        let request = FinderRequest(action: .copyPath, paths: paths)
+        let requestId = FinderRequestStore.save(request)
+
+        NSLog(
+            "FinderSyncExtension: Created request id=\(requestId), action=copyPath, paths=\(paths.count)"
+        )
+
+        // 唤醒主应用
+        let openMethod = openMainApp(requestId: requestId)
+        NSLog("FinderSyncExtension: Opened main app via \(openMethod)")
+    }
+
+    // MARK: - App Opening Methods
+
+    /// 唤醒主应用：优先直接打开宿主 App，失败则 fallback 到 URL Scheme
+    /// - Parameter requestId: 请求 ID
+    /// - Returns: 打开方式描述（direct/scheme/failed）
+    private func openMainApp(requestId: String) -> String {
+        // 方式 1: 直接定位并打开宿主 App
+        if openContainingApp() {
+            return "direct"
+        }
+
+        // 方式 2: Fallback 到 URL Scheme
+        NSLog("FinderSyncExtension: Direct open failed, trying URL Scheme...")
+        if let url = URL(string: "zenith-commander://request?rid=\(requestId)") {
+            NSWorkspace.shared.open(url)
+            return "scheme"
+        }
+
+        return "failed"
+    }
+
+    /// 直接定位并打开宿主 .app
+    /// - Returns: 成功返回 true，失败返回 false
+    private func openContainingApp() -> Bool {
+        // Extension 的 bundle URL 格式：
+        // .../YourApp.app/Contents/PlugIns/YourExt.appex
+        let extensionURL = Bundle.main.bundleURL
+
+        // 向上 3 层找到宿主 .app:
+        // YourExt.appex -> PlugIns -> Contents -> YourApp.app
+        let appURL =
+            extensionURL
+            .deletingLastPathComponent()  // -> PlugIns
+            .deletingLastPathComponent()  // -> Contents
+            .deletingLastPathComponent()  // -> YourApp.app
+
+        // 验证是否是 .app bundle
+        guard appURL.pathExtension == "app" else {
+            NSLog("FinderSyncExtension: Failed to locate containing app, got: \(appURL.path)")
+            return false
+        }
+
+        NSLog("FinderSyncExtension: Located containing app at: \(appURL.path)")
+
+        // 尝试打开
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+
+        var success = false
+        let semaphore = DispatchSemaphore(value: 0)
+
+        NSWorkspace.shared.openApplication(at: appURL, configuration: configuration) { app, error in
+            if let error = error {
+                NSLog("FinderSyncExtension: Failed to open app: \(error.localizedDescription)")
+                success = false
+            } else {
+                NSLog("FinderSyncExtension: Successfully opened app")
+                success = true
+            }
+            semaphore.signal()
+        }
+
+        // 等待最多 2 秒
+        _ = semaphore.wait(timeout: .now() + 2.0)
+        return success
     }
 
     // MARK: - Batch Rename Methods
@@ -271,16 +349,18 @@ class FinderSync: FIFinderSync {
         content.title = title
         content.body = body
         content.sound = .default
-        
+
         let request = UNNotificationRequest(
             identifier: UUID().uuidString,
             content: content,
             trigger: nil
         )
-        
+
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
-                NSLog("FinderSyncExtension: failed to deliver notification: %@", error.localizedDescription as NSString)
+                NSLog(
+                    "FinderSyncExtension: failed to deliver notification: %@",
+                    error.localizedDescription as NSString)
             }
         }
     }
@@ -299,21 +379,19 @@ class FinderSync: FIFinderSync {
             $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending
         }
 
-        // 构建 URL Scheme
-        let filePaths = sortedURLs.map { $0.path }.joined(separator: ",")
-        let encodedPaths =
-            filePaths.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let urlString = "zenith-commander://batch-rename?files=\(encodedPaths)"
+        let paths = sortedURLs.map { $0.path }
 
-        guard let url = URL(string: urlString) else {
-            NSLog("FinderSyncExtension: failed to create URL: %@", urlString as NSString)
-            return
-        }
+        // 使用新的请求队列机制
+        let request = FinderRequest(action: .rename, paths: paths)
+        let requestId = FinderRequestStore.save(request)
 
-        NSLog("FinderSyncExtension: opening main app with URL: %@", url.absoluteString as NSString)
+        NSLog(
+            "FinderSyncExtension: Created request id=\(requestId), action=rename, paths=\(paths.count)"
+        )
 
-        // 打开主应用
-        NSWorkspace.shared.open(url)
+        // 唤醒主应用
+        let openMethod = openMainApp(requestId: requestId)
+        NSLog("FinderSyncExtension: Opened main app via \(openMethod)")
     }
 
 }

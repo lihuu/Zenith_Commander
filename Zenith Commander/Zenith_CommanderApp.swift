@@ -129,6 +129,89 @@ struct Zenith_CommanderApp: App {
             }
         }
     }
+
+    // MARK: - Finder Request Handling
+
+    /// 处理通过 URL Scheme 传入的请求 ID
+    private func handleIncomingURL(_ url: URL) {
+        guard url.scheme == "zenith-commander" else { return }
+
+        Logger.fileSystem.info("Received URL: \(url.absoluteString)")
+
+        // 解析 URL: zenith-commander://request?rid=<requestId>
+        if url.host == "request",
+            let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+            let queryItems = components.queryItems,
+            let requestId = queryItems.first(where: { $0.name == "rid" })?.value
+        {
+            Logger.fileSystem.info("Processing request via URL Scheme: rid=\(requestId)")
+            processFinderRequest(id: requestId)
+        }
+    }
+
+    /// 启动时检查是否有待处理的请求（Extension 直接打开 App 的情况）
+    private func checkPendingRequests() {
+        // 延迟一小段时间，确保 App 完全启动
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            if let request = FinderRequestStore.loadLatest() {
+                Logger.fileSystem.info("Found pending request on startup: id=\(request.id)")
+                self.processFinderRequest(request: request)
+            }
+        }
+    }
+
+    /// 处理 Finder 请求（通过 ID 加载）
+    private func processFinderRequest(id: String) {
+        guard let request = FinderRequestStore.load(id: id) else {
+            Logger.fileSystem.warning("Failed to load request: \(id)")
+            return
+        }
+        processFinderRequest(request: request)
+    }
+
+    /// 处理 Finder 请求（直接传入）
+    private func processFinderRequest(request: FinderRequest) {
+        Logger.fileSystem.info(
+            "Processing request: id=\(request.id), action=\(request.action.rawValue), paths=\(request.paths.count)"
+        )
+
+        switch request.action {
+        case .copyPath:
+            handleCopyPath(paths: request.paths)
+        case .rename:
+            handleBatchRename(paths: request.paths)
+        case .ping:
+            Logger.fileSystem.info("Ping request received")
+        }
+
+        // 处理完成后删除请求，避免重复执行
+        FinderRequestStore.delete(id: request.id)
+    }
+
+    /// 处理复制路径请求
+    private func handleCopyPath(paths: [String]) {
+        let textToCopy = paths.joined(separator: "\n")
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(textToCopy, forType: .string)
+
+        Logger.fileSystem.info("Copied \(paths.count) paths to clipboard")
+    }
+
+    /// 处理批量重命名请求
+    private func handleBatchRename(paths: [String]) {
+        Logger.fileSystem.info("Batch rename requested for \(paths.count) files")
+
+        // 发送通知到主界面
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(
+                name: .batchRenameRequested,
+                object: nil,
+                userInfo: ["filePaths": paths]
+            )
+        }
+    }
 }
 
 // MARK: - App Delegate
