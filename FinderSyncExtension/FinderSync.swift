@@ -14,15 +14,17 @@ class FinderSync: FIFinderSync {
         super.init()
 
         let fm = FileManager.default
-        
+
         // Monitor the home directory for broader coverage
         let homeDir = fm.homeDirectoryForCurrentUser
-        
+
         FIFinderSyncController.default().directoryURLs = [homeDir]
 
-        NSLog("FinderSyncExtension loaded from %@, directoryURLs=%@", Bundle.main.bundlePath as NSString, homeDir.path as NSString)
+        NSLog(
+            "FinderSyncExtension loaded from %@, directoryURLs=%@",
+            Bundle.main.bundlePath as NSString, homeDir.path as NSString)
     }
-    
+
     override func menu(for menuKind: FIMenuKind) -> NSMenu? {
         guard menuKind == .contextualMenuForItems || menuKind == .contextualMenuForContainer else {
             return nil
@@ -31,7 +33,7 @@ class FinderSync: FIFinderSync {
         NSLog("FinderSyncExtension: building contextual menu (kind=%ld)", menuKind.rawValue)
 
         let menu = NSMenu(title: "")
-        
+
         // 复制完整路径
         let copyItem = NSMenuItem(
             title: "复制完整路径",
@@ -40,26 +42,64 @@ class FinderSync: FIFinderSync {
         )
         copyItem.target = self
         menu.addItem(copyItem)
-        
+
         // 批量重命名 - 仅当选中多个文件时显示
         let controller = FIFinderSyncController.default()
         let selectedCount = controller.selectedItemURLs()?.count ?? 0
-        
+
         if selectedCount >= 2 {
             menu.addItem(NSMenuItem.separator())
-            
-            let renameItem = NSMenuItem(
-                title: "批量重命名...",
-                action: #selector(batchRename(_:)),
+
+            let renameMenu = NSMenu(title: "")
+
+            // 添加序号 (01, 02, 03...)
+            let addNumbersItem = NSMenuItem(
+                title: "添加序号 (01, 02, 03...)",
+                action: #selector(batchRenameWithNumbers(_:)),
                 keyEquivalent: ""
             )
-            renameItem.target = self
+            addNumbersItem.target = self
+            renameMenu.addItem(addNumbersItem)
+
+            // 添加前缀
+            let addPrefixItem = NSMenuItem(
+                title: "添加前缀 (backup_...)",
+                action: #selector(batchRenameWithPrefix(_:)),
+                keyEquivalent: ""
+            )
+            addPrefixItem.target = self
+            renameMenu.addItem(addPrefixItem)
+
+            // 添加日期后缀
+            let addDateItem = NSMenuItem(
+                title: "添加日期 (..._2026-01-06)",
+                action: #selector(batchRenameWithDate(_:)),
+                keyEquivalent: ""
+            )
+            addDateItem.target = self
+            renameMenu.addItem(addDateItem)
+
+            // 小写扩展名
+            let lowercaseExtItem = NSMenuItem(
+                title: "扩展名转小写",
+                action: #selector(batchRenameLowercaseExt(_:)),
+                keyEquivalent: ""
+            )
+            lowercaseExtItem.target = self
+            renameMenu.addItem(lowercaseExtItem)
+
+            let renameItem = NSMenuItem(
+                title: "批量重命名",
+                action: nil,
+                keyEquivalent: ""
+            )
+            renameItem.submenu = renameMenu
             menu.addItem(renameItem)
         }
-        
+
         return menu
     }
-    
+
     override func beginObservingDirectory(at url: URL) {
         NSLog("FinderSyncExtension: beginObservingDirectory %@", url.path as NSString)
     }
@@ -67,12 +107,13 @@ class FinderSync: FIFinderSync {
     override func endObservingDirectory(at url: URL) {
         NSLog("FinderSyncExtension: endObservingDirectory %@", url.path as NSString)
     }
-    
+
     @objc private func copyFullPath(_ sender: Any?) {
         let controller = FIFinderSyncController.default()
 
         // 优先使用多选，其次使用当前目标目录
-        let urls = controller.selectedItemURLs()
+        let urls =
+            controller.selectedItemURLs()
             ?? (controller.targetedURL().map { [$0] } ?? [])
 
         NSLog("FinderSyncExtension: copyFullPath invoked, urls.count=%ld", urls.count)
@@ -86,128 +127,126 @@ class FinderSync: FIFinderSync {
         pasteboard.clearContents()
         pasteboard.setString(textToCopy, forType: .string)
     }
-    
-    @objc private func batchRename(_ sender: Any?) {
+
+    // MARK: - Batch Rename Methods
+
+    @objc private func batchRenameWithNumbers(_ sender: Any?) {
+        performBatchRename { urls in
+            urls.enumerated().map { index, url in
+                let ext = url.pathExtension
+                let number = String(format: "%02d", index + 1)
+                let originalName = url.deletingPathExtension().lastPathComponent
+                let newName = "\(number)_\(originalName)" + (ext.isEmpty ? "" : ".\(ext)")
+                return url.deletingLastPathComponent().appendingPathComponent(newName)
+            }
+        }
+    }
+
+    @objc private func batchRenameWithPrefix(_ sender: Any?) {
+        performBatchRename { urls in
+            urls.map { url in
+                let ext = url.pathExtension
+                let originalName = url.deletingPathExtension().lastPathComponent
+                let newName = "backup_\(originalName)" + (ext.isEmpty ? "" : ".\(ext)")
+                return url.deletingLastPathComponent().appendingPathComponent(newName)
+            }
+        }
+    }
+
+    @objc private func batchRenameWithDate(_ sender: Any?) {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let dateString = formatter.string(from: Date())
+
+        performBatchRename { urls in
+            urls.map { url in
+                let ext = url.pathExtension
+                let originalName = url.deletingPathExtension().lastPathComponent
+                let newName = "\(originalName)_\(dateString)" + (ext.isEmpty ? "" : ".\(ext)")
+                return url.deletingLastPathComponent().appendingPathComponent(newName)
+            }
+        }
+    }
+
+    @objc private func batchRenameLowercaseExt(_ sender: Any?) {
+        performBatchRename { urls in
+            urls.map { url in
+                let ext = url.pathExtension.lowercased()
+                let baseName = url.deletingPathExtension().lastPathComponent
+                let newName = baseName + (ext.isEmpty ? "" : ".\(ext)")
+                return url.deletingLastPathComponent().appendingPathComponent(newName)
+            }
+        }
+    }
+
+    private func performBatchRename(transform: ([URL]) -> [URL]) {
         let controller = FIFinderSyncController.default()
-        
+
         guard let urls = controller.selectedItemURLs(), urls.count >= 2 else {
             NSLog("FinderSyncExtension: batchRename requires at least 2 selected items")
+            showNotification(title: "批量重命名", body: "请选择至少 2 个文件")
             return
         }
-        
+
         NSLog("FinderSyncExtension: batchRename invoked, urls.count=%ld", urls.count)
-        
+
         // 按文件名排序
-        let sortedURLs = urls.sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
-        
-        // 创建重命名对话框
-        let alert = NSAlert()
-        alert.messageText = "批量重命名"
-        alert.informativeText = "已选中 \(sortedURLs.count) 个文件"
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "重命名")
-        alert.addButton(withTitle: "取消")
-        
-        // 创建自定义视图
-        let containerView = NSView(frame: NSRect(x: 0, y: 0, width: 300, height: 120))
-        
-        // 前缀
-        let prefixLabel = NSTextField(labelWithString: "前缀:")
-        prefixLabel.frame = NSRect(x: 0, y: 90, width: 50, height: 20)
-        containerView.addSubview(prefixLabel)
-        
-        let prefixField = NSTextField(frame: NSRect(x: 55, y: 88, width: 245, height: 24))
-        prefixField.placeholderString = "添加到文件名开头"
-        containerView.addSubview(prefixField)
-        
-        // 后缀
-        let suffixLabel = NSTextField(labelWithString: "后缀:")
-        suffixLabel.frame = NSRect(x: 0, y: 55, width: 50, height: 20)
-        containerView.addSubview(suffixLabel)
-        
-        let suffixField = NSTextField(frame: NSRect(x: 55, y: 53, width: 245, height: 24))
-        suffixField.placeholderString = "添加到扩展名前"
-        containerView.addSubview(suffixField)
-        
-        // 序号
-        let numberCheck = NSButton(checkboxWithTitle: "添加序号 (01, 02, 03...)", target: nil, action: nil)
-        numberCheck.frame = NSRect(x: 0, y: 20, width: 200, height: 20)
-        containerView.addSubview(numberCheck)
-        
-        // 起始编号
-        let startLabel = NSTextField(labelWithString: "起始:")
-        startLabel.frame = NSRect(x: 200, y: 20, width: 40, height: 20)
-        containerView.addSubview(startLabel)
-        
-        let startField = NSTextField(frame: NSRect(x: 245, y: 18, width: 55, height: 24))
-        startField.stringValue = "1"
-        containerView.addSubview(startField)
-        
-        alert.accessoryView = containerView
-        
-        // 显示对话框
-        let response = alert.runModal()
-        
-        guard response == .alertFirstButtonReturn else {
-            NSLog("FinderSyncExtension: batchRename cancelled")
-            return
+        let sortedURLs = urls.sorted {
+            $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending
         }
-        
-        // 获取输入值
-        let prefix = prefixField.stringValue
-        let suffix = suffixField.stringValue
-        let useNumbering = numberCheck.state == .on
-        let startNumber = Int(startField.stringValue) ?? 1
-        
+
+        let newURLs = transform(sortedURLs)
+
         // 执行重命名
         let fm = FileManager.default
         var successCount = 0
         var failCount = 0
-        
-        for (index, url) in sortedURLs.enumerated() {
-            let originalName = url.deletingPathExtension().lastPathComponent
-            let ext = url.pathExtension
-            
-            // 构建新文件名
-            var newName = prefix + originalName + suffix
-            
-            if useNumbering {
-                let number = startNumber + index
-                let paddedNumber = String(format: "%02d", number)
-                newName = prefix + paddedNumber + "_" + originalName + suffix
+
+        for (oldURL, newURL) in zip(sortedURLs, newURLs) {
+            // 跳过未改变的文件
+            if oldURL == newURL {
+                continue
             }
-            
-            // 添加扩展名
-            if !ext.isEmpty {
-                newName += "." + ext
-            }
-            
-            let newURL = url.deletingLastPathComponent().appendingPathComponent(newName)
-            
+
             // 检查是否会覆盖
-            if fm.fileExists(atPath: newURL.path) && url != newURL {
-                NSLog("FinderSyncExtension: skip rename, target exists: %@", newURL.path as NSString)
+            if fm.fileExists(atPath: newURL.path) {
+                NSLog(
+                    "FinderSyncExtension: skip rename, target exists: %@", newURL.path as NSString)
                 failCount += 1
                 continue
             }
-            
+
             do {
-                try fm.moveItem(at: url, to: newURL)
+                try fm.moveItem(at: oldURL, to: newURL)
                 successCount += 1
-                NSLog("FinderSyncExtension: renamed %@ -> %@", url.lastPathComponent as NSString, newName as NSString)
+                NSLog(
+                    "FinderSyncExtension: renamed %@ -> %@",
+                    oldURL.lastPathComponent as NSString,
+                    newURL.lastPathComponent as NSString)
             } catch {
-                NSLog("FinderSyncExtension: rename failed: %@", error.localizedDescription as NSString)
+                NSLog(
+                    "FinderSyncExtension: rename failed: %@", error.localizedDescription as NSString
+                )
                 failCount += 1
             }
         }
-        
-        // 显示结果
-        let resultAlert = NSAlert()
-        resultAlert.messageText = "重命名完成"
-        resultAlert.informativeText = "成功: \(successCount), 失败: \(failCount)"
-        resultAlert.alertStyle = failCount > 0 ? .warning : .informational
-        resultAlert.addButton(withTitle: "确定")
-        resultAlert.runModal()
+
+        // 显示通知结果
+        let message =
+            failCount > 0
+            ? "成功: \(successCount), 失败: \(failCount)"
+            : "成功重命名 \(successCount) 个文件"
+
+        showNotification(title: "批量重命名完成", body: message)
+    }
+
+    private func showNotification(title: String, body: String) {
+        let center = NSUserNotificationCenter.default
+        let notification = NSUserNotification()
+        notification.title = title
+        notification.informativeText = body
+        notification.soundName = NSUserNotificationDefaultSoundName
+        center.deliver(notification)
     }
 
 }
