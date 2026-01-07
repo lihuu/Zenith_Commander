@@ -1,8 +1,8 @@
 //
-//  AppMode+Keymaps.swift
+//  Keymaps.swift
 //  Zenith Commander
 //
-//  Created by Hu Li on 12/19/25.
+//  键盘映射配置
 //
 
 import SwiftUI
