@@ -43,11 +43,16 @@ enum SortOrder: String, Codable {
 
 /// 排序选项（字段 + 顺序）
 struct SortOption: Codable, Equatable {
-    var field: SortField
+    var field: SortField?
     var order: SortOrder
     
-    /// 默认排序：按名称升序
-    static let `default` = SortOption(field: .name, order: .ascending)
+    /// 默认：无排序
+    static let `default` = SortOption(field: nil, order: .ascending)
+    
+    /// 是否有排序
+    var isActive: Bool {
+        field != nil
+    }
     
     /// 切换到指定字段的排序
     /// 如果已经是该字段，则切换顺序；否则使用升序
@@ -61,8 +66,13 @@ struct SortOption: Codable, Equatable {
     
     /// 对文件列表进行排序
     /// - Parameter files: 要排序的文件列表
-    /// - Returns: 排序后的文件列表（文件夹始终在文件前面）
+    /// - Returns: 排序后的文件列表（无排序时返回原始列表）
     func sort(_ files: [FileItem]) -> [FileItem] {
+        // 无排序时直接返回原始列表
+        guard field != nil else {
+            return files
+        }
+        
         // 分离文件夹和文件
         let folders = files.filter { $0.type == .folder }
         let regularFiles = files.filter { $0.type != .folder }
@@ -77,14 +87,18 @@ struct SortOption: Codable, Equatable {
     
     /// 对单一类型的项目进行排序
     private func sortItems(_ items: [FileItem]) -> [FileItem] {
-        items.sorted { lhs, rhs in
+        guard let sortField = field else {
+            return items
+        }
+        
+        return items.sorted { lhs, rhs in
             // 父目录项 (..) 始终排在最前面
             if lhs.isParentDirectory { return true }
             if rhs.isParentDirectory { return false }
             
             let ascending = order == .ascending
             
-            switch field {
+            switch sortField {
             case .name:
                 return ascending 
                     ? lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending

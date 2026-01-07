@@ -193,7 +193,7 @@ struct PaneView: View {
                     SortHeaderView(sortOption: $pane.tabs[pane.activeTabIndex].sortOption)
                     
                     ForEach(
-                        Array(pane.activeTab.sortedFiles.enumerated()),
+                        Array(pane.activeTab.files.enumerated()),
                         id: \.element.id
                     ) { index, file in
                         FileRowView(
@@ -319,7 +319,7 @@ struct PaneView: View {
                         spacing: gridSpacing
                     ) {
                         ForEach(
-                            Array(pane.activeTab.sortedFiles.enumerated()),
+                            Array(pane.activeTab.files.enumerated()),
                             id: \.element.id
                         ) { index, file in
                             FileGridItemView(
@@ -890,6 +890,7 @@ struct PaneView: View {
 
     func navigateTo(_ path: URL) {
         pane.activeTab.currentPath = path
+        pane.activeTab.sortOption = .default  // 清除排序状态
         loadCurrentDirectoryWithPermissionCheck {
             pane.cursorIndex = 0
             pane.clearSelections()
@@ -1045,6 +1046,7 @@ struct PaneView: View {
             let currentDirName = currentPath.lastPathComponent
 
             pane.activeTab.currentPath = parent
+            pane.activeTab.sortOption = .default  // 清除排序状态
             pane.clearSelections()
             loadCurrentDirectoryWithPermissionCheck(
                 restoreSelection: currentDirName

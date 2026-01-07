@@ -11,10 +11,18 @@ class TabState: Identifiable, ObservableObject {
     let id: UUID
     var drive: DriveInfo
     @Published var currentPath: URL
-    @Published var files: [FileItem]
     @Published var cursorFileId: String
     @Published var scrollOffset: CGFloat
     @Published var sortOption: SortOption = .default
+    
+    /// 原始文件列表（内部存储）
+    @Published private var _rawFiles: [FileItem] = []
+    
+    /// 文件列表（对外访问时返回排序后的列表）
+    var files: [FileItem] {
+        get { sortOption.sort(_rawFiles) }
+        set { _rawFiles = newValue }
+    }
 
     var isRemotePath: Bool {
         !currentPath.isFileURL
@@ -32,17 +40,12 @@ class TabState: Identifiable, ObservableObject {
     var cursorIndexInTab: Int? {
         files.firstIndex(where: { $0.id == self.cursorFileId })
     }
-    
-    /// 排序后的文件列表
-    var sortedFiles: [FileItem] {
-        sortOption.sort(files)
-    }
 
     init(drive: DriveInfo, path: URL) {
         id = UUID()
         self.drive = drive
         currentPath = path
-        files = []
+        _rawFiles = []
         scrollOffset = 0
         cursorFileId = ".."
     }
