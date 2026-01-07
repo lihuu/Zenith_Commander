@@ -9,6 +9,7 @@ import Foundation
 import Testing
 @testable import Zenith_Commander
 
+@MainActor
 struct FileSystemServiceTests {
     @Test func singletonInstance() {
         let service1 = FileSystemService.shared

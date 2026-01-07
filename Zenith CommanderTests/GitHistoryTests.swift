@@ -8,6 +8,7 @@
 import XCTest
 @testable import Zenith_Commander
 
+@MainActor
 class GitHistoryTests: XCTestCase {
     func testGitCommitInitialization() {
         let date = Date()

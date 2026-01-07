@@ -367,6 +367,8 @@ extension AppEnvironment {
             main: main,
             userDefaults: userDefaults,
             runtime: runtime,
+            commandExecution: CommandExecutionService(fileSystem: fileSystem),
+            gitHistory: GitHistoryService(),
             plugins: [GitPlugin(), RsyncPlugin(), FzfPlugin()],
             initParam: InitParam(leftInitPath: leftPath, rightInitPath: rightPath)
         )
@@ -383,13 +385,16 @@ extension AppEnvironment {
         if defaults == nil {
             assertionFailure("Failed to create test UserDefaults suite.")
         }
+        let fileSystem = TestFileSystem(tempRoot: tempRoot)
         return AppEnvironment(
-            fileSystem: TestFileSystem(tempRoot: tempRoot),
+            fileSystem: fileSystem,
             settings: settings,
             toolRunner: toolRunner,
             main: main,
             userDefaults: defaults ?? .standard,
             runtime: RuntimePolicy(startSideEffects: false),
+            commandExecution: CommandExecutionService(fileSystem: fileSystem),
+            gitHistory: GitHistoryService(),
             initParam: InitParam(
                 leftInitPath: URL(fileURLWithPath: "/tmp"),
                 rightInitPath: URL(fileURLWithPath: "/tmp")
@@ -409,13 +414,16 @@ extension AppEnvironment {
         if defaults == nil {
             assertionFailure("Failed to create test UserDefaults suite.")
         }
+        let fileSystem = TestFileSystem(tempRoot: tempRoot)
         return AppEnvironment(
-            fileSystem: TestFileSystem(tempRoot: tempRoot),
+            fileSystem: fileSystem,
             settings: settings,
             toolRunner: toolRunner,
             main: main,
             userDefaults: defaults ?? .standard,
             runtime: RuntimePolicy(startSideEffects: false),
+            commandExecution: CommandExecutionService(fileSystem: fileSystem),
+            gitHistory: GitHistoryService(),
             initParam: InitParam(
                 leftInitPath: initPath,
                 rightInitPath: initPath)

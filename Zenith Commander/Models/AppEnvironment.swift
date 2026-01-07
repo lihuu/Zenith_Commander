@@ -86,6 +86,8 @@ struct AppEnvironment {
     var main: MainScheduling
     var userDefaults: UserDefaults
     var runtime: RuntimePolicy
+    var commandExecution: CommandExecutionServicing
+    var gitHistory: GitHistoryServicing
     var plugins: [ZenithPlugin] = []
     var initParam: InitParam
 }

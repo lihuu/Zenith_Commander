@@ -28,15 +28,15 @@ extension AppState {
 
         // 异步加载历史
         Task {
-            let commits = await GitService.shared.getFileHistory(
+            let page = await env.gitHistory.loadFileHistory(
                 for: filePath,
-                limit: GitHistoryPagination.pageSize,
+                pageSize: GitHistoryPagination.pageSize,
                 skip: 0
             )
 
-            self.gitHistoryCommits = commits
+            self.gitHistoryCommits = page.commits
             self.gitHistoryLoading = false
-            self.gitHistoryHasMore = commits.count >= GitHistoryPagination.pageSize
+            self.gitHistoryHasMore = page.hasMore
         }
     }
 
@@ -52,15 +52,15 @@ extension AppState {
         let filePath = file.path
 
         Task {
-            let moreCommits = await GitService.shared.getFileHistory(
+            let page = await env.gitHistory.loadFileHistory(
                 for: filePath,
-                limit: GitHistoryPagination.pageSize,
+                pageSize: GitHistoryPagination.pageSize,
                 skip: currentCount
             )
 
-            self.gitHistoryCommits.append(contentsOf: moreCommits)
+            self.gitHistoryCommits.append(contentsOf: page.commits)
             self.gitHistoryLoadingMore = false
-            self.gitHistoryHasMore = moreCommits.count >= GitHistoryPagination.pageSize
+            self.gitHistoryHasMore = page.hasMore
         }
     }
 
@@ -92,7 +92,11 @@ extension AppState {
             Logger.git.info(
                 "Cannot show history for folder or parent directory"
             )
-            showToast("Select a file to view Git history")
+            showToast(
+                LocalizationManager.shared.localized(
+                    .toastSelectFileForGitHistory
+                )
+            )
             return
         }
 
@@ -120,17 +124,17 @@ extension AppState {
 
         // 异步加载历史
         Task {
-            let commits = await GitService.shared.getRepositoryHistory(
+            let page = await env.gitHistory.loadRepositoryHistory(
                 at: path,
-                limit: GitHistoryPagination.pageSize,
+                pageSize: GitHistoryPagination.pageSize,
                 skip: 0
             )
 
-            self.gitHistoryCommits = commits
+            self.gitHistoryCommits = page.commits
             self.gitHistoryLoading = false
-            self.gitHistoryHasMore = commits.count >= GitHistoryPagination.pageSize
+            self.gitHistoryHasMore = page.hasMore
             Logger.git.debug(
-                "State updated: gitHistoryLoading=false, commits: \(commits.count)"
+                "State updated: gitHistoryLoading=false, commits: \(page.commits.count)"
             )
         }
     }
@@ -147,15 +151,15 @@ extension AppState {
         let currentCount = gitHistoryCommits.count
 
         Task {
-            let moreCommits = await GitService.shared.getRepositoryHistory(
+            let page = await env.gitHistory.loadRepositoryHistory(
                 at: repoPath,
-                limit: GitHistoryPagination.pageSize,
+                pageSize: GitHistoryPagination.pageSize,
                 skip: currentCount
             )
 
-            self.gitHistoryCommits.append(contentsOf: moreCommits)
+            self.gitHistoryCommits.append(contentsOf: page.commits)
             self.gitHistoryLoadingMore = false
-            self.gitHistoryHasMore = moreCommits.count >= GitHistoryPagination.pageSize
+            self.gitHistoryHasMore = page.hasMore
         }
     }
 

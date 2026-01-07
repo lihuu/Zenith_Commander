@@ -8,6 +8,7 @@
 import XCTest
 @testable import Zenith_Commander
 
+@MainActor
 final class CommandParserTests: XCTestCase {
     // MARK: - :rsync Command Tests (T062)
 

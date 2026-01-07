@@ -8,6 +8,7 @@
 import XCTest
 @testable import Zenith_Commander
 
+@MainActor
 class LocalizationTests: XCTestCase {
     // MARK: - 系统语言检测测试
 

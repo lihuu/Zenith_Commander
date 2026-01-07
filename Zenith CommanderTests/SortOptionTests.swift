@@ -9,6 +9,7 @@ import Testing
 import Foundation
 @testable import Zenith_Commander
 
+@MainActor
 struct SortOptionTests {
     
     // MARK: - Test Data

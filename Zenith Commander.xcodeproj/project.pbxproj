@@ -7,11 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		802B30BC574B4E92A5D14390 /* FinderRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46E2FB0C6E0149B180B19D13 /* FinderRequest.swift */; };
-		9ADCE878A81748389AA39790 /* FinderRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46E2FB0C6E0149B180B19D13 /* FinderRequest.swift */; };
 		1C10E8182F0BFC52008564FC /* FinderSyncExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1C10E8112F0BFC52008564FC /* FinderSyncExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		1C985B972EE2DEC2009794E9 /* mft.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1C985B962EE2DEC2009794E9 /* mft.xcframework */; };
 		1C985B982EE2DEC2009794E9 /* mft.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1C985B962EE2DEC2009794E9 /* mft.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		9ADCE878A81748389AA39790 /* FinderRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46E2FB0C6E0149B180B19D13 /* FinderRequest.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -64,13 +63,13 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		46E2FB0C6E0149B180B19D13 /* FinderRequest.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FinderRequest.swift; sourceTree = "<group>"; };
 		1C10E8112F0BFC52008564FC /* FinderSyncExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FinderSyncExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		1C5C09442EFAE71B00F025FF /* Zenith Commander.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Zenith Commander.xctestplan"; sourceTree = "<group>"; };
 		1C790B762ED8169E005B181E /* Zenith Commander.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Zenith Commander.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1C790B832ED816A0005B181E /* Zenith CommanderTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Zenith CommanderTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1C790B8D2ED816A0005B181E /* Zenith CommanderUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Zenith CommanderUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1C985B962EE2DEC2009794E9 /* mft.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = mft.xcframework; path = Packages/mft.xcframework; sourceTree = "<group>"; };
+		46E2FB0C6E0149B180B19D13 /* FinderRequest.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FinderRequest.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -109,17 +108,6 @@
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
-/* Begin PBXGroup section */
-		4E815F0ACCE146A29E05FD00 /* Shared */ = {
-			isa = PBXGroup;
-			children = (
-				46E2FB0C6E0149B180B19D13 /* FinderRequest.swift */,
-			);
-			path = "Zenith Commander/Shared";
-			sourceTree = "<group>";
-		};
-/* End PBXGroup section */
-
 /* Begin PBXFrameworksBuildPhase section */
 		1C10E80E2F0BFC52008564FC /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
@@ -156,8 +144,8 @@
 		1C790B6D2ED8169E005B181E = {
 			isa = PBXGroup;
 			children = (
-								4E815F0ACCE146A29E05FD00 /* Shared */,
-1C5C09442EFAE71B00F025FF /* Zenith Commander.xctestplan */,
+				4E815F0ACCE146A29E05FD00 /* Zenith Commander/Shared */,
+				1C5C09442EFAE71B00F025FF /* Zenith Commander.xctestplan */,
 				1C790B782ED8169E005B181E /* Zenith Commander */,
 				1C790B862ED816A0005B181E /* Zenith CommanderTests */,
 				1C790B902ED816A0005B181E /* Zenith CommanderUITests */,
@@ -184,6 +172,14 @@
 				1C985B962EE2DEC2009794E9 /* mft.xcframework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		4E815F0ACCE146A29E05FD00 /* Zenith Commander/Shared */ = {
+			isa = PBXGroup;
+			children = (
+				46E2FB0C6E0149B180B19D13 /* FinderRequest.swift */,
+			);
+			path = "Zenith Commander/Shared";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -370,8 +366,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-							9ADCE878A81748389AA39790 /* FinderRequest.swift in Sources */,
-);
+				9ADCE878A81748389AA39790 /* FinderRequest.swift in Sources */,
+			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		1C790B722ED8169E005B181E /* Sources */ = {
@@ -419,7 +415,7 @@
 		1C10E81A2F0BFC52008564FC /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-								CODE_SIGN_ENTITLEMENTS = FinderSyncExtension/FinderSyncExtension.entitlements;
+				CODE_SIGN_ENTITLEMENTS = FinderSyncExtension/FinderSyncExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1.4.1;
@@ -452,7 +448,7 @@
 		1C10E81B2F0BFC52008564FC /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-								CODE_SIGN_ENTITLEMENTS = FinderSyncExtension/FinderSyncExtension.entitlements;
+				CODE_SIGN_ENTITLEMENTS = FinderSyncExtension/FinderSyncExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1.4.1;

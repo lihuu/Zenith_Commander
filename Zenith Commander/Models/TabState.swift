@@ -5,6 +5,7 @@
 //  Created by Hu Li on 12/2/25.
 //
 import Combine
+import Foundation
 import SwiftUI
 
 class TabState: Identifiable, ObservableObject {
@@ -78,5 +79,54 @@ extension TabState {
         tab.files = files
         tab.cursorFileId = cursorFileId
         return tab
+    }
+}
+
+extension TabState {
+    func applyFilter(_ filter: String, useRegex: Bool) {
+        // 首次过滤时保存原始文件列表
+        if unfilteredFiles.isEmpty, !files.isEmpty {
+            unfilteredFiles = files
+        }
+
+        if filter.isEmpty {
+            if !unfilteredFiles.isEmpty {
+                files = unfilteredFiles
+            }
+            return
+        }
+
+        let sourceFiles = unfilteredFiles.isEmpty ? files : unfilteredFiles
+
+        if useRegex {
+            do {
+                let regex = try NSRegularExpression(
+                    pattern: filter,
+                    options: [.caseInsensitive]
+                )
+                files = sourceFiles.filter { file in
+                    let range = NSRange(
+                        file.name.startIndex...,
+                        in: file.name
+                    )
+                    return regex.firstMatch(
+                        in: file.name,
+                        options: [],
+                        range: range
+                    ) != nil
+                }
+            } catch {
+                files = sourceFiles
+            }
+        } else {
+            let lowerFilter = filter.lowercased()
+            files = sourceFiles.filter {
+                $0.name.lowercased().contains(lowerFilter)
+            }
+        }
+    }
+
+    func resetFilter() {
+        unfilteredFiles = []
     }
 }
