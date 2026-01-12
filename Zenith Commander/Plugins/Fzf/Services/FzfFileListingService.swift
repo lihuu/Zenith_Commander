@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import os.log
 import Synchronization
 
 // MARK: - Fzf File Listing Service
@@ -131,7 +132,7 @@ extension ToolRunner {
         // 1) Early return on empty query (do not list files)
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
-            print("[ToolRunner][fzf] query empty -> return []")
+            Logger.tools.debug("[ToolRunner][fzf] query empty -> return []")
             return []
         }
 
@@ -143,7 +144,7 @@ extension ToolRunner {
         )
         let listCmd = ([listReq.executable] + listReq.args).joined(separator: " ")
         let listCwd = listReq.workingDirectory ?? "."
-        print("[ToolRunner][fzf] list (\(listTool.rawValue)) cmd: \(listCmd) | cwd=\(listCwd)")
+        Logger.tools.debug("[ToolRunner][fzf] list (\(listTool.rawValue)) cmd: \(listCmd) | cwd=\(listCwd)")
 
         // If fzf exists, use streaming pipeline: listProcess stdout → pipe → fzf stdin
         if let fzfBase = buildFzfBaseRequest(toolchain: effectiveToolchain) {
@@ -154,7 +155,7 @@ extension ToolRunner {
             )
             let fzfCmd = ([fzfReq.executable] + fzfReq.args).joined(separator: " ")
             let fzfCwd = fzfReq.workingDirectory ?? "."
-            print("[ToolRunner][fzf] filter cmd: \(fzfCmd) | cwd=\(fzfCwd)")
+            Logger.tools.debug("[ToolRunner][fzf] filter cmd: \(fzfCmd) | cwd=\(fzfCwd)")
 
             do {
                 let result = try await runShellPipeline(upstream: listReq, downstream: fzfReq)
@@ -163,7 +164,7 @@ extension ToolRunner {
                     .map(String.init)
             } catch {
                 // fzf execution failed -> fallback to Swift filter
-                print("[ToolRunner][fzf] pipeline failed: \(error), falling back to Swift filter")
+                Logger.tools.warning("[ToolRunner][fzf] pipeline failed: \(error), falling back to Swift filter")
             }
         }
 

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import os.log
 import Synchronization
 
 struct ToolRequest {
@@ -38,7 +39,7 @@ struct ProcessToolRunner: ToolRunner {
     ) {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: request.executable)
-        print("[ToolRunner] Executable URL: \(p.executableURL!.path)")
+        Logger.tools.debug("[ToolRunner] Executable URL: \(p.executableURL!.path)")
         p.arguments = request.args
         if let wd = request.workingDirectory {
             p.currentDirectoryURL = URL(fileURLWithPath: wd)
@@ -115,7 +116,7 @@ struct ProcessToolRunner: ToolRunner {
 
     nonisolated func runSync(_ request: ToolRequest) throws -> ToolResponse {
         if let wd = request.workingDirectory {
-            print("[ToolRunner] Working directory: \(wd)")
+            Logger.tools.debug("[ToolRunner] Working directory: \(wd)")
         }
 
         let (p, out, err) = setupProcess(for: request)
@@ -126,13 +127,13 @@ struct ProcessToolRunner: ToolRunner {
         let response = ProcessToolRunner.parseOutput(
             stdout: out, stderr: err, exitCode: p.terminationStatus)
         if !response.stdout.isEmpty {
-            print("[ToolRunner] stdout: \(response.stdout.joined(separator: "\\n"))")
+            Logger.tools.debug("[ToolRunner] stdout: \(response.stdout.joined(separator: "\\n"))")
         }
         if !response.stderr.isEmpty {
-            print("[ToolRunner] stderr: \(response.stderr.joined(separator: "\\n"))")
+            Logger.tools.debug("[ToolRunner] stderr: \(response.stderr.joined(separator: "\\n"))")
         }
 
-        print("[ToolRunner] Process exited with code: \(response.exitCode)")
+        Logger.tools.debug("[ToolRunner] Process exited with code: \(response.exitCode)")
 
         return response
     }

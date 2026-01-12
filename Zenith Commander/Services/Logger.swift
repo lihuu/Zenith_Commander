@@ -27,6 +27,8 @@ extension Logger {
 
     /// 通用应用日志
     nonisolated static let app = Logger(subsystem: subsystem, category: "app")
+    
+    nonisolated static let tools = Logger(subsystem: subsystem, category: "tools")
 
     /// 文件系统操作日志
     nonisolated static let fileSystem = Logger(
