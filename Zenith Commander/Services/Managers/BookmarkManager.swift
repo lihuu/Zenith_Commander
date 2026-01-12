@@ -7,8 +7,8 @@
 
 import Combine
 import Foundation
-import os.log
 import SwiftUI
+import os.log
 
 /// 书签管理器 - 负责书签的增删改查和持久化
 class BookmarkManager: ObservableObject {
@@ -20,7 +20,7 @@ class BookmarkManager: ObservableObject {
 
     /// 书签存储目录
     private let storageDirectory: URL
-    
+
     /// 书签文件路径
     private var bookmarksFileURL: URL {
         storageDirectory.appendingPathComponent("bookmarks.json")
@@ -32,13 +32,16 @@ class BookmarkManager: ObservableObject {
         if let storageDirectory = storageDirectory {
             self.storageDirectory = storageDirectory
         } else {
-            let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            let appSupport = FileManager.default.urls(
+                for: .applicationSupportDirectory, in: .userDomainMask
+            ).first!
             self.storageDirectory = appSupport.appendingPathComponent("ZenithCommander")
         }
-        
+
         // 确保目录存在
-        try? FileManager.default.createDirectory(at: self.storageDirectory, withIntermediateDirectories: true)
-        
+        try? FileManager.default.createDirectory(
+            at: self.storageDirectory, withIntermediateDirectories: true)
+
         loadBookmarks()
     }
 

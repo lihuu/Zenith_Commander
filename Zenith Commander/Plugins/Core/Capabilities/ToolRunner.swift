@@ -6,8 +6,8 @@
 //
 
 import Foundation
-import os.log
 import Synchronization
+import os.log
 
 struct ToolRequest {
     let executable: String

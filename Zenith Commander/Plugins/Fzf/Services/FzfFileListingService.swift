@@ -6,8 +6,8 @@
 //
 
 import Foundation
-import os.log
 import Synchronization
+import os.log
 
 // MARK: - Fzf File Listing Service
 
@@ -144,7 +144,8 @@ extension ToolRunner {
         )
         let listCmd = ([listReq.executable] + listReq.args).joined(separator: " ")
         let listCwd = listReq.workingDirectory ?? "."
-        Logger.tools.debug("[ToolRunner][fzf] list (\(listTool.rawValue)) cmd: \(listCmd) | cwd=\(listCwd)")
+        Logger.tools.debug(
+            "[ToolRunner][fzf] list (\(listTool.rawValue)) cmd: \(listCmd) | cwd=\(listCwd)")
 
         // If fzf exists, use streaming pipeline: listProcess stdout → pipe → fzf stdin
         if let fzfBase = buildFzfBaseRequest(toolchain: effectiveToolchain) {
@@ -164,7 +165,8 @@ extension ToolRunner {
                     .map(String.init)
             } catch {
                 // fzf execution failed -> fallback to Swift filter
-                Logger.tools.warning("[ToolRunner][fzf] pipeline failed: \(error), falling back to Swift filter")
+                Logger.tools.warning(
+                    "[ToolRunner][fzf] pipeline failed: \(error), falling back to Swift filter")
             }
         }
 
