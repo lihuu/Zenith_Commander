@@ -218,7 +218,8 @@ struct PaneView: View {
                         .dropDestination(for: URL.self) { urls, _ in
                             // 只有文件夹才接受拖放
                             guard file.type == .folder else { return false }
-                            return handleDroppedURLs(urls, to: file.path)
+                            handleDroppedURLs(urls, to: file.path)
+                            return true
                         } isTargeted: { isTargeted in
                             // 控制拖放目标高亮
                             if isTargeted, file.isFolder {
@@ -279,11 +280,8 @@ struct PaneView: View {
             }
             .dropDestination(for: URL.self) { urls, _ in
                 // 拖放到当前目录
-                if !handleDroppedURLs(urls, to: pane.activeTab.currentPath) {
-                    Logger.fileSystem.error(
-                        "Failed to drop files to current directory: \(pane.activeTab.currentPath.path, privacy: .public)"
-                    )
-                }
+                handleDroppedURLs(urls, to: pane.activeTab.currentPath)
+                return true
             }
             .onChange(of: pane.activeTab.cursorFileId) { _, newValue in
                 withAnimation(.easeInOut(duration: 0.1)) {
@@ -339,7 +337,8 @@ struct PaneView: View {
                             .dropDestination(for: URL.self) { urls, _ in
                                 // 只有文件夹才接受拖放
                                 guard file.type == .folder else { return false }
-                                return handleDroppedURLs(urls, to: file.path)
+                                handleDroppedURLs(urls, to: file.path)
+                                return true
                             } isTargeted: { isTargeted in
                                 // 控制拖放目标高亮
                                 if isTargeted, file.isFolder {
@@ -386,15 +385,8 @@ struct PaneView: View {
                 }
                 .dropDestination(for: URL.self) { urls, _ in
                     // 拖放到当前目录
-                    let success = handleDroppedURLs(
-                        urls,
-                        to: pane.activeTab.currentPath
-                    )
-                    if !success {
-                        Logger.fileSystem.error(
-                            "Failed to drop files to current directory: \(pane.activeTab.currentPath.path, privacy: .public)"
-                        )
-                    }
+                    handleDroppedURLs(urls, to: pane.activeTab.currentPath)
+                    return true
                 }
                 .onChange(
                     of: pane.activeTab.cursorFileId
@@ -606,28 +598,13 @@ struct PaneView: View {
         }
     }
 
-    /// 处理拖放的 URL - 移动文件到目标目录
+    /// 处理拖放的 URL - 移动/复制文件到目标目录
+    /// 支持跨协议传输（Local ↔ SFTP）
     /// - Parameters:
     ///   - urls: 被拖放的文件 URL 列表
     ///   - destination: 目标目录 URL
-    /// - Returns: 是否成功处理拖放
-    private func handleDroppedURLs(_ urls: [URL], to destination: URL) -> Bool {
-        guard !urls.isEmpty else { return false }
-
-        // 检查目标是否为目录
-        var isDirectory: ObjCBool = false
-        guard
-            FileManager.default.fileExists(
-                atPath: destination.path,
-                isDirectory: &isDirectory
-            ),
-            isDirectory.boolValue
-        else {
-            appState.showToast(
-                LocalizationManager.shared.localized(.toastTargetNotFolder)
-            )
-            return false
-        }
+    private func handleDroppedURLs(_ urls: [URL], to destination: URL) {
+        guard !urls.isEmpty else { return }
 
         // 过滤掉目标目录本身和其父目录（避免移动到自身）
         let validURLs = urls.filter { url in
@@ -644,46 +621,57 @@ struct PaneView: View {
             appState.showToast(
                 LocalizationManager.shared.localized(.toastCannotMoveToSame)
             )
-            return false
+            return
         }
 
         // 检查是否按住 Option 键来复制而不是移动
         let optionPressed = NSEvent.modifierFlags.contains(.option)
+        let operation: TransferOperation = optionPressed ? .copy : .move
 
-        do {
-            for url in validURLs {
-                let destURL = destination.appendingPathComponent(
-                    url.lastPathComponent
-                )
-
-                // 生成唯一文件名（如果目标已存在）
-                let uniqueDestURL = generateUniqueURL(for: destURL)
-
-                // 如果源和目标在同一个目录，强制复制（因为移动没有意义）
-                let isSameDirectory =
-                    url.deletingLastPathComponent() == destination
-                let shouldCopy = optionPressed || isSameDirectory
-
-                if shouldCopy {
-                    try FileManager.default.copyItem(at: url, to: uniqueDestURL)
-                } else {
-                    try FileManager.default.moveItem(at: url, to: uniqueDestURL)
-                }
-            }
-
-            // 刷新目录
-            loadCurrentDirectoryWithPermissionCheck()
-
-            return true
-        } catch {
-            appState.showToast(
-                LocalizationManager.shared.localized(.error)
-                    + ": \(error.localizedDescription)"
-            )
-            return false
+        // 异步执行传输
+        Task {
+            await performTransfer(validURLs, to: destination, operation: operation)
         }
     }
-
+    
+    /// 执行异步传输操作
+    private func performTransfer(
+        _ sources: [URL],
+        to destination: URL,
+        operation: TransferOperation
+    ) async {
+        do {
+            let result = try await FileTransferService.shared.transfer(
+                sources: sources,
+                to: destination,
+                operation: operation
+            )
+            
+            await MainActor.run {
+                if result.failedCount > 0 {
+                    let errorMsg = result.errors.first?.localizedDescription ?? "Unknown error"
+                    appState.showToast(
+                        LocalizationManager.shared.localized(.error) + ": \(errorMsg)"
+                    )
+                } else if result.successCount > 0 {
+                    // 成功传输，显示提示
+                    let actionName = operation == .copy ? "Copied" : "Moved"
+                    appState.showToast("\(actionName) \(result.successCount) item(s)")
+                }
+                
+                // 刷新目录
+                loadCurrentDirectoryWithPermissionCheck()
+            }
+        } catch {
+            await MainActor.run {
+                appState.showToast(
+                    LocalizationManager.shared.localized(.error)
+                        + ": \(error.localizedDescription)"
+                )
+            }
+        }
+    }
+    
     /// 生成唯一的目标 URL（如果已存在同名文件）
     private func generateUniqueURL(for url: URL) -> URL {
         var resultURL = url
@@ -694,9 +682,9 @@ struct PaneView: View {
         let parentDir = url.deletingLastPathComponent()
 
         while FileManager.default.fileExists(atPath: resultURL.path) {
-            let newName =
-                ext.isEmpty
-                ? "\(baseName) \(counter)" : "\(baseName) \(counter).\(ext)"
+            let newName = ext.isEmpty
+                ? "\(baseName) \(counter)"
+                : "\(baseName) \(counter).\(ext)"
             resultURL = parentDir.appendingPathComponent(newName)
             counter += 1
         }

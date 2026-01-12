@@ -919,7 +919,7 @@ class GitService {
         }
 
         // 检查父路径是否有缓存的仓库根
-        for (cachedPath, cachedRoot) in repoRootCache {
+        for (_, cachedRoot) in repoRootCache {
             if let root = cachedRoot, path.path.hasPrefix(root.path + "/") {
                 // 当前路径在已知仓库内，复用缓存
                 return root
@@ -975,7 +975,7 @@ class GitService {
         repoRootCacheTimestamps.removeValue(forKey: path)
 
         // 查找并清除仓库信息缓存
-        for (cachedPath, cachedRoot) in repoRootCache {
+        for (_, cachedRoot) in repoRootCache {
             if let root = cachedRoot, path.path.hasPrefix(root.path) {
                 repoInfoCache.removeValue(forKey: root)
                 break

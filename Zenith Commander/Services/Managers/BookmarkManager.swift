@@ -122,7 +122,7 @@ class BookmarkManager: ObservableObject {
 
     /// 加载书签
     private func loadBookmarks() {
-        Logger.app.debug("Loading bookmarks from \(bookmarksFileURL.path)")
+        Logger.app.debug("Loading bookmarks from \(self.bookmarksFileURL.path)")
         guard FileManager.default.fileExists(atPath: bookmarksFileURL.path) else {
             Logger.app.debug("No bookmarks file found")
             Logger.app.debug("No bookmarks file found, starting with empty list")
@@ -143,7 +143,7 @@ class BookmarkManager: ObservableObject {
 
     /// 保存书签
     private func saveBookmarks() {
-        Logger.app.debug("Saving \(bookmarks.count) bookmarks to \(bookmarksFileURL.path)")
+        Logger.app.debug("Saving \(self.bookmarks.count) bookmarks to \(self.bookmarksFileURL.path)")
         do {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

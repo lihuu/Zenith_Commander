@@ -84,6 +84,15 @@ class SFTPFileSystemProvider: FileSystemProvider {
         }
     }
 
+    // MARK: - Public Connection Access
+    
+    /// 获取或创建 SFTP 连接（供内部传输使用）
+    /// - Parameter url: SFTP URL
+    /// - Returns: SFTP 连接
+    nonisolated func connection(for url: URL) throws -> MFTSftpConnection {
+        try getOrCreateConnection(for: url)
+    }
+
     // MARK: - FileSystemProvider Implementation
 
     func loadDirectory(at path: URL) async throws -> [FileItem] {
