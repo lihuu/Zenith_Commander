@@ -617,7 +617,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Zenith Commander/Zenith_Commander.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1.4.1;
+				CURRENT_PROJECT_VERSION = 1.4.2;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = G6U5X85VQ3;
 				ENABLE_APP_INTENTS_COMPUTATION = NO;
@@ -634,7 +634,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.4.1;
+				MARKETING_VERSION = 1.4.2;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.lihuu.top.Zenith-Commander";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -659,7 +659,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Zenith Commander/Zenith_Commander.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1.4.1;
+				CURRENT_PROJECT_VERSION = 1.4.2;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = G6U5X85VQ3;
 				ENABLE_APP_INTENTS_COMPUTATION = NO;
@@ -676,7 +676,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.4.1;
+				MARKETING_VERSION = 1.4.2;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.lihuu.top.Zenith-Commander";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;

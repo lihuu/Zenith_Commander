@@ -179,6 +179,14 @@ extension AppState {
 
         var currentIndex = pane.cursorIndex
 
+        // 如果当前没有高亮（cursorFileId 为空），则从 index 1 开始（跳过 ".."）
+        // 如果只有一个文件，则从 index 0 开始
+        if pane.activeTab.cursorFileId.isEmpty {
+            currentIndex = fileCount > 1 ? 1 : 0
+            pane.activeTab.cursorFileId = files[currentIndex].id
+            return
+        }
+
         if pane.viewMode == .grid {
             // Grid View 模式：支持四向导航
             let columnCount = pane.gridColumnCount
@@ -234,6 +242,15 @@ extension AppState {
         guard fileCount > 0 else { return }
 
         var currentIndex = pane.cursorIndex
+
+        // 如果当前没有高亮，则从 index 1 开始
+        if pane.activeTab.cursorFileId.isEmpty {
+            currentIndex = fileCount > 1 ? 1 : 0
+            pane.activeTab.cursorFileId = files[currentIndex].id
+            pane.updateVisualSelection()
+            pane.objectWillChange.send()
+            return
+        }
 
         if pane.viewMode == .grid {
             // Grid View 模式：支持四向导航
@@ -295,7 +312,7 @@ extension AppState {
 
         pane.activeTab.currentPath = newPath
         pane.activeTab.files = files
-        pane.cursorIndex = 0
+        pane.activeTab.cursorFileId = ""  // 清除高亮，不选中任何行
         pane.clearSelections()
     }
 
@@ -460,7 +477,7 @@ extension AppState {
 
             pane.activeTab.currentPath = newPath
             pane.activeTab.files = files
-            pane.cursorIndex = 0
+            pane.activeTab.cursorFileId = ""  // 清除高亮
             pane.clearSelections()
 
             // 如果在 Visual 模式，退出

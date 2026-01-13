@@ -48,7 +48,7 @@ class TabState: Identifiable, ObservableObject {
         currentPath = path
         _rawFiles = []
         scrollOffset = 0
-        cursorFileId = ".."
+        cursorFileId = ""  // 空字符串表示无高亮
     }
 
     /// 当前目录名称
