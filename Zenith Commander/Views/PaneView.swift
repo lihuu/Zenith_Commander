@@ -267,16 +267,11 @@ struct PaneView: View {
                     if pane.activeTab.files.isEmpty {
                         emptyDirectoryView
                     }
-
-                    // 空白区域用于右键菜单
-                    Spacer()
-                        .frame(minHeight: 100)
-                        .frame(maxWidth: .infinity)
-                        .contentShape(Rectangle())
-                        .contextMenu {
-                            directoryContextMenu
-                        }
                 }
+            }
+            .contentShape(Rectangle())  // 让整个 ScrollView 区域可点击
+            .contextMenu {
+                directoryContextMenu
             }
             .dropDestination(for: URL.self) { urls, _ in
                 // 拖放到当前目录
@@ -373,15 +368,10 @@ struct PaneView: View {
                     if pane.activeTab.files.isEmpty {
                         emptyDirectoryView
                     }
-
-                    // 空白区域用于右键菜单
-                    Spacer()
-                        .frame(minHeight: 100)
-                        .frame(maxWidth: .infinity)
-                        .contentShape(Rectangle())
-                        .contextMenu {
-                            directoryContextMenu
-                        }
+                }
+                .contentShape(Rectangle())  // 让整个 ScrollView 区域可点击
+                .contextMenu {
+                    directoryContextMenu
                 }
                 .dropDestination(for: URL.self) { urls, _ in
                     // 拖放到当前目录
