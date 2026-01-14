@@ -69,23 +69,42 @@ class SFTPFileOps: FileOps {
     // MARK: - Directory Operations
     
     func list(at path: URL) async throws -> [FileEntry] {
-        // Use existing provider to get FileItems, then convert to FileEntry
-        let items = try await provider.loadDirectory(at: path)
-        return items.compactMap { item -> FileEntry? in
-            // Skip parent directory items
-            if item.name == ".." { return nil }
+        // Use direct MFT connection to avoid recursive call
+        // (provider.loadDirectory() now calls this method)
+        let sftp = try provider.connection(for: path)
+        
+        return try await Task.detached {
+            let remotePath = path.path
+            let items = try sftp.contentsOfDirectory(atPath: remotePath, maxItems: 0)
             
-            return FileEntry(
-                name: item.name,
-                url: item.path,
-                type: FileEntryType(from: item.type),
-                size: item.size,
-                modifiedDate: item.modifiedDate,
-                createdDate: item.createdDate,
-                isHidden: item.isHidden,
-                permissions: item.permissions.isEmpty ? nil : item.permissions
-            )
-        }
+            var entries: [FileEntry] = []
+            
+            for item in items {
+                let name = item.filename
+                if name == "." || name == ".." { continue }
+                
+                let type: FileEntryType = {
+                    if item.isDirectory { return .folder }
+                    if item.isSymlink { return .symlink }
+                    return .file
+                }()
+                
+                let itemPath = path.appendingPathComponent(name)
+                
+                entries.append(FileEntry(
+                    name: name,
+                    url: itemPath,
+                    type: type,
+                    size: Int64(item.size),
+                    modifiedDate: item.mtime,
+                    createdDate: item.createTime,
+                    isHidden: name.hasPrefix("."),
+                    permissions: String(format: "%o", item.permissions)
+                ))
+            }
+            
+            return entries
+        }.value
     }
     
     func stat(at path: URL) async throws -> FileEntry {

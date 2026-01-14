@@ -82,7 +82,17 @@ final class EndpointRegistry {
     
     private var endpoints: [FileEndpoint] = []
     
-    private init() {}
+    private init() {
+        // Self-register default endpoints at initialization
+        // This ensures endpoints are available for all file operations
+        registerDefaultEndpoints()
+    }
+    
+    /// Register default endpoints (local and SFTP)
+    private func registerDefaultEndpoints() {
+        endpoints.append(LocalEndpoint())
+        endpoints.append(SFTPEndpoint())
+    }
     
     /// Register an endpoint
     func register(_ endpoint: FileEndpoint) {
