@@ -343,6 +343,54 @@ class LocalFileOps: FileOps {
         }
     }
     
+    // MARK: - Copy Operation
+    
+    func copy(from source: URL, to destination: URL) async throws {
+        // Auto-rename if destination exists
+        let destDir = destination.deletingLastPathComponent()
+        let uniqueName = generateUniqueFileName(for: destination.lastPathComponent, in: destDir)
+        let finalDest = destDir.appendingPathComponent(uniqueName)
+        
+        try await Task.detached {
+            let coordinator = NSFileCoordinator(filePresenter: nil)
+            var coordinationError: NSError?
+            var fileError: Error?
+            
+            coordinator.coordinate(
+                readingItemAt: source, options: [],
+                writingItemAt: finalDest, options: .forReplacing,
+                error: &coordinationError
+            ) { src, dest in
+                do {
+                    try FileManager.default.copyItem(at: src, to: dest)
+                } catch {
+                    fileError = error
+                }
+            }
+            
+            if let error = coordinationError { throw error }
+            if let error = fileError { throw error }
+        }.value
+        
+        // Register undo
+        await MainActor.run { [weak self] in
+            self?.endpoint?.undoManager?.registerUndo(withTarget: self!) { ops in
+                Task {
+                    try? await ops.trash(at: finalDest)
+                }
+            }
+            self?.endpoint?.undoManager?.setActionName("Copy")
+        }
+    }
+    
+    // MARK: - Open File
+    
+    func openFile(at path: URL) async throws {
+        await MainActor.run {
+            NSWorkspace.shared.open(path)
+        }
+    }
+    
     // MARK: - Helpers (nonisolated)
     
     nonisolated private func generateUniqueFileName(for fileName: String, in directory: URL) -> String {

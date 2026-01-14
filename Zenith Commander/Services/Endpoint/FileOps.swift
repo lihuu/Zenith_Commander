@@ -65,6 +65,19 @@ protocol FileOps: AnyObject {
     /// - Parameter path: Path to delete
     func delete(at path: URL) async throws
     
+    /// Copy file/directory within same endpoint
+    /// If destination exists, auto-rename (e.g., "file Copy1.txt")
+    /// - Parameters:
+    ///   - source: Source path
+    ///   - destination: Destination path
+    func copy(from source: URL, to destination: URL) async throws
+    
+    /// Open file with system default application
+    /// For local files: opens directly
+    /// For remote files: TODO - download to temp and open
+    /// - Parameter path: Path to open
+    func openFile(at path: URL) async throws
+    
     // MARK: - Stream Operations (for transfers)
     
     /// Read file contents as async byte stream

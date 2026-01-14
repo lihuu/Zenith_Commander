@@ -2,7 +2,8 @@
 //  SFTPFileSystemProvider.swift
 //  Zenith Commander
 //
-//  Created by Zenith Commander on 2025/12/05.
+//  SFTP file system provider - bridges to Endpoint architecture
+//  All methods internally delegate to SFTPEndpoint/SFTPFileOps
 //
 
 import AppKit
@@ -11,6 +12,7 @@ import mft
 import os.log
 
 /// SFTP 文件系统提供者
+/// 现在内部使用 Endpoint 架构实现
 class SFTPFileSystemProvider: FileSystemProvider {
     var scheme: String { "sftp" }
 
@@ -92,236 +94,136 @@ class SFTPFileSystemProvider: FileSystemProvider {
     nonisolated func connection(for url: URL) throws -> MFTSftpConnection {
         try getOrCreateConnection(for: url)
     }
+    
+    // MARK: - Endpoint Access
+    
+    /// Get SFTPEndpoint from registry
+    @MainActor
+    private func getEndpoint(for url: URL) -> SFTPEndpoint? {
+        EndpointRegistry.shared.resolve(for: url) as? SFTPEndpoint
+    }
+    
+    /// Get FileOps from endpoint
+    @MainActor
+    private func getOps(for url: URL) -> FileOps? {
+        getEndpoint(for: url)?.ops
+    }
 
     // MARK: - FileSystemProvider Implementation
 
+    @MainActor
     func loadDirectory(at path: URL) async throws -> [FileItem] {
+        guard let ops = getOps(for: path) else {
+            throw NSError(domain: "SFTPFileSystemProvider", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "No endpoint available"])
+        }
+        
         Logger.fileSystem.debug("Loading SFTP directory: \(path.path)")
-        return try await Task.detached { [weak self] in
-            guard let self else { return [] }
-            let sftp = try getOrCreateConnection(for: path)
-
-            let remotePath = path.path
-            // mft contentsOfDirectory returns [MFTFileItem] (inferred name, checking README it says 'item.filename')
-            // README doesn't specify the type name, but let's assume it's something iterable.
-            // "let items = try sftp.contentsOfDirectory(atPath: "/tmp", maxItems: 0)"
-
-            let items = try sftp.contentsOfDirectory(
-                atPath: remotePath,
-                maxItems: 0
-            )
-
-            var fileItems: [FileItem] = []
-
-            for item in items {
-                let name = item.filename
-                if name == "." || name == ".." { continue }
-
-                let isDir = item.isDirectory
-                let isSymlink = item.isSymlink
-                let size = item.size
-                let modDate = item.mtime
-                let createDate = item.createTime
-                let perms = String(format: "%o", item.permissions)
-
-                let itemPath = path.appendingPathComponent(name)
-
-                let fileType: FileType = {
-                    if isDir { return .folder }
-                    if isSymlink { return .symlink }
-                    return .file
-                }()
-
-                let fileItem = FileItem(
-                    id: itemPath.absoluteString,
-                    name: name,
-                    path: itemPath,
-                    type: fileType,
-                    size: Int64(size),
-                    modifiedDate: modDate,
-                    createdDate: createDate,
-                    isHidden: name.hasPrefix("."),
-                    permissions: perms,
-                    fileExtension: URL(fileURLWithPath: name).pathExtension
-                )
-                fileItems.append(fileItem)
-            }
-
-            // Sort: Folders (including dir symlinks via isFolder) first, then name
-            var sortedFiles = fileItems.sorted { item1, item2 in
-                if item1.isFolder, !item2.isFolder {
-                    return true
-                } else if !item1.isFolder, item2.isFolder {
-                    return false
-                }
-                return item1.name.localizedCaseInsensitiveCompare(item2.name)
-                    == .orderedAscending
-            }
-
-            // 如果不是根目录，添加父目录项
-            if path.path != "/", !path.path.isEmpty {
-                let parentPath = path.deletingLastPathComponent()
-                let parentItem = FileItem.parentDirectoryItem(for: parentPath)
-                sortedFiles.insert(parentItem, at: 0)
-            }
-
-            return sortedFiles
-        }.value
+        
+        // 使用 Endpoint 的 list 方法获取 FileEntry
+        let entries = try await ops.list(at: path)
+        
+        // 转换为 FileItem
+        var items = entries.map { FileItem.fromEntry($0) }
+        
+        // 排序：文件夹优先，然后按名称
+        items.sort { item1, item2 in
+            if item1.isFolder && !item2.isFolder { return true }
+            if !item1.isFolder && item2.isFolder { return false }
+            return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+        }
+        
+        // 添加父目录项
+        if path.path != "/" && !path.path.isEmpty {
+            let parentPath = path.deletingLastPathComponent()
+            let parentItem = FileItem.parentDirectoryItem(for: parentPath)
+            items.insert(parentItem, at: 0)
+        }
+        
+        return items
     }
 
+    @MainActor
     func createDirectory(at path: URL, name: String) async throws -> FileItem {
-        try await Task.detached { [weak self] in
-            guard let self else {
-                throw NSError(domain: "SFTP", code: -1, userInfo: nil)
-            }
-            let sftp = try getOrCreateConnection(for: path)
-
-            let newPath = path.appendingPathComponent(name)
-            try sftp.createDirectory(atPath: newPath.path)
-
-            // Return a dummy item or fetch it?
-            // Constructing manually to save a roundtrip
-            return FileItem(
-                id: newPath.absoluteString,
-                name: name,
-                path: newPath,
-                type: .folder,
-                size: 0,
-                modifiedDate: Date(),
-                createdDate: Date(),
-                isHidden: name.hasPrefix("."),
-                permissions: "755",
-                fileExtension: ""
-            )
-        }.value
+        guard let ops = getOps(for: path) else {
+            throw NSError(domain: "SFTPFileSystemProvider", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "No endpoint available"])
+        }
+        
+        // 使用 Endpoint 创建目录
+        let newURL = try await ops.mkdir(at: path, name: name, recursive: false)
+        
+        // 使用 stat 获取完整信息并转换为 FileItem
+        let entry = try await ops.stat(at: newURL)
+        return FileItem.fromEntry(entry)
     }
 
+    @MainActor
     func createFile(at path: URL, name: String) async throws -> FileItem {
-        try await Task.detached { [weak self] in
-            guard let self else {
-                throw NSError(domain: "SFTP", code: -1, userInfo: nil)
-            }
-            let sftp = try getOrCreateConnection(for: path)
-
-            let newPath = path.appendingPathComponent(name)
-            // Create empty file
-            // mft write takes InputStream.
-            // Create an empty InputStream?
-            let data = Data()
-            let stream = InputStream(data: data)
-
-            // write(stream:toFileAtPath:append:progress:)
-            try sftp.write(
-                stream: stream,
-                toFileAtPath: newPath.path,
-                append: false
-            ) { _ in true }
-
-            return FileItem(
-                id: newPath.absoluteString,
-                name: name,
-                path: newPath,
-                type: .file,
-                size: 0,
-                modifiedDate: Date(),
-                createdDate: Date(),
-                isHidden: name.hasPrefix("."),
-                permissions: "644",
-                fileExtension: URL(fileURLWithPath: name).pathExtension
-            )
-        }.value
+        guard let ops = getOps(for: path) else {
+            throw NSError(domain: "SFTPFileSystemProvider", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "No endpoint available"])
+        }
+        
+        // 使用 Endpoint 创建文件
+        let newURL = try await ops.createFile(at: path, name: name)
+        
+        // 使用 stat 获取完整信息并转换为 FileItem
+        let entry = try await ops.stat(at: newURL)
+        return FileItem.fromEntry(entry)
     }
 
+    @MainActor
     func delete(items: [FileItem]) async throws {
-        try await Task.detached { [weak self] in
-            guard let self else { return }
-            if let first = items.first {
-                let sftp = try getOrCreateConnection(for: first.path)
-
-                for item in items {
-                    if item.type == .folder {
-                        try sftp.removeDirectory(atPath: item.path.path)
-                    } else {
-                        try sftp.removeFile(atPath: item.path.path)
-                    }
-                }
-            }
-        }.value
+        guard let first = items.first,
+              let ops = getOps(for: first.path) else {
+            return
+        }
+        
+        // 循环调用 Endpoint 的 delete 方法（SFTP 没有 trash）
+        for item in items {
+            try await ops.delete(at: item.path)
+        }
     }
 
+    @MainActor
     func move(items: [FileItem], to destination: URL) async throws {
-        try await Task.detached { [weak self] in
-            guard let self else { return }
-            if let first = items.first {
-                let sftp = try getOrCreateConnection(for: first.path)
-
-                for item in items {
-                    let destPath = destination.appendingPathComponent(item.name)
-                        .path
-                    try sftp.moveItem(atPath: item.path.path, toPath: destPath)
-                }
-            }
-        }.value
+        guard let first = items.first,
+              let ops = getOps(for: first.path) else {
+            return
+        }
+        
+        // 循环调用 Endpoint 的 rename 方法
+        for item in items {
+            let destPath = destination.appendingPathComponent(item.name)
+            try await ops.rename(from: item.path, to: destPath)
+        }
     }
 
+    @MainActor
     func copy(items: [FileItem], to destination: URL) async throws {
-        // SFTP usually doesn't support remote copy directly (depends on extension).
-        // mft capabilities say: "Copying items within the same SFTP server"
-        // So I assume there is a copyItem method.
-
-        try await Task.detached { [weak self] in
-            guard let self else { return }
-            if let first = items.first {
-                let sftp = try getOrCreateConnection(for: first.path)
-
-                for item in items {
-                    let destPath = destination.appendingPathComponent(item.name)
-                        .path
-                    // Assuming copyItem exists based on capabilities
-                    // If not, I might need to read/write (slow)
-                    // Let's try copyItem first.
-                    // If mft doesn't have copyItem, I'll have to implement download/upload loop?
-                    // README says "Copying items within the same SFTP server" is a capability.
-                    try sftp.copyItem(
-                        atPath: item.path.path,
-                        toFileAtPath: destPath,
-                        progress: nil
-                    )
-                }
-            }
-        }.value
+        guard let first = items.first,
+              let ops = getOps(for: first.path) else {
+            return
+        }
+        
+        // 循环调用 Endpoint 的 copy 方法
+        for item in items {
+            let destPath = destination.appendingPathComponent(item.name)
+            try await ops.copy(from: item.path, to: destPath)
+        }
     }
 
     func parentDirectory(of path: URL) -> URL {
         path.deletingLastPathComponent()
     }
 
+    @MainActor
     func openFile(_ file: FileItem) async {
-        // Download to temp and open
+        guard let ops = getOps(for: file.path) else { return }
+        
         do {
-            let sftp = try getOrCreateConnection(for: file.path)
-
-            let tempDir = FileManager.default.temporaryDirectory
-            let localURL = tempDir.appendingPathComponent(file.name)
-
-            // Download
-            // contents(atPath:toStream:fromPosition:progress:)
-            guard let outStream = OutputStream(url: localURL, append: false)
-            else { return }
-            outStream.open()
-
-            // Download - use synchronous call on detached task since sftp is non-Sendable
-            try sftp.contents(
-                atPath: file.path.path,
-                toStream: outStream,
-                fromPosition: 0
-            ) { _, _ in true }
-
-            outStream.close()
-
-            _ = await MainActor.run {
-                NSWorkspace.shared.open(localURL)
-            }
+            try await ops.openFile(at: file.path)
         } catch {
             Logger.fileSystem.error(
                 "Failed to open remote file: \(error.localizedDescription)"

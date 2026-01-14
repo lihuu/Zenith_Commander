@@ -252,6 +252,33 @@ class SFTPFileOps: FileOps {
             ) { _ in true }
         }.value
     }
+    
+    // MARK: - Copy Operation
+    
+    func copy(from source: URL, to destination: URL) async throws {
+        let sftp = try provider.connection(for: source)
+        
+        try await Task.detached {
+            // SFTP copyItem handles the copy within same server
+            try sftp.copyItem(
+                atPath: source.path,
+                toFileAtPath: destination.path,
+                progress: nil
+            )
+        }.value
+    }
+    
+    // MARK: - Open File
+    
+    func openFile(at path: URL) async throws {
+        // TODO: Remote file open - download to temp and open with NSWorkspace
+        // For now, throw not supported error
+        throw NSError(
+            domain: "SFTPFileOps",
+            code: -1,
+            userInfo: [NSLocalizedDescriptionKey: "Opening remote files is not yet supported. Download the file first."]
+        )
+    }
 }
 
 // MARK: - FileEntryType Conversion
