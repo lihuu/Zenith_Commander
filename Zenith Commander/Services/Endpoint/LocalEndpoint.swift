@@ -386,7 +386,7 @@ class LocalFileOps: FileOps {
     // MARK: - Open File
     
     func openFile(at path: URL) async throws {
-        await MainActor.run {
+        let _ = await MainActor.run {
             NSWorkspace.shared.open(path)
         }
     }

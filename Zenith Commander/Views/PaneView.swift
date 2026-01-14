@@ -655,12 +655,6 @@ struct PaneView: View {
                     // 成功传输，显示提示
                     let actionName = operation == .copy ? "Copied" : "Moved"
                     var message = "\(actionName) \(result.successCount) item(s)"
-                    
-                    // 如果是非本地传输，提示不支持撤销
-                    if !isLocalTransfer {
-                        message += " (Undo not supported for remote transfers)"
-                    }
-                    
                     appState.showToast(message)
                 }
                 
