@@ -67,10 +67,7 @@ Carthage/Build
 .swiftlint.yml
 /.idea/
 
-GEMINI.md
-AGENTS.md
 backup/
-*.md
 buildServer.json
 .vscode/settings.json
 
