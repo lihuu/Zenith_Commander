@@ -134,25 +134,60 @@ class FileSystemService {
 
     // MARK: - 目录操作
 
-    /// 加载目录内容（带权限检查）- 异步
+    /// 加载目录内容（带权限检查）- 使用新 Endpoint 架构
+    /// 通过 EndpointRegistry → FileOps.list() → FileItem.fromEntry()
+    @MainActor
     func loadDirectoryWithPermissionCheck(
         at path: URL,
         showHidden: Bool = false
     ) async -> DirectoryLoadResult {
-        let provider = getProvider(for: path)
-
+        // Use EndpointRegistry to resolve URL to FileEndpoint
+        guard let endpoint = EndpointRegistry.shared.resolve(for: path) else {
+            Logger.fileSystem.error("No endpoint found for URL: \(path)")
+            return .error(NSError(domain: "FileSystemService", code: -1,
+                                  userInfo: [NSLocalizedDescriptionKey: "No endpoint for URL"]))
+        }
+        
+        let ops = endpoint.ops
+        
         do {
-            let files = try await provider.loadDirectory(at: path)
-            // Filter hidden files if needed (though providers might handle this)
-            let filteredFiles = showHidden ? files : files.filter { !$0.isHidden }
-            return .success(filteredFiles)
+            // 1. Load via FileOps.list() → [FileEntry]
+            let entries = try await ops.list(at: path)
+            
+            // 2. Convert FileEntry → FileItem via fromEntry()
+            var items = entries.map { FileItem.fromEntry($0) }
+            
+            // 3. Filter hidden files if needed
+            if !showHidden {
+                items = items.filter { !$0.isHidden }
+            }
+            
+            // 4. Sort: folders first, then by name
+            items.sort { item1, item2 in
+                if item1.isFolder && !item2.isFolder { return true }
+                if !item1.isFolder && item2.isFolder { return false }
+                return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+            }
+            
+            // 5. Add parent directory item if not root
+            if path.standardizedFileURL.path != "/" {
+                let parentPath = path.deletingLastPathComponent()
+                let parentItem = FileItem.parentDirectoryItem(for: parentPath)
+                items.insert(parentItem, at: 0)
+            }
+            
+            return .success(items)
         } catch {
             // Handle specific errors
             let nsError = error as NSError
-            if nsError.domain == NSCocoaErrorDomain, nsError.code == NSFileReadNoPermissionError || nsError.code == 257 {
+            if nsError.domain == NSCocoaErrorDomain, 
+               nsError.code == NSFileReadNoPermissionError || nsError.code == 257 {
                 return .permissionDenied(path)
             }
             if nsError.domain == NSCocoaErrorDomain, nsError.code == NSFileReadNoSuchFileError {
+                return .notFound(path)
+            }
+            if nsError.domain == NSPOSIXErrorDomain, nsError.code == Int(ENOTDIR) {
                 return .notFound(path)
             }
             return .error(error)
@@ -160,6 +195,7 @@ class FileSystemService {
     }
 
     /// 加载目录内容（简单版本，兼容旧代码）- 异步
+    @MainActor
     func loadDirectory(at path: URL, showHidden: Bool = false) async
         -> [FileItem]
     {
