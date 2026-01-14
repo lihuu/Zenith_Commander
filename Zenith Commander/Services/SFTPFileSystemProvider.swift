@@ -5,6 +5,8 @@
 //  SFTP file system provider - bridges to Endpoint architecture
 //  All methods internally delegate to SFTPEndpoint/SFTPFileOps
 //
+//  Note: SFTPEndpoint is the low-level API, this provider calls it.
+//
 
 import AppKit
 import Foundation
@@ -15,85 +17,6 @@ import os.log
 /// 现在内部使用 Endpoint 架构实现
 class SFTPFileSystemProvider: FileSystemProvider {
     var scheme: String { "sftp" }
-
-    // Cache connections by "user@host:port" key
-    // Using nonisolated(unsafe) because MFTSftpConnection is not Sendable,
-    // but we ensure thread safety via connectionLock
-    private nonisolated(unsafe) var connections: [String: MFTSftpConnection] = [:]
-    private let connectionLock = NSLock()
-
-    // MARK: - Connection Management
-
-    private nonisolated func getConnectionKey(for url: URL) -> String {
-        let user = url.user ?? ""
-        let host = url.host ?? ""
-        let port = url.port ?? 22
-        return "\(user)@\(host):\(port)"
-    }
-
-    private nonisolated func getOrCreateConnection(for url: URL) throws -> MFTSftpConnection
-    {
-        let key = getConnectionKey(for: url)
-
-        connectionLock.lock()
-        if let existing = connections[key] {
-            connectionLock.unlock()
-            return existing
-        }
-        connectionLock.unlock()
-
-        // Create new connection
-        guard let host = url.host else {
-            throw NSError(
-                domain: "SFTPFileSystemProvider",
-                code: 1,
-                userInfo: [NSLocalizedDescriptionKey: "Missing host"]
-            )
-        }
-
-        let port = url.port ?? 22
-        let username = url.user ?? ""
-        let password = url.password ?? ""
-
-        Logger.fileSystem.debug(
-            "Connecting to SFTP: \(username)@\(host):\(port)"
-        )
-
-        let sftp = MFTSftpConnection(
-            hostname: host,
-            port: port,
-            username: username,
-            password: password
-        )
-
-        do {
-            try sftp.connect()
-            try sftp.authenticate()
-
-            connectionLock.lock()
-            connections[key] = sftp
-            connectionLock.unlock()
-            Logger.fileSystem.debug(
-                "Connected to SFTP: \(username)@\(host):\(port)"
-            )
-
-            return sftp
-        } catch {
-            Logger.fileSystem.error(
-                "SFTP Connection failed: \(error.localizedDescription)"
-            )
-            throw error
-        }
-    }
-
-    // MARK: - Public Connection Access
-    
-    /// 获取或创建 SFTP 连接（供内部传输使用）
-    /// - Parameter url: SFTP URL
-    /// - Returns: SFTP 连接
-    nonisolated func connection(for url: URL) throws -> MFTSftpConnection {
-        try getOrCreateConnection(for: url)
-    }
     
     // MARK: - Endpoint Access
     
@@ -107,6 +30,16 @@ class SFTPFileSystemProvider: FileSystemProvider {
     @MainActor
     private func getOps(for url: URL) -> FileOps? {
         getEndpoint(for: url)?.ops
+    }
+    
+    /// Get connection from endpoint (for backward compatibility)
+    @MainActor
+    func connection(for url: URL) throws -> MFTSftpConnection {
+        guard let endpoint = getEndpoint(for: url) else {
+            throw NSError(domain: "SFTPFileSystemProvider", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "No endpoint available"])
+        }
+        return try endpoint.connection(for: url)
     }
 
     // MARK: - FileSystemProvider Implementation

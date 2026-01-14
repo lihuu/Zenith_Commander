@@ -3,11 +3,13 @@
 //  Zenith Commander
 //
 //  SFTP file system endpoint implementation.
-//  Wraps SFTPFileSystemProvider and provides FileOps interface.
+//  Self-contained with connection management - does NOT depend on SFTPFileSystemProvider.
+//  SFTPFileSystemProvider should call this, not vice versa.
 //
 
 import Foundation
 import mft
+import os.log
 
 /// SFTP file system endpoint
 /// Handles sftp:// URLs and remote SFTP operations
@@ -17,14 +19,19 @@ class SFTPEndpoint: FileEndpoint {
     /// Endpoint kind - empty host means "generic SFTP handler for any host"
     let kind: EndpointKind
     
-    /// The underlying SFTPFileSystemProvider
-    private let provider = SFTPFileSystemProvider()
-    
     /// FileOps adapter for SFTP operations
     /// Stable instance, reused for the lifetime of this endpoint
-    private lazy var _ops: SFTPFileOps = SFTPFileOps(provider: provider)
+    private lazy var _ops: SFTPFileOps = SFTPFileOps(endpoint: self)
     
     var ops: FileOps { _ops }
+    
+    // MARK: - Connection Management
+    
+    /// Cache connections by "user@host:port" key
+    /// Using nonisolated(unsafe) because MFTSftpConnection is not Sendable,
+    /// but we ensure thread safety via connectionLock
+    private nonisolated(unsafe) var connections: [String: MFTSftpConnection] = [:]
+    private let connectionLock = NSLock()
     
     /// Create a generic SFTP endpoint (handles any SFTP host)
     init() {
@@ -52,28 +59,101 @@ class SFTPEndpoint: FileEndpoint {
         return false
     }
     
-    /// Get SFTP connection for direct access (used by pipeline)
-    func connection(for url: URL) throws -> MFTSftpConnection {
-        try provider.connection(for: url)
+    // MARK: - Connection Access
+    
+    nonisolated private func getConnectionKey(for url: URL) -> String {
+        let user = url.user ?? ""
+        let host = url.host ?? ""
+        let port = url.port ?? 22
+        return "\(user)@\(host):\(port)"
+    }
+    
+    /// Get or create SFTP connection for URL
+    nonisolated func connection(for url: URL) throws -> MFTSftpConnection {
+        let key = getConnectionKey(for: url)
+        
+        connectionLock.lock()
+        if let existing = connections[key] {
+            connectionLock.unlock()
+            return existing
+        }
+        connectionLock.unlock()
+        
+        // Create new connection
+        guard let host = url.host else {
+            throw NSError(
+                domain: "SFTPEndpoint",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Missing host"]
+            )
+        }
+        
+        let port = url.port ?? 22
+        let username = url.user ?? ""
+        let password = url.password ?? ""
+        
+        Logger.fileSystem.debug(
+            "Connecting to SFTP: \(username)@\(host):\(port)"
+        )
+        
+        let sftp = MFTSftpConnection(
+            hostname: host,
+            port: port,
+            username: username,
+            password: password
+        )
+        
+        do {
+            try sftp.connect()
+            try sftp.authenticate()
+            
+            connectionLock.lock()
+            connections[key] = sftp
+            connectionLock.unlock()
+            Logger.fileSystem.debug(
+                "Connected to SFTP: \(username)@\(host):\(port)"
+            )
+            
+            return sftp
+        } catch {
+            Logger.fileSystem.error(
+                "SFTP Connection failed: \(error.localizedDescription)"
+            )
+            throw error
+        }
     }
 }
 
 /// SFTP file operations implementation
+/// Self-contained - uses SFTPEndpoint directly, no provider dependency
 class SFTPFileOps: FileOps {
-    private let provider: SFTPFileSystemProvider
+    private weak var endpoint: SFTPEndpoint?
     
-    init(provider: SFTPFileSystemProvider) {
-        self.provider = provider
+    init(endpoint: SFTPEndpoint) {
+        self.endpoint = endpoint
+    }
+    
+    // MARK: - Connection Helper
+    
+    private func getConnection(for url: URL) throws -> MFTSftpConnection {
+        guard let endpoint = endpoint else {
+            throw NSError(domain: "SFTPFileOps", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Endpoint deallocated"])
+        }
+        return try endpoint.connection(for: url)
     }
     
     // MARK: - Directory Operations
     
     func list(at path: URL) async throws -> [FileEntry] {
-        // Use direct MFT connection to avoid recursive call
-        // (provider.loadDirectory() now calls this method)
-        let sftp = try provider.connection(for: path)
+        // Capture what we need before Task.detached
+        guard let endpoint = endpoint else {
+            throw NSError(domain: "SFTPFileOps", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Endpoint deallocated"])
+        }
         
-        return try await Task.detached {
+        return try await Task.detached { [endpoint] in
+            let sftp = try endpoint.connection(for: path)
             let remotePath = path.path
             let items = try sftp.contentsOfDirectory(atPath: remotePath, maxItems: 0)
             
@@ -108,13 +188,15 @@ class SFTPFileOps: FileOps {
     }
     
     func stat(at path: URL) async throws -> FileEntry {
-        // SFTP doesn't have a direct stat method in MFT
-        // List the parent directory and filter for the target file
-        let sftp = try provider.connection(for: path)
+        guard let endpoint = endpoint else {
+            throw NSError(domain: "SFTPFileOps", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Endpoint deallocated"])
+        }
         let parentPath = path.deletingLastPathComponent().path
         let targetName = path.lastPathComponent
         
-        return try await Task.detached {
+        return try await Task.detached { [endpoint] in
+            let sftp = try endpoint.connection(for: path)
             let items = try sftp.contentsOfDirectory(atPath: parentPath, maxItems: 0)
             
             guard let item = items.first(where: { $0.filename == targetName }) else {
@@ -128,14 +210,12 @@ class SFTPFileOps: FileOps {
                 return .file
             }()
             
-            // Create FileEntry with all values captured inside detached task
             let name = item.filename
             let size = Int64(item.size)
             let modDate = item.mtime
             let createDate = item.createTime
             let isHidden = item.filename.hasPrefix(".")
             let perms = String(format: "%o", item.permissions)
-            let ext = path.pathExtension
             
             return FileEntry(
                 name: name,
@@ -162,20 +242,50 @@ class SFTPFileOps: FileOps {
     // MARK: - Create Operations
     
     func mkdir(at path: URL, name: String, recursive: Bool) async throws -> URL {
-        let item = try await provider.createDirectory(at: path, name: name)
-        return item.path
+        guard let endpoint = endpoint else {
+            throw NSError(domain: "SFTPFileOps", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Endpoint deallocated"])
+        }
+        let newPath = path.appendingPathComponent(name)
+        
+        try await Task.detached { [endpoint] in
+            let sftp = try endpoint.connection(for: path)
+            try sftp.createDirectory(atPath: newPath.path)
+        }.value
+        
+        return newPath
     }
     
     func createFile(at path: URL, name: String) async throws -> URL {
-        let item = try await provider.createFile(at: path, name: name)
-        return item.path
+        guard let endpoint = endpoint else {
+            throw NSError(domain: "SFTPFileOps", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Endpoint deallocated"])
+        }
+        let newPath = path.appendingPathComponent(name)
+        
+        try await Task.detached { [endpoint] in
+            let sftp = try endpoint.connection(for: path)
+            let data = Data()
+            let stream = InputStream(data: data)
+            try sftp.write(
+                stream: stream,
+                toFileAtPath: newPath.path,
+                append: false
+            ) { _ in true }
+        }.value
+        
+        return newPath
     }
     
     // MARK: - Modify Operations
     
     func rename(from source: URL, to destination: URL) async throws {
-        let sftp = try provider.connection(for: source)
-        try await Task.detached {
+        guard let endpoint = endpoint else {
+            throw NSError(domain: "SFTPFileOps", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Endpoint deallocated"])
+        }
+        try await Task.detached { [endpoint] in
+            let sftp = try endpoint.connection(for: source)
             try sftp.moveItem(atPath: source.path, toPath: destination.path)
         }.value
     }
@@ -186,13 +296,15 @@ class SFTPFileOps: FileOps {
     }
     
     func delete(at path: URL) async throws {
-        let sftp = try provider.connection(for: path)
-        
-        // Get file info to determine if directory
+        guard let endpoint = endpoint else {
+            throw NSError(domain: "SFTPFileOps", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Endpoint deallocated"])
+        }
         let entry = try await stat(at: path)
-        let isFolder = entry.type == .folder  // Capture value before detached task
+        let isFolder = entry.type == .folder
         
-        try await Task.detached {
+        try await Task.detached { [endpoint] in
+            let sftp = try endpoint.connection(for: path)
             if isFolder {
                 try sftp.removeDirectory(atPath: path.path)
             } else {
@@ -204,27 +316,30 @@ class SFTPFileOps: FileOps {
     // MARK: - Stream Operations
     
     func read(from path: URL) async throws -> AsyncThrowingStream<Data, Error> {
-        AsyncThrowingStream { continuation in
-            Task {
+        guard let endpoint = endpoint else {
+            throw NSError(domain: "SFTPFileOps", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Endpoint deallocated"])
+        }
+        
+        return AsyncThrowingStream { continuation in
+            Task.detached { [endpoint] in
                 do {
-                    let sftp = try provider.connection(for: path)
+                    let sftp = try endpoint.connection(for: path)
                     
                     let tempFile = FileManager.default.temporaryDirectory
                         .appendingPathComponent(UUID().uuidString)
                     
-                    try await Task.detached {
-                        guard let outputStream = OutputStream(url: tempFile, append: false) else {
-                            throw NSError(domain: "SFTP", code: -1, userInfo: [NSLocalizedDescriptionKey: "Cannot create output stream"])
-                        }
-                        outputStream.open()
-                        defer { outputStream.close() }
-                        
-                        try sftp.contents(
-                            atPath: path.path,
-                            toStream: outputStream,
-                            fromPosition: 0
-                        ) { _, _ in true }
-                    }.value
+                    guard let outputStream = OutputStream(url: tempFile, append: false) else {
+                        throw NSError(domain: "SFTP", code: -1, userInfo: [NSLocalizedDescriptionKey: "Cannot create output stream"])
+                    }
+                    outputStream.open()
+                    defer { outputStream.close() }
+                    
+                    try sftp.contents(
+                        atPath: path.path,
+                        toStream: outputStream,
+                        fromPosition: 0
+                    ) { _, _ in true }
                     
                     let data = try Data(contentsOf: tempFile)
                     try? FileManager.default.removeItem(at: tempFile)
@@ -245,6 +360,11 @@ class SFTPFileOps: FileOps {
     }
     
     func write(to path: URL, data: AsyncThrowingStream<Data, Error>) async throws {
+        guard let endpoint = endpoint else {
+            throw NSError(domain: "SFTPFileOps", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Endpoint deallocated"])
+        }
+        
         var allData = Data()
         for try await chunk in data {
             allData.append(chunk)
@@ -255,8 +375,8 @@ class SFTPFileOps: FileOps {
         try allData.write(to: tempFile)
         defer { try? FileManager.default.removeItem(at: tempFile) }
         
-        try await Task.detached { [provider] in
-            let sftp = try provider.connection(for: path)
+        try await Task.detached { [endpoint] in
+            let sftp = try endpoint.connection(for: path)
             
             guard let inputStream = InputStream(url: tempFile) else {
                 throw NSError(domain: "SFTP", code: -1, userInfo: [NSLocalizedDescriptionKey: "Cannot create input stream"])
@@ -275,10 +395,13 @@ class SFTPFileOps: FileOps {
     // MARK: - Copy Operation
     
     func copy(from source: URL, to destination: URL) async throws {
-        let sftp = try provider.connection(for: source)
+        guard let endpoint = endpoint else {
+            throw NSError(domain: "SFTPFileOps", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Endpoint deallocated"])
+        }
         
-        try await Task.detached {
-            // SFTP copyItem handles the copy within same server
+        try await Task.detached { [endpoint] in
+            let sftp = try endpoint.connection(for: source)
             try sftp.copyItem(
                 atPath: source.path,
                 toFileAtPath: destination.path,
@@ -291,7 +414,6 @@ class SFTPFileOps: FileOps {
     
     func openFile(at path: URL) async throws {
         // TODO: Remote file open - download to temp and open with NSWorkspace
-        // For now, throw not supported error
         throw NSError(
             domain: "SFTPFileOps",
             code: -1,
