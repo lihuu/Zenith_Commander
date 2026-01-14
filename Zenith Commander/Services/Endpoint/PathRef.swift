@@ -19,8 +19,10 @@ struct PathRef {
     let endpoint: FileEndpoint
     
     /// Create a PathRef by resolving the URL to an endpoint
+    /// Must be called on MainActor since registry is MainActor-isolated
     /// - Parameter url: URL to wrap
     /// - Returns: PathRef if endpoint found, nil otherwise
+    @MainActor
     static func from(_ url: URL) -> PathRef? {
         guard let endpoint = EndpointRegistry.shared.resolve(for: url) else {
             return nil
@@ -37,13 +39,15 @@ struct PathRef {
     // MARK: - Convenience Properties
     
     /// Get FileOps for this path
+    @MainActor
     var ops: FileOps {
         endpoint.ops
     }
     
-    /// Protocol scheme
-    var scheme: String {
-        endpoint.scheme
+    /// Endpoint kind for routing decisions
+    @MainActor
+    var kind: EndpointKind {
+        endpoint.kind
     }
     
     /// File/directory name
@@ -61,14 +65,14 @@ struct PathRef {
         PathRef(url: url.appendingPathComponent(component), endpoint: endpoint)
     }
     
-    /// Check if this is a local file
+    /// Check if this is a local file (based on URL scheme, no endpoint access needed)
     var isLocal: Bool {
-        scheme == "file" || url.isFileURL
+        url.isLocal
     }
     
-    /// Check if source and destination share the same endpoint type
+    /// Check if source and destination share the same endpoint instance
     func isSameEndpoint(as other: PathRef) -> Bool {
-        scheme == other.scheme
+        endpoint === other.endpoint
     }
 }
 
@@ -76,13 +80,13 @@ struct PathRef {
 
 extension PathRef: Equatable {
     static func == (lhs: PathRef, rhs: PathRef) -> Bool {
-        lhs.url == rhs.url && lhs.scheme == rhs.scheme
+        lhs.url == rhs.url && lhs.endpoint === rhs.endpoint
     }
 }
 
 extension PathRef: Hashable {
     func hash(into hasher: inout Hasher) {
         hasher.combine(url)
-        hasher.combine(scheme)
+        hasher.combine(ObjectIdentifier(endpoint))
     }
 }

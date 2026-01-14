@@ -11,25 +11,47 @@ import mft
 
 /// SFTP file system endpoint
 /// Handles sftp:// URLs and remote SFTP operations
+/// Does NOT implement UndoSupportingEndpoint - undo not supported for remote operations
 class SFTPEndpoint: FileEndpoint {
-    let scheme = "sftp"
-    
-    /// SFTP doesn't support local undo
-    var undoManager: UndoManager? {
-        get { nil }
-        set { /* no-op */ }
-    }
+    /// Endpoint kind - empty host means "generic SFTP handler for any host"
+    let kind: EndpointKind
     
     /// The underlying SFTPFileSystemProvider
     private let provider = SFTPFileSystemProvider()
     
     /// FileOps adapter for SFTP operations
+    /// Stable instance, reused for the lifetime of this endpoint
     private lazy var _ops: SFTPFileOps = SFTPFileOps(provider: provider)
     
     var ops: FileOps { _ops }
     
+    /// Create a generic SFTP endpoint (handles any SFTP host)
+    init() {
+        // Empty host = generic handler for any SFTP URL
+        self.kind = .sftp(host: "", port: 22)
+    }
+    
+    /// Create an SFTP endpoint for a specific host
+    init(host: String, port: Int = 22) {
+        self.kind = .sftp(host: host, port: port)
+    }
+    
     func canHandle(_ url: URL) -> Bool {
-        url.scheme?.lowercased() == "sftp"
+        guard url.scheme?.lowercased() == "sftp" else { return false }
+        
+        // If this is a generic handler (empty host), accept any SFTP URL
+        if case .sftp(let host, _) = kind, host.isEmpty {
+            return true
+        }
+        
+        // Otherwise, check specific host match
+        if case .sftp(let eHost, let ePort) = kind {
+            let urlHost = url.host ?? ""
+            let urlPort = url.port ?? 22
+            return eHost == urlHost && ePort == urlPort
+        }
+        
+        return false
     }
     
     /// Get SFTP connection for direct access (used by pipeline)

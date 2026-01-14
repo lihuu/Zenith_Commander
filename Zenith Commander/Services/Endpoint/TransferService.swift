@@ -20,6 +20,7 @@ typealias TransferOperation = TransferOp
 
 /// Unified transfer service
 /// Single entry point for all file transfers across any protocol combination.
+@MainActor
 class TransferService {
     static let shared = TransferService()
     
@@ -65,19 +66,27 @@ class TransferService {
             sourceRefs.append(ref)
         }
         
-        // Inject undo manager for local endpoints
+        // Inject undo manager only for endpoints that support it
         if let undoManager = undoManager {
-            destRef.endpoint.undoManager = undoManager
+            if let undoEndpoint = destRef.endpoint as? UndoSupportingEndpoint {
+                undoEndpoint.undoManager = undoManager
+            }
             for ref in sourceRefs {
-                ref.endpoint.undoManager = undoManager
+                if let undoEndpoint = ref.endpoint as? UndoSupportingEndpoint {
+                    undoEndpoint.undoManager = undoManager
+                }
             }
         }
         
         defer {
-            // Clear undo managers
-            destRef.endpoint.undoManager = nil
+            // Clear undo managers only for endpoints that support it
+            if let undoEndpoint = destRef.endpoint as? UndoSupportingEndpoint {
+                undoEndpoint.undoManager = nil
+            }
             for ref in sourceRefs {
-                ref.endpoint.undoManager = nil
+                if let undoEndpoint = ref.endpoint as? UndoSupportingEndpoint {
+                    undoEndpoint.undoManager = nil
+                }
             }
         }
         

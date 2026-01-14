@@ -10,16 +10,19 @@ import Foundation
 
 /// Local file system endpoint
 /// Handles file:// URLs and local file operations
-class LocalEndpoint: FileEndpoint {
-    let scheme = "file"
+/// Implements UndoSupportingEndpoint for reversible operations
+class LocalEndpoint: FileEndpoint, UndoSupportingEndpoint {
+    /// Local endpoint kind - singleton pattern
+    let kind: EndpointKind = .local
     
-    /// Undo manager for local operations (user decision: stays in LocalFileOps)
+    /// Undo manager for local operations (per UndoSupportingEndpoint)
     var undoManager: UndoManager?
     
     /// The underlying LocalFileSystemProvider
     private let provider = LocalFileSystemProvider()
     
     /// FileOps adapter for local operations
+    /// Stable instance, reused for the lifetime of this endpoint
     private lazy var _ops: LocalFileOps = LocalFileOps(endpoint: self, provider: provider)
     
     var ops: FileOps { _ops }
@@ -74,7 +77,7 @@ class LocalFileOps: FileOps {
         // Use provider's delete for undo support
         if let undoManager = endpoint?.undoManager {
             provider.undoManager = undoManager
-            defer { provider.undoManager = nil }
+            do { provider.undoManager = nil }
         }
         
         guard let item = FileItem.fromURL(path) else {
@@ -95,7 +98,7 @@ class LocalFileOps: FileOps {
     func createDirectory(at path: URL, name: String) async throws -> URL {
         if let undoManager = endpoint?.undoManager {
             provider.undoManager = undoManager
-            defer { provider.undoManager = nil }
+            do { provider.undoManager = nil }
         }
         let item = try await provider.createDirectory(at: path, name: name)
         return item.path
@@ -104,7 +107,7 @@ class LocalFileOps: FileOps {
     func createFile(at path: URL, name: String) async throws -> URL {
         if let undoManager = endpoint?.undoManager {
             provider.undoManager = undoManager
-            defer { provider.undoManager = nil }
+            do { provider.undoManager = nil }
         }
         let item = try await provider.createFile(at: path, name: name)
         return item.path
@@ -122,7 +125,7 @@ extension LocalFileOps {
     func move(items: [FileItem], to destination: URL) async throws {
         if let undoManager = endpoint?.undoManager {
             provider.undoManager = undoManager
-            defer { provider.undoManager = nil }
+            do { provider.undoManager = nil }
         }
         try await provider.move(items: items, to: destination)
     }
@@ -131,7 +134,7 @@ extension LocalFileOps {
     func copy(items: [FileItem], to destination: URL) async throws {
         if let undoManager = endpoint?.undoManager {
             provider.undoManager = undoManager
-            defer { provider.undoManager = nil }
+            do { provider.undoManager = nil }
         }
         try await provider.copy(items: items, to: destination)
     }
