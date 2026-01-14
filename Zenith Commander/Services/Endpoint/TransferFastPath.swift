@@ -12,6 +12,7 @@ import os.log
 /// Fast path for optimized same-endpoint transfers
 /// Used when source and destination are on the same file system
 /// and native operations are more efficient than streaming.
+@MainActor
 class TransferFastPath {
     
     /// Check if fast path is available for this transfer
@@ -21,7 +22,7 @@ class TransferFastPath {
     }
     
     /// Execute fast path transfer
-    /// - Returns: true if handled, false to fall back to generic pipeline
+    /// - Returns: result if handled, nil to fall back to generic pipeline
     func transfer(
         sources: [PathRef],
         to destination: PathRef,
@@ -37,23 +38,29 @@ class TransferFastPath {
             return nil
         }
         
-        let items = sources.compactMap { FileItem.fromURL($0.url) }
-        guard items.count == sources.count else {
-            return nil // Some items couldn't be converted
+        // Convert PathRefs to FileEntries using stat
+        var entries: [FileEntry] = []
+        for source in sources {
+            do {
+                let entry = try await source.ops.stat(at: source.url)
+                entries.append(entry)
+            } catch {
+                return nil // Fall back to pipeline if stat fails
+            }
         }
         
         do {
             if isMove {
-                try await localOps.move(items: items, to: destination.url)
+                try await localOps.move(items: entries, to: destination.url)
             } else {
-                try await localOps.copy(items: items, to: destination.url)
+                try await localOps.copy(items: entries, to: destination.url)
             }
             
             Logger.fileSystem.debug(
-                "FastPath \(isMove ? "move" : "copy"): \(items.count) items -> \(destination.url.path)"
+                "FastPath \(isMove ? "move" : "copy"): \(entries.count) items -> \(destination.url.path)"
             )
             
-            return .success(count: items.count)
+            return .success(count: entries.count)
         } catch {
             Logger.fileSystem.error(
                 "FastPath failed, falling back to pipeline: \(error.localizedDescription)"

@@ -138,9 +138,10 @@ class GenericTransferPipeline {
         progress: TransferPipelineProgress?
     ) async throws {
         // Create destination directory
-        let destDir = try await destination.ops.createDirectory(
+        _ = try await destination.ops.mkdir(
             at: destination.url,
-            name: source.name
+            name: source.name,
+            recursive: false
         )
         let destDirRef = destination.appending(source.name)
         

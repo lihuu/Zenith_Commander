@@ -2,21 +2,34 @@
 //  FileItem.swift
 //  Zenith Commander
 //
-//  文件系统项模型
+//  UI display model for file system entries.
+//  Contains only UI properties - NO IO operations.
+//  Use FileItem.fromEntry() to create from FileEntry.
 //
 
 import Foundation
 import UniformTypeIdentifiers
 
-/// 文件类型枚举
+/// 文件类型枚举 (kept for backward compatibility)
 enum FileType: String, Codable {
     case folder
     case file
     case symlink
     case unknown
+    
+    /// Convert from FileEntryType
+    init(from entryType: FileEntryType) {
+        switch entryType {
+        case .folder: self = .folder
+        case .file: self = .file
+        case .symlink: self = .symlink
+        case .unknown: self = .unknown
+        }
+    }
 }
 
-/// 文件项模型
+/// 文件项模型 - UI展示用
+/// 不包含任何IO操作，所有文件系统操作通过FileOps进行
 struct FileItem: Identifiable, Hashable {
     let id: String
     let name: String
@@ -112,7 +125,29 @@ struct FileItem: Identifiable, Hashable {
         }
     }
 
-    /// 从 URL 创建 FileItem
+    // MARK: - Factory Methods
+    
+    /// 从 FileEntry 创建 FileItem (推荐方式)
+    /// - Parameter entry: FileEntry from FileOps
+    /// - Returns: FileItem for UI display
+    static func fromEntry(_ entry: FileEntry) -> FileItem {
+        FileItem(
+            id: entry.url.path,
+            name: entry.name,
+            path: entry.url,
+            type: FileType(from: entry.type),
+            size: entry.size ?? 0,
+            modifiedDate: entry.modifiedDate ?? Date(),
+            createdDate: entry.createdDate ?? Date(),
+            isHidden: entry.isHidden,
+            permissions: entry.permissions ?? "",
+            fileExtension: entry.fileExtension
+        )
+    }
+    
+    /// 从 URL 创建 FileItem (已废弃，仅内部使用)
+    /// - Warning: 此方法将在未来版本移除，请使用 fromEntry()
+    @available(*, deprecated, message: "Use fromEntry() instead. This method will be removed.")
     nonisolated static func fromURL(_ url: URL) -> FileItem? {
         let fileManager = FileManager.default
 
@@ -156,7 +191,7 @@ struct FileItem: Identifiable, Hashable {
         let isHidden = name.hasPrefix(".")
 
         return FileItem(
-            id: url.path,  // Ensure stable ID using path
+            id: url.path,
             name: name,
             path: url,
             type: fileType,
@@ -192,22 +227,12 @@ struct FileItem: Identifiable, Hashable {
         id == ".." && name == ".."
     }
 
+    /// 是否是文件夹（基于类型，不做IO检查）
     nonisolated var isFolder: Bool {
-        if type == .folder { return true }
-
-        // Treat symlink pointing to a directory as a folder for navigation
-        if type == .symlink {
-            var isDir: ObjCBool = false
-            let resolvedPath = path.resolvingSymlinksInPath().path
-            if FileManager.default.fileExists(atPath: resolvedPath, isDirectory: &isDir) {
-                return isDir.boolValue
-            }
-        }
-        return false
+        type == .folder
     }
 
-    var isSymlink: Bool {
+    nonisolated var isSymlink: Bool {
         type == .symlink
     }
 }
-
