@@ -21,6 +21,7 @@ struct LocalToLocalTransfer: FileTransferHandler {
         sources: [URL],
         to destination: URL,
         operation: TransferOperation,
+        undoManager: UndoManager?,
         progress: TransferProgressHandler?
     ) async throws -> TransferResult {
         // 验证目标是目录
@@ -33,6 +34,10 @@ struct LocalToLocalTransfer: FileTransferHandler {
         var successCount = 0
         var errors: [Error] = []
         
+        // 使用 LocalFileSystemProvider 以支持撤销
+        let provider = LocalFileSystemProvider()
+        provider.undoManager = undoManager
+        
         for source in sources {
             do {
                 // 验证源文件存在
@@ -40,23 +45,24 @@ struct LocalToLocalTransfer: FileTransferHandler {
                     throw TransferError.sourceNotFound(source)
                 }
                 
-                // 目标路径
-                let destURL = destination.appendingPathComponent(source.lastPathComponent)
-                let uniqueDestURL = generateUniqueURL(for: destURL)
+                // 转换 URL 为 FileItem
+                guard let item = FileItem.fromURL(source) else {
+                    throw TransferError.sourceNotFound(source)
+                }
                 
                 // 判断是否同目录（同目录只能复制）
                 let isSameDirectory = source.deletingLastPathComponent() == destination
                 let shouldCopy = operation == .copy || isSameDirectory
                 
                 if shouldCopy {
-                    try fileManager.copyItem(at: source, to: uniqueDestURL)
+                    try await provider.copy(items: [item], to: destination)
                 } else {
-                    try fileManager.moveItem(at: source, to: uniqueDestURL)
+                    try await provider.move(items: [item], to: destination)
                 }
                 
                 successCount += 1
                 Logger.fileSystem.debug(
-                    "Local transfer success: \(source.lastPathComponent) -> \(uniqueDestURL.path)"
+                    "Local transfer success: \(source.lastPathComponent) -> \(destination.path)"
                 )
             } catch {
                 Logger.fileSystem.error(
@@ -72,24 +78,5 @@ struct LocalToLocalTransfer: FileTransferHandler {
             errors: errors
         )
     }
-    
-    /// 生成唯一的目标 URL（如果已存在同名文件）
-    private func generateUniqueURL(for url: URL) -> URL {
-        var resultURL = url
-        var counter = 1
-        
-        let baseName = url.deletingPathExtension().lastPathComponent
-        let ext = url.pathExtension
-        let parentDir = url.deletingLastPathComponent()
-        
-        while fileManager.fileExists(atPath: resultURL.path) {
-            let newName = ext.isEmpty
-                ? "\(baseName) \(counter)"
-                : "\(baseName) \(counter).\(ext)"
-            resultURL = parentDir.appendingPathComponent(newName)
-            counter += 1
-        }
-        
-        return resultURL
-    }
 }
+

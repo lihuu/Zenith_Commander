@@ -22,6 +22,7 @@ struct SFTPToLocalTransfer: FileTransferHandler {
         sources: [URL],
         to destination: URL,
         operation: TransferOperation,
+        undoManager: UndoManager?,
         progress: TransferProgressHandler?
     ) async throws -> TransferResult {
         // 验证目标是目录

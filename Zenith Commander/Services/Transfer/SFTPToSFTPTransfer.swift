@@ -22,6 +22,7 @@ struct SFTPToSFTPTransfer: FileTransferHandler {
         sources: [URL],
         to destination: URL,
         operation: TransferOperation,
+        undoManager: UndoManager?,
         progress: TransferProgressHandler?
     ) async throws -> TransferResult {
         var successCount = 0
@@ -133,6 +134,7 @@ struct SFTPToSFTPTransfer: FileTransferHandler {
             sources: [source],
             to: tempDir,
             operation: operation == .move ? .move : .copy,
+            undoManager: nil,
             progress: progress
         )
         
@@ -147,6 +149,7 @@ struct SFTPToSFTPTransfer: FileTransferHandler {
             sources: [localFile],
             to: destination,
             operation: .move, // 总是移动临时文件
+            undoManager: nil,
             progress: progress
         )
         

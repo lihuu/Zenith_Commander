@@ -58,12 +58,14 @@ protocol FileTransferHandler {
     ///   - sources: 源文件 URL 列表
     ///   - destination: 目标目录 URL
     ///   - operation: 传输操作类型（复制/移动）
+    ///   - undoManager: 撤销管理器（可选，用于本地操作的撤销支持）
     ///   - progress: 进度回调（可选）
     /// - Returns: 传输结果
     func transfer(
         sources: [URL],
         to destination: URL,
         operation: TransferOperation,
+        undoManager: UndoManager?,
         progress: TransferProgressHandler?
     ) async throws -> TransferResult
 }
@@ -75,12 +77,14 @@ extension FileTransferHandler {
     func transfer(
         sources: [URL],
         to destination: URL,
-        operation: TransferOperation
+        operation: TransferOperation,
+        undoManager: UndoManager? = nil
     ) async throws -> TransferResult {
         try await transfer(
             sources: sources,
             to: destination,
             operation: operation,
+            undoManager: undoManager,
             progress: nil
         )
     }

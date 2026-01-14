@@ -630,11 +630,16 @@ struct PaneView: View {
         to destination: URL,
         operation: TransferOperation
     ) async {
+        // 检查是否为本地传输（只有本地传输支持撤销）
+        let isLocalTransfer = sources.allSatisfy { $0.isLocal } && destination.isLocal
+        let undoManager: UndoManager? = isLocalTransfer ? appState.undoManager : nil
+        
         do {
             let result = try await FileTransferService.shared.transfer(
                 sources: sources,
                 to: destination,
-                operation: operation
+                operation: operation,
+                undoManager: undoManager
             )
             
             await MainActor.run {
@@ -646,7 +651,14 @@ struct PaneView: View {
                 } else if result.successCount > 0 {
                     // 成功传输，显示提示
                     let actionName = operation == .copy ? "Copied" : "Moved"
-                    appState.showToast("\(actionName) \(result.successCount) item(s)")
+                    var message = "\(actionName) \(result.successCount) item(s)"
+                    
+                    // 如果是非本地传输，提示不支持撤销
+                    if !isLocalTransfer {
+                        message += " (Undo not supported for remote transfers)"
+                    }
+                    
+                    appState.showToast(message)
                 }
                 
                 // 刷新目录

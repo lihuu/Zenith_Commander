@@ -22,6 +22,7 @@ struct LocalToSFTPTransfer: FileTransferHandler {
         sources: [URL],
         to destination: URL,
         operation: TransferOperation,
+        undoManager: UndoManager?,
         progress: TransferProgressHandler?
     ) async throws -> TransferResult {
         var successCount = 0

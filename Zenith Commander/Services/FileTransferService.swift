@@ -43,12 +43,14 @@ class FileTransferService {
     ///   - sources: 源文件 URL 列表
     ///   - destination: 目标目录 URL
     ///   - operation: 传输操作类型
+    ///   - undoManager: 撤销管理器（可选，用于本地操作的撤销支持）
     ///   - progress: 进度回调（可选）
     /// - Returns: 传输结果
     func transfer(
         sources: [URL],
         to destination: URL,
         operation: TransferOperation,
+        undoManager: UndoManager? = nil,
         progress: TransferProgressHandler? = nil
     ) async throws -> TransferResult {
         guard !sources.isEmpty else {
@@ -86,6 +88,7 @@ class FileTransferService {
                     sources: urls,
                     to: destination,
                     operation: operation,
+                    undoManager: undoManager,
                     progress: progress
                 )
                 finalResult = finalResult.merged(with: result)
