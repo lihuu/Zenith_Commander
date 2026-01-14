@@ -147,8 +147,11 @@ struct FileItem: Identifiable, Hashable {
     
     /// 从 URL 创建 FileItem (已废弃，仅内部使用)
     /// - Warning: 此方法将在未来版本移除，请使用 fromEntry()
-    @available(*, deprecated, message: "Use fromEntry() instead. This method will be removed.")
+    /// Create FileItem from URL (Synchronous - Local Only)
+    /// Uses FileManager directly. For local files only.
+    /// Kept for backward compatibility and synchronous contexts.
     nonisolated static func fromURL(_ url: URL) -> FileItem? {
+        // ... implementation ...
         let fileManager = FileManager.default
 
         // Start accessing security scoped resource if needed
@@ -202,6 +205,23 @@ struct FileItem: Identifiable, Hashable {
             permissions: permissionsString,
             fileExtension: url.pathExtension
         )
+    }
+
+    /// Create FileItem from URL (Async - Universal)
+    /// Uses Endpoint architecture (FileOps.stat). Works for both local and remote files.
+    /// Recommended for new code.
+    @MainActor
+    static func fromURL(_ url: URL) async -> FileItem? {
+        guard let endpoint = EndpointRegistry.shared.resolve(for: url) else {
+            return nil
+        }
+        
+        do {
+            let entry = try await endpoint.ops.stat(at: url)
+            return FileItem.fromEntry(entry)
+        } catch {
+            return nil
+        }
     }
 
     /// 创建父目录项（..）
