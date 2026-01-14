@@ -634,11 +634,14 @@ struct PaneView: View {
         let isLocalTransfer = sources.allSatisfy { $0.isLocal } && destination.isLocal
         let undoManager: UndoManager? = isLocalTransfer ? appState.undoManager : nil
         
+        // Convert TransferOperation to TransferOp for new API
+        let transferOp: TransferOp = operation == .copy ? .copy : .move
+        
         do {
-            let result = try await FileTransferService.shared.transfer(
+            let result = try await TransferService.shared.transfer(
                 sources: sources,
                 to: destination,
-                operation: operation,
+                operation: transferOp,
                 undoManager: undoManager
             )
             

@@ -1,5 +1,5 @@
 //
-//  NewTransferService.swift
+//  TransferService.swift
 //  Zenith Commander
 //
 //  Unified TransferService - single entry point for all file transfers.
@@ -15,10 +15,13 @@ enum TransferOp {
     case move
 }
 
+/// Legacy type alias for backward compatibility
+typealias TransferOperation = TransferOp
+
 /// Unified transfer service
 /// Single entry point for all file transfers across any protocol combination.
-class NewTransferService {
-    static let shared = NewTransferService()
+class TransferService {
+    static let shared = TransferService()
     
     private let pipeline = GenericTransferPipeline()
     private let fastPath = TransferFastPath()
@@ -117,5 +120,19 @@ enum TransferServiceError: LocalizedError {
         case .sourceNotFound(let url):
             return "Source not found: \(url.lastPathComponent)"
         }
+    }
+}
+
+// MARK: - URL Extension for Scheme Detection
+
+extension URL {
+    /// 是否为 SFTP URL
+    var isSFTP: Bool {
+        scheme?.lowercased() == "sftp"
+    }
+    
+    /// 是否为本地文件 URL
+    var isLocal: Bool {
+        isFileURL || scheme == nil || scheme == "file"
     }
 }
