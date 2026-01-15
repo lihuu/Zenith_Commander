@@ -169,6 +169,35 @@ class AppState: ObservableObject {
             availableDrives = drives
         }
     }
+    
+    /// Refresh available drives and auto-select the one matching the current path
+    /// Used after mounting network shares (SMB/SFTP) to update status bar
+    func refreshDrivesAndSelectMatchingDrive() async {
+        // Refresh drive list to include newly mounted volumes
+        let drives = await env.fileSystem.mountedVolumes()
+        availableDrives = drives
+        
+        // Find drive matching current path
+        let currentPath = currentPane.activeTab.currentPath
+        
+        // Find the best matching drive (longest path prefix match)
+        var bestMatch: DriveInfo?
+        var longestMatch = 0
+        
+        for drive in drives {
+            let drivePath = drive.path.path
+            if currentPath.path.hasPrefix(drivePath) && drivePath.count > longestMatch {
+                bestMatch = drive
+                longestMatch = drivePath.count
+            }
+        }
+        
+        // Update active tab's drive if we found a match
+        if let matchedDrive = bestMatch {
+            currentPane.activeTab.drive = matchedDrive
+            Logger.app.debug("Auto-selected drive: \(matchedDrive.name) for path: \(currentPath.path)")
+        }
+    }
 
     // MARK: - Undo Support
 
