@@ -654,7 +654,7 @@ struct PaneView: View {
                 } else if result.successCount > 0 {
                     // 成功传输，显示提示
                     let actionName = operation == .copy ? "Copied" : "Moved"
-                    var message = "\(actionName) \(result.successCount) item(s)"
+                    let message = "\(actionName) \(result.successCount) item(s)"
                     appState.showToast(message)
                 }
                 
