@@ -1,3 +1,11 @@
+//
+//  EndpointRegistry.swift
+//  Zenith Commander
+//
+//  Created by Hu Li on 1/15/26.
+//
+
+
 import Foundation
 
 /// Thread-safe endpoint registry for resolving URLs to endpoints
@@ -16,13 +24,17 @@ final class EndpointRegistry {
     
     /// Register default endpoints (local and SFTP)
     private func registerDefaultEndpoints() {
-        endpoints.append(LocalEndpoint())
-        endpoints.append(SFTPEndpoint())
+        register(LocalEndpoint())
+        register(SFTPEndpoint())
     }
     
     /// Register an endpoint
     func register(_ endpoint: FileEndpoint) {
-        endpoints.append(endpoint)
+        // Only append if we don't already have an endpoint with the same kind
+        // Avoid duplicate registrations for the same protocol kind (e.g., multiple LocalEndpoints)
+        if !endpoints.contains(where: { $0.kind == endpoint.kind }) {
+            endpoints.append(endpoint)
+        }
     }
     
     /// Unregister an endpoint
