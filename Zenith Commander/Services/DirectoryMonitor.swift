@@ -6,7 +6,7 @@
 //  使用 DispatchSource 监控特定目录（轻量级方案）
 //
 
-import Foundation
+@preconcurrency import Foundation
 import os.log
 
 // MARK: - DispatchSource 目录监控器（轻量级方案）
@@ -20,23 +20,23 @@ class DispatchSourceDirectoryMonitor {
     /// 监控的目录 URL
     private let directoryURL: URL
 
-    /// 文件描述符
-    private var fileDescriptor: Int32 = -1
+    /// 文件描述符 - nonisolated(unsafe) since all access is serialized on monitorQueue
+    private nonisolated(unsafe) var fileDescriptor: Int32 = -1
 
-    /// DispatchSource
-    private var source: DispatchSourceFileSystemObject?
+    /// DispatchSource - nonisolated(unsafe) since all access is serialized on monitorQueue
+    private nonisolated(unsafe) var source: DispatchSourceFileSystemObject?
 
-    /// 变化回调
-    private var onChange: (() -> Void)?
+    /// 变化回调 - nonisolated(unsafe) to allow deinit access
+    private nonisolated(unsafe) var onChange: (@Sendable () -> Void)?
 
-    /// 目录被删除/移动/重命名时的回调
-    private var onDirectoryInvalidated: (() -> Void)?
+    /// 目录被删除/移动/重命名时的回调 - nonisolated(unsafe) to allow deinit access
+    private nonisolated(unsafe) var onDirectoryInvalidated: (@Sendable () -> Void)?
 
-    /// 是否正在监控
-    private(set) var isMonitoring = false
+    /// 是否正在监控 - nonisolated(unsafe) since all access is serialized on monitorQueue
+    private(set) nonisolated(unsafe) var isMonitoring = false
 
-    /// 防抖相关
-    private var debounceWorkItem: DispatchWorkItem?
+    /// 防抖相关 - nonisolated(unsafe) to allow deinit access
+    private nonisolated(unsafe) var debounceWorkItem: DispatchWorkItem?
     private let debounceDelay: TimeInterval = 0.3
     private let monitorQueue = DispatchQueue(label: "com.zenithcommander.directorymonitor", qos: .utility)
 
@@ -54,18 +54,38 @@ class DispatchSourceDirectoryMonitor {
     }
 
     deinit {
-        stop()
+        // Inline cleanup to avoid calling potentially MainActor-isolated methods from deinit
+        debounceWorkItem?.cancel()
+        debounceWorkItem = nil
+        source?.cancel()
+        source = nil
+        isMonitoring = false
+        onChange = nil
+        onDirectoryInvalidated = nil
     }
 
     // MARK: - Public Methods
 
-    /// 开始监控
-    /// - Parameters:
-    ///   - onChange: 当目录内容变化时的回调（在主线程调用）
-    ///   - onDirectoryInvalidated: 当目录被删除/移动/重命名时的回调（在主线程调用），可选
-    func start(onChange: @escaping () -> Void, onDirectoryInvalidated: (() -> Void)? = nil) {
+    func start(onChange: @escaping @Sendable () -> Void, onDirectoryInvalidated: (@Sendable () -> Void)? = nil) {
+        monitorQueue.async { [weak self] in
+            guard let self else { return }
+            self.startOnQueue(onChange: onChange, onDirectoryInvalidated: onDirectoryInvalidated)
+        }
+    }
+
+    func stop() {
+        monitorQueue.async { [weak self] in
+            guard let self else { return }
+            self.stopOnQueue()
+        }
+    }
+
+    // MARK: - Private Methods
+
+    /// Must be called on `monitorQueue`.
+    private nonisolated func startOnQueue(onChange: @escaping @Sendable () -> Void, onDirectoryInvalidated: (@Sendable () -> Void)? = nil) {
         if isMonitoring {
-            stop()
+            stopOnQueue()
         }
 
         self.onChange = onChange
@@ -73,46 +93,43 @@ class DispatchSourceDirectoryMonitor {
 
         // 打开目录获取文件描述符
         fileDescriptor = open(directoryURL.path, O_EVTONLY)
+        let fd = fileDescriptor
 
-        guard fileDescriptor >= 0 else {
+        guard fd >= 0 else {
             Logger.monitor.error("DirectoryMonitor: Failed to open directory: \(self.directoryURL.path, privacy: .public)")
             return
         }
 
-        // 创建 DispatchSource 监控文件系统对象
-        // .write 事件会在目录内容变化时触发（文件创建、删除、重命名）
-        // .delete, .rename, .revoke 会在目录本身被删除/重命名/卸载时触发
         let source = DispatchSource.makeFileSystemObjectSource(
-            fileDescriptor: fileDescriptor,
+            fileDescriptor: fd,
             eventMask: [.write, .delete, .rename, .revoke],
             queue: monitorQueue
         )
 
-        source.setEventHandler { [weak self] in
-            guard let self else { return }
-
+        let eventHandler: @Sendable () -> Void = { [weak self, weak source] in
+            guard let self, let source else { return }
             let data = source.data
 
-            // 检查是否是目录本身被删除/重命名/卸载
             if data.contains(.delete) || data.contains(.rename) || data.contains(.revoke) {
-                handleDirectoryInvalidated(event: data)
+                self.handleDirectoryInvalidated(event: data)
             } else if data.contains(.write) {
-                // 目录内容变化，但需要验证目录是否仍然存在
-                if isDirectoryValid() {
-                    handleDirectoryChange()
+                if self.isDirectoryValid() {
+                    self.handleDirectoryChange()
                 } else {
-                    handleDirectoryInvalidated(event: data)
+                    self.handleDirectoryInvalidated(event: data)
                 }
             }
         }
 
-        source.setCancelHandler { [weak self] in
-            guard let self else { return }
-            if fileDescriptor >= 0 {
-                close(fileDescriptor)
-                fileDescriptor = -1
+        // Cancel handler must not touch shared mutable state; just close the captured fd.
+        let cancelHandler: @Sendable () -> Void = {
+            if fd >= 0 {
+                close(fd)
             }
         }
+
+        source.setEventHandler(handler: eventHandler)
+        source.setCancelHandler(handler: cancelHandler)
 
         self.source = source
         source.resume()
@@ -121,8 +138,8 @@ class DispatchSourceDirectoryMonitor {
         Logger.monitor.debug("DirectoryMonitor: Started monitoring \(self.directoryURL.path, privacy: .public)")
     }
 
-    /// 停止监控
-    func stop() {
+    /// Must be called on `monitorQueue`.
+    private nonisolated func stopOnQueue() {
         debounceWorkItem?.cancel()
         debounceWorkItem = nil
 
@@ -138,17 +155,15 @@ class DispatchSourceDirectoryMonitor {
         Logger.monitor.debug("DirectoryMonitor: Stopped monitoring")
     }
 
-    // MARK: - Private Methods
-
     /// 检查目录是否仍然有效（存在且是目录）
-    private func isDirectoryValid() -> Bool {
+    private nonisolated func isDirectoryValid() -> Bool {
         var isDir: ObjCBool = false
         let exists = FileManager.default.fileExists(atPath: directoryURL.path, isDirectory: &isDir)
         return exists && isDir.boolValue
     }
 
     /// 处理目录被删除/移动/重命名
-    private func handleDirectoryInvalidated(event: DispatchSource.FileSystemEvent) {
+    private nonisolated func handleDirectoryInvalidated(event: DispatchSource.FileSystemEvent) {
         Logger.monitor.warning("DirectoryMonitor: Directory invalidated - \(self.directoryURL.path, privacy: .public), event: \(String(describing: event))")
 
         // 取消防抖任务
@@ -159,7 +174,7 @@ class DispatchSourceDirectoryMonitor {
         let callback = onDirectoryInvalidated
 
         // 停止监控并释放资源
-        stop()
+        stopOnQueue()
 
         // 在主线程通知调用方
         if let callback {
@@ -170,7 +185,7 @@ class DispatchSourceDirectoryMonitor {
     }
 
     /// 处理目录变化（带防抖）
-    private func handleDirectoryChange() {
+    private nonisolated func handleDirectoryChange() {
         Logger.monitor.debug("DirectoryMonitor: Change detected in \(self.directoryURL.path, privacy: .public)")
 
         // 防抖处理 - 短时间内多次变化只触发一次回调
@@ -190,3 +205,8 @@ class DispatchSourceDirectoryMonitor {
         monitorQueue.asyncAfter(deadline: .now() + debounceDelay, execute: workItem)
     }
 }
+
+// MARK: - Concurrency
+// This type is used from Swift Concurrency contexts but internally serializes all mutations on `monitorQueue`.
+// We mark it as @unchecked Sendable to avoid Swift 6 inferring MainActor isolation for GCD @Sendable handlers.
+extension DispatchSourceDirectoryMonitor: @unchecked Sendable {}

@@ -11,6 +11,7 @@ import Testing
 
 // MARK: - 1. FileItem 模型测试
 
+@MainActor
 struct FileItemTests {
     @Test func fileItemFromURL() {
         // 使用实际存在的目录测试
@@ -44,6 +45,7 @@ struct FileItemTests {
 
 // MARK: - 2. AppMode 测试
 
+@MainActor
 struct AppModeTests {
     @Test func appModeRawValues() {
         #expect(AppMode.normal.rawValue == "NORMAL")
@@ -93,6 +95,7 @@ struct AppModeTests {
 
 // MARK: - 3. PaneSide 测试
 
+@MainActor
 struct PaneSideTests {
     @Test func paneSideOpposite() {
         #expect(PaneSide.left.opposite == .right)
@@ -115,6 +118,7 @@ struct ViewModeTests {
 
 // MARK: - 5. TabState 测试
 
+@MainActor
 struct TabStateTests {
     func createTestDrive() -> DriveInfo {
         DriveInfo(
@@ -2238,6 +2242,7 @@ struct FilterModeTests {
 
 // MARK: - 9. DriveInfo 测试
 
+@MainActor
 struct DriveInfoTests {
     @Test func driveInfoCreation() {
         let drive = DriveInfo(
@@ -2293,6 +2298,7 @@ struct DriveInfoTests {
 
 // MARK: - 10. Theme 测试
 
+@MainActor
 struct ThemeTests {
     @Test func themeColorsExist() {
         // 验证主题颜色已定义
@@ -3174,6 +3180,7 @@ struct BookmarkManagerTests {
 
 // MARK: - Git 状态模型测试
 
+@MainActor
 struct GitFileStatusTests {
     @Test func gitFileStatusRawValues() {
         #expect(GitFileStatus.modified.rawValue == "M")
@@ -3240,6 +3247,7 @@ struct GitFileStatusTests {
 
 // MARK: - Git 仓库信息测试
 
+@MainActor
 struct GitRepositoryInfoTests {
     @Test func testNotARepository() {
         let info = GitRepositoryInfo.notARepository
@@ -3340,6 +3348,7 @@ struct GitRepositoryInfoTests {
 
 // MARK: - Git 状态缓存测试
 
+@MainActor
 struct GitStatusCacheEntryTests {
     @Test func cacheExpiry() {
         let entry = GitStatusCacheEntry(
@@ -3364,6 +3373,7 @@ struct GitStatusCacheEntryTests {
 
 // MARK: - Git 服务测试
 
+@MainActor
 struct GitServiceTests {
     @Test func gitServiceSingleton() {
         let service1 = GitService.shared
@@ -3434,6 +3444,7 @@ struct GitServiceTests {
 
 // MARK: - FileItem Git 状态测试
 
+@MainActor
 struct FileItemGitStatusTests {
     @Test func fileItemDefaultGitStatus() {
         let homeDir = FileManager.default.homeDirectoryForCurrentUser
@@ -3543,7 +3554,8 @@ struct AppSettingsGitTests {
                 showUntrackedFiles: false,
                 showIgnoredFiles: true
             ),
-            rsync: RsyncSettings(enabled: true)
+            rsync: RsyncSettings(enabled: true),
+            fzf: .default
         )
 
         // 编码

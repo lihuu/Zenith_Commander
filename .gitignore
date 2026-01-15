@@ -67,13 +67,17 @@ Carthage/Build
 .swiftlint.yml
 /.idea/
 
-GEMINI.md
-AGENTS.md
 backup/
-*.md
 buildServer.json
 .vscode/settings.json
 
 tools/class-audit/.build/
 
 *.xctestplan
+
+BuildArtifacts/
+build.log
+warnings.txt
+build_final.log
+test-build.log
+warnings_final.txt

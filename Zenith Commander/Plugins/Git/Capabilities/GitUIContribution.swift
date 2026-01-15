@@ -28,6 +28,8 @@ struct GitPanelContainer: View {
                 ?? LocalizationManager.shared.localized(.gitRepoHistory),
             commits: appState.gitHistoryCommits,
             isLoading: appState.gitHistoryLoading,
+            isLoadingMore: appState.gitHistoryLoadingMore,
+            hasMore: appState.gitHistoryHasMore,
             onClose: {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     appState.closeGitHistory()
@@ -36,6 +38,9 @@ struct GitPanelContainer: View {
             onCommitSelected: { commit in
                 // TODO: Show details
                 // This logic was in MainView closure.
+            },
+            onLoadMore: {
+                appState.loadMoreGitHistory()
             }
         )
     }

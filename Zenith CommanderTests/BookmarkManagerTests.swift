@@ -8,6 +8,7 @@
 import XCTest
 @testable import Zenith_Commander
 
+@MainActor
 class BookmarkManagerTestsNew: XCTestCase {
     var testDirectory: URL!
     var bookmarkManager: BookmarkManager!

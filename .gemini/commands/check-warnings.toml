@@ -1,0 +1,35 @@
+description = "检查编译警告"
+prompt = """
+## 测试用例运行指令
+1. 运行以下命令以构建项目并捕获编译输出：
+```bash
+xcodebuild \
+  -project "Zenith Commander.xcodeproj" \
+  -scheme "Zenith Commander" \
+  -configuration Debug \
+  -sdk macosx \
+  -destination 'platform=macOS' \
+  clean build \
+  | tee build.log
+```
+2. 使用以下命令从构建日志中提取编译警告：
+```bash
+grep -n "warning:" build.log > warnings.txt
+```
+## 任务说明
+1. 检查并收集所有编译警告信息。
+2. 对每个警告，分析其可能的原因并提供详细的解决方案。
+3. 如果有多个相似的警告，尝试总结出通用的解决方法。
+## 任务要求
+1. 提供每个警告的详细解释，包括其可能的影响。
+2. 给出具体的代码修改建议以消除警告，注意仅仅给出解决方案，等待我确认。
+3. 如果我确认修改，修改之后重新构建项目，直到所有警告被解决为止。
+4. 不改 public API，不做重构，不引入新依赖
+## 命令权限
+- 允许运行如下命令。
+  - xcodebuild
+  - grep
+  - sed
+  - awk
+  - cat
+"""

@@ -6,6 +6,8 @@
 //
 
 import Foundation
+import Synchronization
+import os.log
 
 // MARK: - Fzf File Listing Service
 
@@ -130,7 +132,7 @@ extension ToolRunner {
         // 1) Early return on empty query (do not list files)
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
-            print("[ToolRunner][fzf] query empty -> return []")
+            Logger.tools.debug("[ToolRunner][fzf] query empty -> return []")
             return []
         }
 
@@ -142,7 +144,8 @@ extension ToolRunner {
         )
         let listCmd = ([listReq.executable] + listReq.args).joined(separator: " ")
         let listCwd = listReq.workingDirectory ?? "."
-        print("[ToolRunner][fzf] list (\(listTool.rawValue)) cmd: \(listCmd) | cwd=\(listCwd)")
+        Logger.tools.debug(
+            "[ToolRunner][fzf] list (\(listTool.rawValue)) cmd: \(listCmd) | cwd=\(listCwd)")
 
         // If fzf exists, use streaming pipeline: listProcess stdout → pipe → fzf stdin
         if let fzfBase = buildFzfBaseRequest(toolchain: effectiveToolchain) {
@@ -153,7 +156,7 @@ extension ToolRunner {
             )
             let fzfCmd = ([fzfReq.executable] + fzfReq.args).joined(separator: " ")
             let fzfCwd = fzfReq.workingDirectory ?? "."
-            print("[ToolRunner][fzf] filter cmd: \(fzfCmd) | cwd=\(fzfCwd)")
+            Logger.tools.debug("[ToolRunner][fzf] filter cmd: \(fzfCmd) | cwd=\(fzfCwd)")
 
             do {
                 let result = try await runShellPipeline(upstream: listReq, downstream: fzfReq)
@@ -162,7 +165,8 @@ extension ToolRunner {
                     .map(String.init)
             } catch {
                 // fzf execution failed -> fallback to Swift filter
-                print("[ToolRunner][fzf] pipeline failed: \(error), falling back to Swift filter")
+                Logger.tools.warning(
+                    "[ToolRunner][fzf] pipeline failed: \(error), falling back to Swift filter")
             }
         }
 
@@ -214,12 +218,12 @@ extension ToolRunner {
 
             // 4) Resume-once guard
             let lock = NSLock()
-            var didResume = false
-            func resumeOnce(_ body: () -> Void) {
+            let didResume = Atomic<Bool>(false)
+            let resumeOnce: @Sendable (@Sendable () -> Void) -> Void = { body in
                 lock.lock()
                 defer { lock.unlock() }
-                guard !didResume else { return }
-                didResume = true
+                guard !didResume.load(ordering: .acquiring) else { return }
+                didResume.store(true, ordering: .releasing)
                 body()
             }
 

@@ -14,7 +14,8 @@
       "containerPath" : "container:Zenith Commander.xcodeproj",
       "identifier" : "1C790B752ED8169E005B181E",
       "name" : "Zenith Commander"
-    }
+    },
+    "threadSanitizerEnabled" : true
   },
   "testTargets" : [
     {

@@ -12,8 +12,14 @@ import os.log
 class GitService {
     static let shared = GitService()
 
-    /// 缓存
+    /// 文件状态缓存
     private var cache: [URL: GitStatusCacheEntry] = [:]
+
+    /// 仓库根目录缓存：路径 -> 仓库根目录（nil 表示不在仓库中）
+    private var repoRootCache: [URL: URL?] = [:]
+
+    /// 仓库信息缓存：仓库根目录 -> 仓库信息
+    private var repoInfoCache: [URL: (info: GitRepositoryInfo, timestamp: Date)] = [:]
 
     private var candidatePaths: [String] = [
         "/opt/homebrew/bin/git",
@@ -24,8 +30,17 @@ class GitService {
     /// 缓存锁
     private let cacheLock = NSLock()
 
-    /// 缓存过期时间（秒）
-    private let cacheTTL: TimeInterval = 5.0
+    /// 文件状态缓存过期时间（秒）- 频繁变化
+    private let fileStatusCacheTTL: TimeInterval = 5.0
+
+    /// 仓库信息缓存过期时间（秒）- 相对稳定
+    private let repoInfoCacheTTL: TimeInterval = 30.0
+
+    /// 仓库根目录缓存过期时间（秒）- 很少变化
+    private let repoRootCacheTTL: TimeInterval = 300.0
+
+    /// 仓库根目录缓存时间戳
+    private var repoRootCacheTimestamps: [URL: Date] = [:]
 
     /// Git 命令超时时间（秒）
     private let commandTimeout: TimeInterval = 2.0
@@ -66,63 +81,139 @@ class GitService {
         isGitAvailable
     }
 
-    /// 检查目录是否在 Git 仓库中
+    /// 检查目录是否在 Git 仓库中（使用快速检测）
     /// - Parameter path: 要检查的目录
     /// - Returns: 是否是 Git 仓库
     func isGitRepository(at path: URL) -> Bool {
         guard isGitAvailable else { return false }
 
-        // 检查是否存在 .git 目录或文件
-        let gitPath = path.appendingPathComponent(".git")
-        if FileManager.default.fileExists(atPath: gitPath.path) {
+        // 使用缓存的仓库根目录快速判断
+        if let root = getCachedRepoRoot(for: path) {
+            return root != nil
+        }
+
+        // 快速检测：向上查找 .git 目录（纯文件系统操作，无需 git 命令）
+        if findGitDirFast(from: path) != nil {
             return true
         }
 
-        // 使用 git rev-parse 检查是否在仓库中
-        let result = runGitCommand(["rev-parse", "--is-inside-work-tree"], at: path)
-        return result?.trimmingCharacters(in: .whitespacesAndNewlines) == "true"
+        return false
     }
 
-    /// 获取 Git 仓库根目录
+    /// 快速查找 .git 目录（向上遍历，纯文件系统操作）
+    /// - Parameter path: 起始路径
+    /// - Returns: .git 目录所在的仓库根目录
+    private func findGitDirFast(from path: URL) -> URL? {
+        var current = path.standardizedFileURL
+        let fm = FileManager.default
+        let rootPath = URL(fileURLWithPath: "/")
+
+        while current.path != rootPath.path {
+            let gitPath = current.appendingPathComponent(".git")
+            if fm.fileExists(atPath: gitPath.path) {
+                return current
+            }
+            current = current.deletingLastPathComponent()
+        }
+        return nil
+    }
+
+    /// 获取 Git 仓库根目录（带缓存）
     /// - Parameter path: 当前目录或文件路径
     /// - Returns: 仓库根目录，如果不在仓库中则返回 nil
     func getRepositoryRoot(for path: URL) -> URL? {
         guard isGitAvailable else { return nil }
 
+        let standardizedPath = path.standardizedFileURL
+
+        // 检查缓存
+        if let cachedRoot = getCachedRepoRoot(for: standardizedPath) {
+            Logger.git.debug(
+                "[Cache HIT] repoRoot for: \(standardizedPath.lastPathComponent, privacy: .public) -> \(cachedRoot?.lastPathComponent ?? "nil", privacy: .public)"
+            )
+            return cachedRoot
+        }
+        Logger.git.debug(
+            "[Cache MISS] repoRoot for: \(standardizedPath.lastPathComponent, privacy: .public)")
+
         // 如果是文件，使用其父目录
-        var directory = path
+        var directory = standardizedPath
         var isDirectory: ObjCBool = false
-        if FileManager.default.fileExists(atPath: path.path, isDirectory: &isDirectory) {
+        if FileManager.default.fileExists(atPath: standardizedPath.path, isDirectory: &isDirectory)
+        {
             if !isDirectory.boolValue {
-                directory = path.deletingLastPathComponent()
+                directory = standardizedPath.deletingLastPathComponent()
             }
         }
 
+        // 先尝试快速文件系统查找
+        if let fastRoot = findGitDirFast(from: directory) {
+            setCachedRepoRoot(fastRoot, for: standardizedPath)
+            return fastRoot
+        }
+
+        // 回退到 git 命令（处理 worktree 等特殊情况）
         guard let result = runGitCommand(["rev-parse", "--show-toplevel"], at: directory) else {
+            setCachedRepoRoot(nil, for: standardizedPath)
             return nil
         }
 
         let rootPath = result.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !rootPath.isEmpty else { return nil }
+        guard !rootPath.isEmpty else {
+            setCachedRepoRoot(nil, for: standardizedPath)
+            return nil
+        }
 
-        return URL(fileURLWithPath: rootPath)
+        let root = URL(fileURLWithPath: rootPath)
+        setCachedRepoRoot(root, for: standardizedPath)
+        return root
     }
 
-    /// 获取仓库信息（分支、ahead/behind 等）
+    /// 获取仓库信息（分支、ahead/behind 等）- 带多级缓存
     /// - Parameter path: 目录路径
     /// - Returns: 仓库信息
     func getRepositoryInfo(at path: URL) -> GitRepositoryInfo {
         guard isGitAvailable else { return .notARepository }
 
-        // 检查缓存
-        if let cached = getCachedEntry(for: path), !cached.isExpired(ttl: cacheTTL) {
+        let standardizedPath = path.standardizedFileURL
+
+        // 快速检测：先检查是否可能是 Git 仓库
+        guard let rootPath = getRepositoryRoot(for: standardizedPath) else {
+            return .notARepository
+        }
+
+        // 检查仓库信息缓存（基于仓库根目录）
+        if let cachedInfo = getCachedRepoInfo(for: rootPath) {
+            Logger.git.debug(
+                "[Cache HIT] repoInfo for: \(rootPath.lastPathComponent, privacy: .public), branch: \(cachedInfo.currentBranch ?? "nil", privacy: .public)"
+            )
+            return cachedInfo
+        }
+
+        // 检查文件状态缓存（兼容旧逻辑）
+        if let cached = getCachedEntry(for: standardizedPath),
+            !cached.isExpired(ttl: fileStatusCacheTTL)
+        {
+            Logger.git.debug(
+                "[Cache HIT] fileStatus cache for: \(standardizedPath.lastPathComponent, privacy: .public)"
+            )
             return cached.repositoryInfo
         }
 
-        // 检查是否是 Git 仓库
-        guard let rootPath = getRepositoryRoot(for: path) else {
-            return .notARepository
-        }
+        Logger.git.debug(
+            "[Cache MISS] repoInfo for: \(rootPath.lastPathComponent, privacy: .public), fetching..."
+        )
+        // 获取完整仓库信息
+        let info = fetchRepositoryInfo(at: standardizedPath, rootPath: rootPath)
+
+        // 缓存仓库信息
+        setCachedRepoInfo(info, for: rootPath)
+
+        return info
+    }
+
+    /// 从 Git 获取完整仓库信息（内部方法）
+    private func fetchRepositoryInfo(at path: URL, rootPath: URL) -> GitRepositoryInfo {
 
         // 获取当前分支
         var currentBranch: String?
@@ -181,8 +272,9 @@ class GitService {
     /// - Parameters:
     ///   - file: 文件 URL
     ///   - limit: 最大返回数量，默认 50
+    ///   - skip: 跳过前 N 条记录，用于分页
     /// - Returns: Git 提交列表
-    func getFileHistory(for file: URL, limit: Int = 50) async -> [GitCommit] {
+    func getFileHistory(for file: URL, limit: Int = 50, skip: Int = 0) async -> [GitCommit] {
         Logger.git.info("getFileHistory called for: \(file.path, privacy: .public)")
 
         guard isGitAvailable else {
@@ -190,86 +282,119 @@ class GitService {
             return []
         }
 
+        let toolRunner = self.toolRunner
+        let gitExecutableURL = gitExecutableURL
+
         // 在后台线程执行 Git 命令
-        return await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async { [self] in
-                // 获取仓库根目录
-                guard let rootPath = getRepositoryRoot(for: file) else {
-                    Logger.git.warning(
-                        "Could not find repository root for: \(file.path, privacy: .public)")
-                    continuation.resume(returning: [])
-                    return
-                }
-
-                Logger.git.debug("Repository root: \(rootPath.path, privacy: .public)")
-
-                // 计算相对路径
-                let relativePath = file.path.replacingOccurrences(of: rootPath.path + "/", with: "")
-                Logger.git.debug("Relative path: \(relativePath, privacy: .public)")
-
-                // 运行 git log 命令
-                // 格式: hash|short_hash|author|email|timestamp|subject|body|parent_hashes
-                let format = "%H|%h|%an|%ae|%at|%s|%b|%P"
-                let args = [
-                    "log",
-                    "--format=\(format)",
-                    "-n", "\(limit)",
-                    "--follow",  // 跟踪文件重命名
-                    "--",
-                    relativePath,
-                ]
-
-                Logger.git.debug(
-                    "Running git command with args: \(args.joined(separator: " "), privacy: .public)"
+        return await Task.detached(priority: .userInitiated) {
+            guard
+                let rootPath = Self.getRepositoryRoot(
+                    for: file,
+                    gitExecutableURL: gitExecutableURL,
+                    toolRunner: toolRunner
                 )
-
-                guard let output = runGitCommand(args, at: rootPath) else {
-                    Logger.git.error("git log command failed or returned nil")
-                    continuation.resume(returning: [])
-                    return
-                }
-
-                Logger.git.debug("git log output length: \(output.count) characters")
-
-                let commits = parseGitLogOutput(output)
-                Logger.git.info("Parsed \(commits.count) commits from git log output")
-
-                continuation.resume(returning: commits)
+            else {
+                Logger.git.warning(
+                    "Could not find repository root for: \(file.path, privacy: .public)")
+                return []
             }
-        }
+
+            Logger.git.debug("Repository root: \(rootPath.path, privacy: .public)")
+
+            // 计算相对路径
+            let relativePath = file.path.replacingOccurrences(of: rootPath.path + "/", with: "")
+            Logger.git.debug("Relative path: \(relativePath, privacy: .public)")
+
+            // 运行 git log 命令
+            // 格式: hash|short_hash|author|email|timestamp|subject|body|parent_hashes
+            let format = "%H|%h|%an|%ae|%at|%s|%b|%P"
+            var args = [
+                "log",
+                "--format=\(format)",
+                "-n", "\(limit)",
+            ]
+            if skip > 0 {
+                args.append(contentsOf: ["--skip", "\(skip)"])
+            }
+            args.append(contentsOf: [
+                "--follow",  // 跟踪文件重命名
+                "--",
+                relativePath,
+            ])
+
+            Logger.git.debug(
+                "Running git command with args: \(args.joined(separator: " "), privacy: .public)"
+            )
+
+            guard
+                let output = Self.runGitCommand(
+                    args,
+                    at: rootPath,
+                    gitExecutableURL: gitExecutableURL,
+                    toolRunner: toolRunner
+                )
+            else {
+                Logger.git.error("git log command failed or returned nil")
+                return []
+            }
+
+            Logger.git.debug("git log output length: \(output.count) characters")
+
+            let commits = Self.parseGitLogOutput(output)
+            Logger.git.info("Parsed \(commits.count) commits from git log output")
+
+            return commits
+        }.value
     }
 
     /// 获取整个仓库的 Git 历史记录
     /// - Parameters:
     ///   - directory: 仓库目录
     ///   - limit: 最大返回数量，默认 50
+    ///   - skip: 跳过前 N 条记录，用于分页
     /// - Returns: Git 提交列表
-    func getRepositoryHistory(at directory: URL, limit: Int = 50) async -> [GitCommit] {
+    func getRepositoryHistory(at directory: URL, limit: Int = 50, skip: Int = 0) async
+        -> [GitCommit]
+    {
         guard isGitAvailable else { return [] }
 
-        return await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async { [self] in
-                guard let rootPath = getRepositoryRoot(for: directory) else {
-                    continuation.resume(returning: [])
-                    return
-                }
+        let toolRunner = self.toolRunner
+        let gitExecutableURL = gitExecutableURL
 
-                let format = "%H|%h|%an|%ae|%at|%s|%b|%P"
-                let args = [
-                    "log",
-                    "--format=\(format)",
-                    "-n", "\(limit)",
-                ]
-
-                guard let output = runGitCommand(args, at: rootPath) else {
-                    continuation.resume(returning: [])
-                    return
-                }
-
-                let commits = parseGitLogOutput(output)
-                continuation.resume(returning: commits)
+        return await Task.detached(priority: .userInitiated) {
+            guard
+                let rootPath = Self.getRepositoryRoot(
+                    for: directory,
+                    gitExecutableURL: gitExecutableURL,
+                    toolRunner: toolRunner
+                )
+            else {
+                return []
             }
-        }
+
+            let format = "%H|%h|%an|%ae|%at|%s|%b|%P"
+            var args = [
+                "log",
+                "--format=\(format)",
+                "-n", "\(limit)",
+            ]
+            if skip > 0 {
+                args.append(contentsOf: ["--skip", "\(skip)"])
+            }
+
+            guard
+                let output = Self.runGitCommand(
+                    args,
+                    at: rootPath,
+                    gitExecutableURL: gitExecutableURL,
+                    toolRunner: toolRunner
+                )
+            else {
+                return []
+            }
+
+            return Self.parseGitLogOutput(output)
+        }.value
     }
 
     /// 获取指定 commit 的变更文件列表
@@ -300,8 +425,54 @@ class GitService {
         return parseCommitChanges(output)
     }
 
+    /// 获取指定 commit 的 diff 内容
+    /// - Parameters:
+    ///   - commitHash: commit hash
+    ///   - directory: 仓库目录
+    /// - Returns: diff 内容字符串
+    func getCommitDiff(for commitHash: String, at directory: URL) async -> String {
+        guard isGitAvailable else { return "" }
+
+        let toolRunner = self.toolRunner
+        let gitExecutableURL = gitExecutableURL
+
+        return await Task.detached(priority: .userInitiated) {
+            guard
+                let rootPath = Self.getRepositoryRoot(
+                    for: directory,
+                    gitExecutableURL: gitExecutableURL,
+                    toolRunner: toolRunner
+                )
+            else {
+                return ""
+            }
+
+            // 使用 git show 获取 diff
+            let args = [
+                "show",
+                "--format=",  // 不显示 commit 信息，只显示 diff
+                "--stat",  // 显示统计信息
+                "--patch",  // 显示 patch 内容
+                commitHash,
+            ]
+
+            guard
+                let output = Self.runGitCommand(
+                    args,
+                    at: rootPath,
+                    gitExecutableURL: gitExecutableURL,
+                    toolRunner: toolRunner
+                )
+            else {
+                return ""
+            }
+
+            return output
+        }.value
+    }
+
     /// 解析 git log 输出
-    private func parseGitLogOutput(_ output: String) -> [GitCommit] {
+    private nonisolated static func parseGitLogOutput(_ output: String) -> [GitCommit] {
         Logger.git.debug("parseGitLogOutput called")
         var commits: [GitCommit] = []
 
@@ -349,6 +520,65 @@ class GitService {
 
         Logger.git.debug("parseGitLogOutput completed with \(commits.count) commits")
         return commits
+    }
+
+    private nonisolated static func getRepositoryRoot(
+        for path: URL,
+        gitExecutableURL: URL?,
+        toolRunner: any ToolRunner
+    ) -> URL? {
+        // 如果是文件，使用其父目录
+        var directory = path
+        var isDirectory: ObjCBool = false
+        if FileManager.default.fileExists(atPath: path.path, isDirectory: &isDirectory) {
+            if !isDirectory.boolValue {
+                directory = path.deletingLastPathComponent()
+            }
+        }
+
+        guard
+            let result = runGitCommand(
+                ["rev-parse", "--show-toplevel"],
+                at: directory,
+                gitExecutableURL: gitExecutableURL,
+                toolRunner: toolRunner
+            )
+        else {
+            return nil
+        }
+
+        let rootPath = result.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !rootPath.isEmpty else { return nil }
+
+        return URL(fileURLWithPath: rootPath)
+    }
+
+    private nonisolated static func runGitCommand(
+        _ arguments: [String],
+        at directory: URL,
+        gitExecutableURL: URL?,
+        toolRunner: any ToolRunner
+    ) -> String? {
+        guard let gitURL = gitExecutableURL else {
+            return nil
+        }
+
+        let request = ToolRequest(
+            executable: gitURL.path,
+            args: arguments,
+            workingDirectory: directory.path
+        )
+
+        do {
+            let response = try toolRunner.runSync(request)
+            if response.exitCode == 0 {
+                return response.stdout.joined(separator: "\n")
+            }
+        } catch {
+            Logger.fileSystem.error("Git command failed: \(error.localizedDescription)")
+        }
+
+        return nil
     }
 
     /// 解析 commit 变更文件
@@ -663,5 +893,103 @@ class GitService {
             repositoryInfo: repositoryInfo,
             timestamp: Date()
         )
+    }
+
+    // MARK: - 仓库根目录缓存
+
+    /// 获取缓存的仓库根目录
+    private func getCachedRepoRoot(for path: URL) -> URL?? {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+
+        // 检查缓存是否过期
+        if let timestamp = repoRootCacheTimestamps[path] {
+            if Date().timeIntervalSince(timestamp) > repoRootCacheTTL {
+                repoRootCache.removeValue(forKey: path)
+                repoRootCacheTimestamps.removeValue(forKey: path)
+                return nil  // 返回 nil 表示缓存未命中
+            }
+        } else {
+            return nil  // 无时间戳，缓存未命中
+        }
+
+        // 检查路径本身
+        if let root = repoRootCache[path] {
+            return root  // 返回 Optional<URL>，可能是 nil（表示不在仓库中）
+        }
+
+        // 检查父路径是否有缓存的仓库根
+        for (_, cachedRoot) in repoRootCache {
+            if let root = cachedRoot, path.path.hasPrefix(root.path + "/") {
+                // 当前路径在已知仓库内，复用缓存
+                return root
+            }
+        }
+
+        return nil  // 缓存未命中
+    }
+
+    /// 设置仓库根目录缓存
+    private func setCachedRepoRoot(_ root: URL?, for path: URL) {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        repoRootCache[path] = root
+        repoRootCacheTimestamps[path] = Date()
+    }
+
+    // MARK: - 仓库信息缓存
+
+    /// 获取缓存的仓库信息
+    private func getCachedRepoInfo(for repoRoot: URL) -> GitRepositoryInfo? {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+
+        guard let cached = repoInfoCache[repoRoot] else { return nil }
+
+        // 检查是否过期
+        if Date().timeIntervalSince(cached.timestamp) > repoInfoCacheTTL {
+            repoInfoCache.removeValue(forKey: repoRoot)
+            return nil
+        }
+
+        return cached.info
+    }
+
+    /// 设置仓库信息缓存
+    private func setCachedRepoInfo(_ info: GitRepositoryInfo, for repoRoot: URL) {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        repoInfoCache[repoRoot] = (info: info, timestamp: Date())
+    }
+
+    /// 使指定仓库的缓存失效（用于文件操作后刷新）
+    func invalidateCache(for path: URL) {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+
+        // 清除文件状态缓存
+        cache.removeValue(forKey: path)
+
+        // 清除仓库根目录缓存
+        repoRootCache.removeValue(forKey: path)
+        repoRootCacheTimestamps.removeValue(forKey: path)
+
+        // 查找并清除仓库信息缓存
+        for (_, cachedRoot) in repoRootCache {
+            if let root = cachedRoot, path.path.hasPrefix(root.path) {
+                repoInfoCache.removeValue(forKey: root)
+                break
+            }
+        }
+    }
+
+    /// 清除所有缓存
+    func clearAllCaches() {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        cache.removeAll()
+        repoRootCache.removeAll()
+        repoRootCacheTimestamps.removeAll()
+        repoInfoCache.removeAll()
     }
 }

@@ -25,49 +25,19 @@ class FileSystemService {
 
     private let fileManager = FileManager.default
 
-    // Provider Registry
-    private var providers: [String: FileSystemProvider] = [:]
-    private let localProvider = LocalFileSystemProvider()
+    private let transferService = TransferService.shared
 
-    private init() {
-        // Register default local provider
-        register(provider: localProvider)
-
-        // Register SFTP provider
-        let sftpProvider = SFTPFileSystemProvider()
-        register(provider: sftpProvider)
-    }
-
-    /// Helper to temporarily inject an UndoManager into the localProvider for undo registration.
-    private func withUndoManager<T>(manager: UndoManager?, perform action: () async throws -> T) async throws -> T {
-        if let manager {
-            localProvider.undoManager = manager
+    private func withUndoManager<T>(endpoint: FileEndpoint, manager: UndoManager?, perform action: () async throws -> T) async throws -> T {
+        if endpoint is UndoSupportingEndpoint {
+            let targetEndpoint = endpoint as! UndoSupportingEndpoint
+            targetEndpoint.undoManager = manager
+            defer {
+                targetEndpoint.undoManager = nil // Ensure undoManager is reset
+            }
+            return try await action()
+        } else {
+            return try await action()
         }
-        defer {
-            localProvider.undoManager = nil // Ensure undoManager is reset
-        }
-        return try await action()
-    }
-
-    // MARK: - Provider Management
-
-    func register(provider: FileSystemProvider) {
-        providers[provider.scheme] = provider
-    }
-
-    private func getProvider(for url: URL) -> FileSystemProvider {
-        // Default to local provider if scheme is file or empty
-        if url.isFileURL || url.scheme == nil || url.scheme == "file" {
-            return localProvider
-        }
-
-        if let scheme = url.scheme, let provider = providers[scheme] {
-            return provider
-        }
-
-        // Fallback to local provider (or handle error)
-        Logger.fileSystem.warning("No provider found for scheme: \(url.scheme ?? "nil"), defaulting to local")
-        return localProvider
     }
 
     // MARK: - 权限检查 (Local Only for now)
@@ -134,25 +104,61 @@ class FileSystemService {
 
     // MARK: - 目录操作
 
-    /// 加载目录内容（带权限检查）- 异步
+    /// 加载目录内容（带权限检查）- 使用新 Endpoint 架构
+    /// 通过 EndpointRegistry → FileOps.list() → FileItem.fromEntry()
+    @MainActor
     func loadDirectoryWithPermissionCheck(
         at path: URL,
         showHidden: Bool = false
     ) async -> DirectoryLoadResult {
-        let provider = getProvider(for: path)
+        // Use EndpointRegistry to resolve URL to FileEndpoint
+        guard let endpoint = EndpointRegistry.shared.resolve(for: path) else {
+            Logger.fileSystem.error("No endpoint found for URL: \(path)")
+            return .error(NSError(domain: "FileSystemService", code: -1,
+                                  userInfo: [NSLocalizedDescriptionKey: "No endpoint for URL"]))
+        }
+
+        let ops = endpoint.ops
 
         do {
-            let files = try await provider.loadDirectory(at: path)
-            // Filter hidden files if needed (though providers might handle this)
-            let filteredFiles = showHidden ? files : files.filter { !$0.isHidden }
-            return .success(filteredFiles)
+            // 1. Load via FileOps.list() → [FileEntry]
+            let entries = try await ops.list(at: path)
+
+            // 2. Convert FileEntry → FileItem via fromEntry()
+            var items = entries.map { FileItem.fromEntry($0) }
+
+            // 3. Filter hidden files if needed
+            if !showHidden {
+                items = items.filter { !$0.isHidden }
+            }
+
+            // 4. Sort: folders first, then by name
+            items.sort { item1, item2 in
+                if item1.isFolder, !item2.isFolder { return true }
+                if !item1.isFolder, item2.isFolder { return false }
+                return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+            }
+
+            // 5. Add parent directory item if not root
+            if path.standardizedFileURL.path != "/" {
+                let parentPath = path.deletingLastPathComponent()
+                let parentItem = FileItem.parentDirectoryItem(for: parentPath)
+                items.insert(parentItem, at: 0)
+            }
+
+            return .success(items)
         } catch {
             // Handle specific errors
             let nsError = error as NSError
-            if nsError.domain == NSCocoaErrorDomain, nsError.code == NSFileReadNoPermissionError || nsError.code == 257 {
+            if nsError.domain == NSCocoaErrorDomain,
+               nsError.code == NSFileReadNoPermissionError || nsError.code == 257
+            {
                 return .permissionDenied(path)
             }
             if nsError.domain == NSCocoaErrorDomain, nsError.code == NSFileReadNoSuchFileError {
+                return .notFound(path)
+            }
+            if nsError.domain == NSPOSIXErrorDomain, nsError.code == Int(ENOTDIR) {
                 return .notFound(path)
             }
             return .error(error)
@@ -160,6 +166,7 @@ class FileSystemService {
     }
 
     /// 加载目录内容（简单版本，兼容旧代码）- 异步
+    @MainActor
     func loadDirectory(at path: URL, showHidden: Bool = false) async
         -> [FileItem]
     {
@@ -176,9 +183,9 @@ class FileSystemService {
     }
 
     /// 获取上级目录
+    ///
     func parentDirectory(of path: URL) -> URL {
-        let provider = getProvider(for: path)
-        return provider.parentDirectory(of: path)
+        path.deletingLastPathComponent()
     }
 
     /// 检查是否可以进入目录
@@ -201,7 +208,12 @@ class FileSystemService {
 
     /// 获取所有挂载的卷
     func getMountedVolumes() -> [DriveInfo] {
+        Self.loadMountedVolumes()
+    }
+
+    nonisolated static func loadMountedVolumes() -> [DriveInfo] {
         var drives: [DriveInfo] = []
+        let fileManager = FileManager.default
 
         // 获取所有挂载的卷
         let volumeURLs =
@@ -273,58 +285,57 @@ class FileSystemService {
 
     // MARK: - 文件操作
 
+    //
+    private func resolveEndpoint(for url: URL) throws -> FileEndpoint {
+        guard let endpoint = EndpointRegistry.shared.resolve(for: url) else {
+            Logger.fileSystem.error("No endpoint found for URL: \(url)")
+            throw NSError(domain: "FileSystemService", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "No endpoint for URL"])
+        }
+        return endpoint
+    }
+
     /// 复制文件
     func copyFiles(_ files: [FileItem], to destination: URL, undoManager: UndoManager? = nil) async throws {
         guard !files.isEmpty else { return }
-        let provider = getProvider(for: files.first!.path)
-        let destProvider = getProvider(for: destination)
+        let sources = files.map(\.path)
+        let result = try await transferService.transfer(sources: sources, to: destination, operation: TransferOperation.copy, undoManager: undoManager)
 
-        guard provider.scheme == destProvider.scheme else {
-            throw NSError(domain: "FileSystemService", code: 2, userInfo: [NSLocalizedDescriptionKey: "Cross-provider copy not implemented yet"])
-        }
-
-        if provider is LocalFileSystemProvider {
-            try await withUndoManager(manager: undoManager) {
-                try await (provider as! LocalFileSystemProvider).copy(items: files, to: destination)
-            }
-        } else {
-            // For non-local providers, just call the copy method without undoManager injection
-            try await provider.copy(items: files, to: destination)
+        if result.failedCount > 0 {
+            let errorMsg = result.errors.first?.localizedDescription ?? "Unknown error"
+            Logger.fileSystem.error("File transfer completed with errors: \(errorMsg)")
+        } else if result.successCount > 0 {
+            // 成功传输，显示提示
+            let message = "Copied \(result.successCount) item(s)"
+            Logger.fileSystem.info("File transfer successful: \(message)")
         }
     }
 
     /// 移动文件
     func moveFiles(_ files: [FileItem], to destination: URL, undoManager: UndoManager? = nil) async throws {
         guard !files.isEmpty else { return }
-        let provider = getProvider(for: files.first!.path)
-        let destProvider = getProvider(for: destination)
 
-        guard provider.scheme == destProvider.scheme else {
-            throw NSError(domain: "FileSystemService", code: 2, userInfo: [NSLocalizedDescriptionKey: "Cross-provider move not implemented yet"])
-        }
+        let result = try await transferService.transfer(sources: files.map(\.path), to: destination, operation: .move, undoManager: undoManager)
 
-        if provider is LocalFileSystemProvider {
-            try await withUndoManager(manager: undoManager) {
-                try await (provider as! LocalFileSystemProvider).move(items: files, to: destination)
-            }
-        } else {
-            // For non-local providers, just call the move method without undoManager injection
-            try await provider.move(items: files, to: destination)
+        if result.failedCount > 0 {
+            let errorMsg = result.errors.first?.localizedDescription ?? "Unknown error"
+            Logger.fileSystem.error("File move completed with errors: \(errorMsg)")
+        } else if result.successCount > 0 {
+            // 成功传输，显示提示
+            let message = "Moved \(result.successCount) item(s)"
+            Logger.fileSystem.info("File move successful: \(message)")
         }
     }
 
     /// 删除文件（移动到废纸篓）
     func trashFiles(_ files: [FileItem], undoManager: UndoManager? = nil) async throws {
         guard !files.isEmpty else { return }
-        let provider = getProvider(for: files.first!.path)
-
-        if provider is LocalFileSystemProvider {
-            try await withUndoManager(manager: undoManager) {
-                try await provider.delete(items: files)
+        let endpoint = try resolveEndpoint(for: files.first!.path) // Ensure we have an endpoint for the file
+        try await withUndoManager(endpoint: endpoint, manager: undoManager) {
+            for file in files {
+                Logger.fileSystem.debug("Trashing file: \(file.path)")
+                try await endpoint.ops.trash(at: file.path)
             }
-        } else {
-            // For non-local providers, just call the delete method without undoManager injection
-            try await provider.delete(items: files)
         }
     }
 
@@ -336,39 +347,33 @@ class FileSystemService {
 
     /// 创建目录
     func createDirectory(at path: URL, name: String, undoManager: UndoManager? = nil) async throws -> URL {
-        let provider = getProvider(for: path)
+        let endpoint = try resolveEndpoint(for: path)
 
-        if provider is LocalFileSystemProvider {
-            return try await withUndoManager(manager: undoManager) {
-                let createdItem = try await provider.createDirectory(at: path, name: name)
-                return createdItem.path
-            }
-        } else {
-            let createdItem = try await provider.createDirectory(at: path, name: name)
-            return createdItem.path
+        return try await withUndoManager(endpoint: endpoint, manager: undoManager) {
+            try await endpoint.ops.mkdir(at: path, name: name, recursive: false)
         }
     }
 
     /// 创建空文件
     func createFile(at path: URL, name: String, undoManager: UndoManager? = nil) async throws -> URL {
-        let provider = getProvider(for: path)
-
-        if provider is LocalFileSystemProvider {
-            return try await withUndoManager(manager: undoManager) {
-                let createdItem = try await provider.createFile(at: path, name: name)
-                return createdItem.path
-            }
-        } else {
-            let createdItem = try await provider.createFile(at: path, name: name)
-            return createdItem.path
+        let endpoint = try resolveEndpoint(for: path)
+        return try await withUndoManager(endpoint: endpoint, manager: undoManager) {
+            try await endpoint.ops.createFile(at: path, name: name)
         }
     }
 
     /// 打开文件
     func openFile(_ file: FileItem) {
-        let provider = getProvider(for: file.path)
-        Task {
-            await provider.openFile(file)
+        do {
+            // Ensure an endpoint exists for this file; resolveEndpoint throws if not
+            let endpoint = try resolveEndpoint(for: file.path)
+
+            Task { @MainActor in
+                try await endpoint.ops.openFile(at: file.path)
+            }
+        } catch {
+            Logger.fileSystem.error("Failed to resolve endpoint for file: \(file.path), error: \(error.localizedDescription)")
+            return
         }
     }
 

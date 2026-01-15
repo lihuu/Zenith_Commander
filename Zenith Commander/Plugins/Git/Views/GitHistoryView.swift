@@ -22,8 +22,11 @@ struct GitHistoryPanelView: View {
     let fileName: String
     let commits: [GitCommit]
     let isLoading: Bool
+    let isLoadingMore: Bool
+    let hasMore: Bool
     let onClose: () -> Void
     let onCommitSelected: (GitCommit) -> Void
+    let onLoadMore: () -> Void
 
     @State private var selectedCommitId: String?
     @State private var hoveredCommitId: String?
@@ -47,7 +50,12 @@ struct GitHistoryPanelView: View {
         }
         .background(Theme.background)
         .sheet(item: $showingCommitDetail) { commit in
-            GitCommitDetailView(commit: commit)
+            let snapshot = context.panes()
+            let activePath = snapshot.active == .left ? snapshot.leftPath : snapshot.rightPath
+            GitCommitDetailView(
+                commit: commit,
+                repoPath: URL(fileURLWithPath: activePath)
+            )
         }
         .onAppear {
             context.logger.info(
@@ -136,6 +144,48 @@ struct GitHistoryPanelView: View {
                             .padding(.leading, 12)
                     }
                 }
+
+                // 加载更多区域
+                if hasMore || isLoadingMore {
+                    loadMoreView
+                }
+            }
+        }
+    }
+
+    private var loadMoreView: some View {
+        Group {
+            if isLoadingMore {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                    Text(L(.gitLoadingMore))
+                        .font(.system(size: 11))
+                        .foregroundColor(Theme.textSecondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+            } else if hasMore {
+                Button(action: onLoadMore) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.down.circle")
+                            .font(.system(size: 12))
+                        Text(L(.gitLoadMore))
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .foregroundColor(Theme.accent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(Theme.backgroundSecondary.opacity(0.5))
+                    .cornerRadius(6)
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .onAppear {
+                    // 自动加载更多（无限滚动）
+                    onLoadMore()
+                }
             }
         }
     }
@@ -148,10 +198,19 @@ struct GitHistoryPanelView: View {
             isHovered: hoveredCommitId == commit.id
         )
         .equatable()
-        .onTapGesture {
-            selectedCommitId = commit.id
-            onCommitSelected(commit)
-        }
+        .simultaneousGesture(
+            TapGesture(count: 2)
+                .onEnded {
+                    showingCommitDetail = commit
+                }
+        )
+        .simultaneousGesture(
+            TapGesture(count: 1)
+                .onEnded {
+                    selectedCommitId = commit.id
+                    onCommitSelected(commit)
+                }
+        )
         .contextMenu {
             Button(L(.gitShowDetails)) {
                 showingCommitDetail = commit
@@ -174,7 +233,10 @@ struct GitHistoryPanelView: View {
 /// Git 提交详情视图
 struct GitCommitDetailView: View {
     let commit: GitCommit
+    let repoPath: URL
     @Environment(\.presentationMode) var presentationMode
+    @State private var diffContent: String = ""
+    @State private var isLoadingDiff: Bool = true
 
     var body: some View {
         VStack(spacing: 0) {
@@ -233,12 +295,52 @@ struct GitCommitDetailView: View {
                             .background(Theme.backgroundSecondary.opacity(0.5))
                             .cornerRadius(8)
                     }
+
+                    Divider()
+
+                    // Diff 信息
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label(L(.gitDiff), systemImage: "doc.text.magnifyingglass")
+                            .font(.subheadline)
+                            .foregroundColor(Theme.textSecondary)
+
+                        if isLoadingDiff {
+                            HStack {
+                                ProgressView()
+                                    .scaleEffect(0.7)
+                                Text(L(.gitLoadingDiff))
+                                    .font(.system(size: 12))
+                                    .foregroundColor(Theme.textSecondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding()
+                        } else if diffContent.isEmpty {
+                            Text(L(.gitNoDiff))
+                                .font(.system(size: 12))
+                                .foregroundColor(Theme.textTertiary)
+                                .padding()
+                        } else {
+                            GitDiffView(diffContent: diffContent)
+                        }
+                    }
                 }
                 .padding()
             }
         }
-        .frame(width: 500, height: 400)
+        .frame(width: 700, height: 600)
         .background(Theme.background)
+        .task {
+            await loadDiff()
+        }
+    }
+
+    private func loadDiff() async {
+        let diff = await GitService.shared.getCommitDiff(
+            for: commit.id,
+            at: repoPath
+        )
+        diffContent = diff
+        isLoadingDiff = false
     }
 
     private func detailRow(icon: String, title: String, value: String) -> some View {
@@ -258,6 +360,62 @@ struct GitCommitDetailView: View {
                     .textSelection(.enabled)
             }
         }
+    }
+}
+
+// MARK: - Git Diff View
+
+/// Git Diff 视图 - 带语法高亮
+struct GitDiffView: View {
+    let diffContent: String
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: true) {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(diffContent.components(separatedBy: "\n").enumerated()), id: \.offset)
+                { _, line in
+                    diffLineView(line)
+                }
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .background(Theme.backgroundSecondary.opacity(0.3))
+        .cornerRadius(8)
+    }
+
+    @ViewBuilder
+    private func diffLineView(_ line: String) -> some View {
+        HStack(spacing: 0) {
+            Text(line.isEmpty ? " " : line)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundColor(lineColor(for: line))
+                .textSelection(.enabled)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(lineBackground(for: line))
+    }
+
+    private func lineColor(for line: String) -> Color {
+        if line.hasPrefix("+") && !line.hasPrefix("+++") {
+            return Theme.success
+        } else if line.hasPrefix("-") && !line.hasPrefix("---") {
+            return Theme.error
+        } else if line.hasPrefix("@@") {
+            return Theme.accent
+        } else if line.hasPrefix("diff ") || line.hasPrefix("index ") {
+            return Theme.textTertiary
+        }
+        return Theme.textPrimary
+    }
+
+    private func lineBackground(for line: String) -> Color {
+        if line.hasPrefix("+") && !line.hasPrefix("+++") {
+            return Theme.success.opacity(0.1)
+        } else if line.hasPrefix("-") && !line.hasPrefix("---") {
+            return Theme.error.opacity(0.1)
+        }
+        return .clear
     }
 }
 
@@ -375,8 +533,11 @@ struct GitCommitRowView: View, Equatable {
         fileName: "GitService.swift",
         commits: sampleCommits,
         isLoading: false,
+        isLoadingMore: false,
+        hasMore: true,
         onClose: {},
-        onCommitSelected: { _ in }
+        onCommitSelected: { _ in },
+        onLoadMore: {}
     )
     .frame(height: 200)
 }

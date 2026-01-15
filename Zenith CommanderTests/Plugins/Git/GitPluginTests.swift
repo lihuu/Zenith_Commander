@@ -9,6 +9,7 @@ import XCTest
 
 @testable import Zenith_Commander
 
+@MainActor
 class GitPluginTests: XCTestCase {
     private var previousEnv: AppEnvironment!
 

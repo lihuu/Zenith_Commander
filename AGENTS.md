@@ -6,7 +6,7 @@
 It combines the efficiency of Total Commander with the modal interaction philosophy of Vim.
 
 - Platform: macOS 14.0+ (Sonoma)
-- Language: Swift 5.9+
+- Language: Swift 6.0
 - UI Frameworks: SwiftUI (primary), AppKit (window management)
 - License: MIT
 
@@ -16,7 +16,7 @@ The AI assistant must follow all rules in this document when modifying the codeb
 
 ## 2. Tech Stack
 
-- Swift 5.9+
+- Swift 6.0
 - SwiftUI
 - AppKit
 - Xcode 15+

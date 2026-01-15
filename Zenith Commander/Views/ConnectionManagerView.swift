@@ -57,6 +57,8 @@ struct ConnectionManagerView: View {
                                 closeModal()
                                 appState.currentPane.activeTab.currentPath = url
                                 Task { @MainActor in
+                                    // Refresh drives and auto-select the mounted drive
+                                    await appState.refreshDrivesAndSelectMatchingDrive()
                                     await appState.refreshCurrentPane()
                                 }
                             }

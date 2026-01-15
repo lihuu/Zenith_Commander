@@ -86,6 +86,8 @@ struct AppEnvironment {
     var main: MainScheduling
     var userDefaults: UserDefaults
     var runtime: RuntimePolicy
+    var commandExecution: CommandExecutionServicing
+    var gitHistory: GitHistoryServicing
     var plugins: [ZenithPlugin] = []
     var initParam: InitParam
 }
@@ -173,7 +175,7 @@ struct LiveFileSystem: FileSysteming {
         )
     }
 
-    private func runFileOperation(_ work: @escaping () throws -> Void) async throws {
+    private func runFileOperation(_ work: @escaping @Sendable () throws -> Void) async throws {
         try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .utility).async {
                 do {
@@ -223,7 +225,7 @@ struct LiveFileSystem: FileSysteming {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .utility).async {
                 continuation.resume(
-                    returning: FileSystemService.shared.getMountedVolumes()
+                    returning: FileSystemService.loadMountedVolumes()
                 )
             }
         }

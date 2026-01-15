@@ -333,6 +333,11 @@ enum LocalizedStringKey: String, CaseIterable {
     case gitCommitParent
     case gitShowDetails
     case gitCopyHash
+    case gitLoadMore
+    case gitLoadingMore
+    case gitDiff
+    case gitLoadingDiff
+    case gitNoDiff
 
     // MARK: - 错误消息
 
@@ -476,16 +481,16 @@ enum LocalizedStringKey: String, CaseIterable {
     case rsyncMenuConfigure
     case rsyncMenuMirror
     case rsyncMirrorSuccess
-    
+
     // MARK: - Fzf Settings
-    
+
     case settingsFzf
     case fzfEnabled
     case fzfEnabledDescription
     case fzfNotInstalled
-    
+
     // MARK: - Fzf Search
-    
+
     case fzfSearchTitle
     case fzfSearchPattern
     case fzfRecursive
@@ -618,6 +623,11 @@ class LocalizedStrings {
             .gitCommitParent: "Parent",
             .gitShowDetails: "Show Details",
             .gitCopyHash: "Copy Hash",
+            .gitLoadMore: "Load More",
+            .gitLoadingMore: "Loading more...",
+            .gitDiff: "Changes",
+            .gitLoadingDiff: "Loading diff...",
+            .gitNoDiff: "No changes in this commit",
 
             // 帮助页面
             .help: "Help",
@@ -859,13 +869,13 @@ class LocalizedStrings {
             .rsyncMenuConfigure: "Configure Rsync Sync...",
             .rsyncMenuMirror: "Mirror to Opposite Pane",
             .rsyncMirrorSuccess: "Mirror sync completed successfully",
-            
+
             // Fzf Settings
             .settingsFzf: "Fzf Search",
             .fzfEnabled: "Enable Fzf Search",
             .fzfEnabledDescription: "Enable fuzzy file search using fzf",
             .fzfNotInstalled: "fzf is not installed. Install with: brew install fzf",
-            
+
             // Fzf Search
             .fzfSearchTitle: "Fuzzy Search",
             .fzfSearchPattern: "Search Pattern",
@@ -980,6 +990,11 @@ class LocalizedStrings {
             .gitCommitParent: "父提交",
             .gitShowDetails: "显示详情",
             .gitCopyHash: "复制哈希",
+            .gitLoadMore: "加载更多",
+            .gitLoadingMore: "加载中...",
+            .gitDiff: "变更内容",
+            .gitLoadingDiff: "加载差异...",
+            .gitNoDiff: "此提交没有变更",
 
             // 帮助页面
             .help: "帮助",
@@ -1221,13 +1236,13 @@ class LocalizedStrings {
             .rsyncMenuConfigure: "配置 Rsync 同步...",
             .rsyncMenuMirror: "镜像到对侧面板",
             .rsyncMirrorSuccess: "镜像同步已成功完成",
-            
+
             // Fzf 设置
             .settingsFzf: "Fzf 搜索",
             .fzfEnabled: "启用 Fzf 搜索",
             .fzfEnabledDescription: "使用 fzf 进行模糊文件搜索",
             .fzfNotInstalled: "fzf 未安装。请使用 brew install fzf 安装",
-            
+
             // Fzf 搜索
             .fzfSearchTitle: "模糊搜索",
             .fzfSearchPattern: "搜索模式",

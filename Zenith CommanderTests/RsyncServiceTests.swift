@@ -8,6 +8,7 @@
 import XCTest
 @testable import Zenith_Commander
 
+@MainActor
 final class RsyncServiceTests: XCTestCase {
     var service: RsyncService!
 
@@ -23,7 +24,6 @@ final class RsyncServiceTests: XCTestCase {
         )
     }
 
-    @MainActor
     override func setUp() {
         super.setUp()
         service = RsyncService.shared

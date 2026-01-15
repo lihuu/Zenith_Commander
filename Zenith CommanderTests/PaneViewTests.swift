@@ -9,16 +9,15 @@ import XCTest
 
 @testable import Zenith_Commander
 
+@MainActor
 final class PaneViewTests: XCTestCase {
     var appState: AppState!
 
-    @MainActor
     override func setUp() {
         super.setUp()
         appState = AppState()
     }
 
-    @MainActor
     func testPaneSideProperty() {
         // Test that left and right panes have correct side properties
         XCTAssertEqual(appState.leftPane.side, .left, "Left pane should have side .left")
@@ -26,3 +25,4 @@ final class PaneViewTests: XCTestCase {
     }
 
 }
+

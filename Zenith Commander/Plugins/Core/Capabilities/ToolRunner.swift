@@ -7,7 +7,7 @@
 
 import Foundation
 import Synchronization
-
+import os.log
 
 struct ToolRequest {
     let executable: String
@@ -21,9 +21,9 @@ struct ToolResponse {
     let stderr: [String]
 }
 
-protocol ToolRunner: PluginCapability {
+protocol ToolRunner: PluginCapability, Sendable {
     func run(_ request: ToolRequest) async throws -> ToolResponse
-    func runSync(_ request: ToolRequest) throws -> ToolResponse
+    nonisolated func runSync(_ request: ToolRequest) throws -> ToolResponse
 }
 
 extension ToolRunner {
@@ -33,13 +33,13 @@ extension ToolRunner {
 }
 
 struct ProcessToolRunner: ToolRunner {
-    
-    private func setupProcess(for request: ToolRequest) -> (
+
+    private nonisolated func setupProcess(for request: ToolRequest) -> (
         process: Process, stdout: Pipe, stderr: Pipe
     ) {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: request.executable)
-        print("[ToolRunner] Executable URL: \(p.executableURL!.path)")
+        Logger.tools.debug("[ToolRunner] Executable URL: \(p.executableURL!.path)")
         p.arguments = request.args
         if let wd = request.workingDirectory {
             p.currentDirectoryURL = URL(fileURLWithPath: wd)
@@ -53,7 +53,9 @@ struct ProcessToolRunner: ToolRunner {
         return (p, out, err)
     }
 
-    private nonisolated static func parseOutput(stdout: Pipe, stderr: Pipe, exitCode: Int32) -> ToolResponse {
+    private nonisolated static func parseOutput(stdout: Pipe, stderr: Pipe, exitCode: Int32)
+        -> ToolResponse
+    {
         let outData = stdout.fileHandleForReading.readDataToEndOfFile()
         let errData = stderr.fileHandleForReading.readDataToEndOfFile()
 
@@ -112,9 +114,9 @@ struct ProcessToolRunner: ToolRunner {
         }
     }
 
-    func runSync(_ request: ToolRequest) throws -> ToolResponse {
+    nonisolated func runSync(_ request: ToolRequest) throws -> ToolResponse {
         if let wd = request.workingDirectory {
-            print("[ToolRunner] Working directory: \(wd)")
+            Logger.tools.debug("[ToolRunner] Working directory: \(wd)")
         }
 
         let (p, out, err) = setupProcess(for: request)
@@ -122,15 +124,16 @@ struct ProcessToolRunner: ToolRunner {
         try p.run()
         p.waitUntilExit()
 
-        let response = ProcessToolRunner.parseOutput(stdout: out, stderr: err, exitCode: p.terminationStatus)
+        let response = ProcessToolRunner.parseOutput(
+            stdout: out, stderr: err, exitCode: p.terminationStatus)
         if !response.stdout.isEmpty {
-            print("[ToolRunner] stdout: \(response.stdout.joined(separator: "\\n"))")
+            Logger.tools.debug("[ToolRunner] stdout: \(response.stdout.joined(separator: "\\n"))")
         }
         if !response.stderr.isEmpty {
-            print("[ToolRunner] stderr: \(response.stderr.joined(separator: "\\n"))")
+            Logger.tools.debug("[ToolRunner] stderr: \(response.stderr.joined(separator: "\\n"))")
         }
-        
-        print("[ToolRunner] Process exited with code: \(response.exitCode)")
+
+        Logger.tools.debug("[ToolRunner] Process exited with code: \(response.exitCode)")
 
         return response
     }
