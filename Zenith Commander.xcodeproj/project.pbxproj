@@ -62,11 +62,6 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		1C10E8122F0BFC52008564FC /* FinderSyncExtension */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = FinderSyncExtension;
-			sourceTree = "<group>";
-		};
 		1C790B782ED8169E005B181E /* Zenith Commander */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "Zenith Commander";
@@ -118,7 +113,6 @@
 				1C790B782ED8169E005B181E /* Zenith Commander */,
 				1C790B862ED816A0005B181E /* Zenith CommanderTests */,
 				1C790B902ED816A0005B181E /* Zenith CommanderUITests */,
-				1C10E8122F0BFC52008564FC /* FinderSyncExtension */,
 				1C985B952EE2DEC2009794E9 /* Frameworks */,
 				1C790B772ED8169E005B181E /* Products */,
 			);
