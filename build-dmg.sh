@@ -45,7 +45,7 @@ if [ -d "$APP_SOURCE_DIR" ]; then
 fi
 
 # 将构建输出，重命名为Release目录（输出目录是：Zenith Commander 开头的一个目录）
-BUILT_APP_DIR=$(find ./build -type d -name "${APP_NAME}*" | head -n 1)
+BUILT_APP_DIR=$(find ./build -type d -name "${APP_NAME}*" ! -name "*.xcarchive" | head -n 1)
 if [ -z "$BUILT_APP_DIR" ]; then
   echo "❌ 错误: 未找到构建输出目录。请确保 Xcode 构建已完成。"
   exit 1
