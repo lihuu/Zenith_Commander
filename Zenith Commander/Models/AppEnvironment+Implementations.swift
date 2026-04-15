@@ -369,7 +369,7 @@ extension AppEnvironment {
             runtime: runtime,
             commandExecution: CommandExecutionService(fileSystem: fileSystem),
             gitHistory: GitHistoryService(),
-            plugins: [GitPlugin(), RsyncPlugin(), FzfPlugin()],
+            plugins: [GitPlugin(), RsyncPlugin(), FzfPlugin(), AIPlugin()],
             initParam: InitParam(leftInitPath: leftPath, rightInitPath: rightPath)
         )
     }

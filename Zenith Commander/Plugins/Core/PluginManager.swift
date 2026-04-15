@@ -69,10 +69,10 @@ final class PluginManager {
         return nil
     }
 
-    func contextMenuItems() -> [MenuElement] {
+    func contextMenuItems(for context: ContextMenuContext) -> [MenuElement] {
         var items: [MenuElement] = []
         for provider in contextMenuProviders {
-            items.append(contentsOf: provider.menuItems())
+            items.append(contentsOf: provider.menuItems(for: context))
         }
         return items
     }

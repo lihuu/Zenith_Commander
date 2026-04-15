@@ -7,6 +7,7 @@
 
 import Foundation
 import Testing
+
 @testable import Zenith_Commander
 
 // MARK: - 1. FileItem 模型测试
@@ -59,13 +60,15 @@ struct AppModeTests {
 
     @Test func appModeColors() {
         // 验证每种模式都有颜色
-        let modes: [AppMode] = [.normal, .visual, .command, .filter, .driveSelect, .aiAnalysis, .rename, .settings]
+        let modes: [AppMode] = [
+            .normal, .visual, .command, .filter, .driveSelect, .aiAnalysis, .rename, .settings,
+        ]
 
         for mode in modes {
-            _ = mode.color // 如果没有定义颜色会崩溃
+            _ = mode.color  // 如果没有定义颜色会崩溃
         }
 
-        #expect(true) // 如果能到达这里，说明所有颜色都已定义
+        #expect(true)  // 如果能到达这里，说明所有颜色都已定义
     }
 
     @Test func appModeIsModalMode() {
@@ -139,7 +142,7 @@ struct TabStateTests {
 
         #expect(tab.currentPath == path)
         #expect(tab.files.isEmpty)
-        #expect(tab.cursorIndexInTab == nil) // files is empty, so cursor index is nil
+        #expect(tab.cursorIndexInTab == nil)  // files is empty, so cursor index is nil
     }
 
     @Test func tabStateDirectoryName() {
@@ -221,7 +224,7 @@ struct PaneStateTests {
 
         pane.closeTab(at: 0)
 
-        #expect(pane.tabs.count == 1) // 最后一个标签页不可关闭
+        #expect(pane.tabs.count == 1)  // 最后一个标签页不可关闭
     }
 
     @Test func testSwitchTab() {
@@ -248,10 +251,10 @@ struct PaneStateTests {
         pane.nextTab()
         #expect(pane.activeTabIndex == 2)
 
-        pane.nextTab() // 应该循环回到 0
+        pane.nextTab()  // 应该循环回到 0
         #expect(pane.activeTabIndex == 0)
 
-        pane.previousTab() // 应该循环到最后
+        pane.previousTab()  // 应该循环到最后
         #expect(pane.activeTabIndex == 2)
     }
 
@@ -264,7 +267,7 @@ struct PaneStateTests {
         pane.toggleSelection(for: "file2")
         #expect(pane.selections.count == 2)
 
-        pane.toggleSelection(for: "file1") // 取消选择
+        pane.toggleSelection(for: "file1")  // 取消选择
         #expect(!pane.selections.contains("file1"))
 
         pane.clearSelections()
@@ -328,7 +331,7 @@ struct GridViewNavigationTests {
 
     func createTestFiles(count: Int) -> [FileItem] {
         let now = Date()
-        return (0 ..< count).map { index in
+        return (0..<count).map { index in
             FileItem(
                 id: "file_\(index)",
                 name: "file_\(index).txt",
@@ -353,14 +356,14 @@ struct GridViewNavigationTests {
 
         // 创建 12 个文件（3行 x 4列）
         pane.activeTab.files = createTestFiles(count: 12)
-        pane.cursorIndex = 0 // 从第一个开始
+        pane.cursorIndex = 0  // 从第一个开始
 
         // 模拟向下移动一行（移动 4 个位置）
         let currentIndex = pane.cursorIndex
         let newIndex = min(pane.activeTab.files.count - 1, currentIndex + pane.gridColumnCount)
         pane.cursorIndex = newIndex
 
-        #expect(pane.cursorIndex == 4) // 应该移动到第二行第一个
+        #expect(pane.cursorIndex == 4)  // 应该移动到第二行第一个
     }
 
     @Test func gridNavigationUpOneRow() {
@@ -369,14 +372,14 @@ struct GridViewNavigationTests {
         pane.gridColumnCount = 4
 
         pane.activeTab.files = createTestFiles(count: 12)
-        pane.cursorIndex = 4 // 从第二行第一个开始
+        pane.cursorIndex = 4  // 从第二行第一个开始
 
         // 模拟向上移动一行
         let currentIndex = pane.cursorIndex
         let newIndex = max(0, currentIndex - pane.gridColumnCount)
         pane.cursorIndex = newIndex
 
-        #expect(pane.cursorIndex == 0) // 应该移动到第一行第一个
+        #expect(pane.cursorIndex == 0)  // 应该移动到第一行第一个
     }
 
     @Test func gridNavigationDownAtBoundary() {
@@ -385,14 +388,14 @@ struct GridViewNavigationTests {
         pane.gridColumnCount = 4
 
         pane.activeTab.files = createTestFiles(count: 12)
-        pane.cursorIndex = 10 // 第三行第三个
+        pane.cursorIndex = 10  // 第三行第三个
 
         // 向下移动应该到达最后一个文件
         let currentIndex = pane.cursorIndex
         let newIndex = min(pane.activeTab.files.count - 1, currentIndex + pane.gridColumnCount)
         pane.cursorIndex = newIndex
 
-        #expect(pane.cursorIndex == 11) // 应该停在最后一个文件
+        #expect(pane.cursorIndex == 11)  // 应该停在最后一个文件
     }
 
     @Test func gridNavigationUpAtBoundary() {
@@ -401,14 +404,14 @@ struct GridViewNavigationTests {
         pane.gridColumnCount = 4
 
         pane.activeTab.files = createTestFiles(count: 12)
-        pane.cursorIndex = 1 // 第一行第二个
+        pane.cursorIndex = 1  // 第一行第二个
 
         // 向上移动应该停在第一行
         let currentIndex = pane.cursorIndex
         let newIndex = max(0, currentIndex - pane.gridColumnCount)
         pane.cursorIndex = newIndex
 
-        #expect(pane.cursorIndex == 0) // 应该停在第一个
+        #expect(pane.cursorIndex == 0)  // 应该停在第一个
     }
 
     // MARK: - Grid View 左右导航测试
@@ -467,7 +470,7 @@ struct GridViewNavigationTests {
         pane.gridColumnCount = 4
 
         pane.activeTab.files = createTestFiles(count: 12)
-        pane.cursorIndex = 11 // 最后一个
+        pane.cursorIndex = 11  // 最后一个
 
         // 向右移动应该停在最后一个
         let currentIndex = pane.cursorIndex
@@ -485,7 +488,7 @@ struct GridViewNavigationTests {
         pane.gridColumnCount = 4
 
         pane.activeTab.files = createTestFiles(count: 12)
-        pane.cursorIndex = 3 // 第一行最后一个
+        pane.cursorIndex = 3  // 第一行最后一个
 
         // 向右移动应该到第二行第一个
         let currentIndex = pane.cursorIndex
@@ -501,7 +504,7 @@ struct GridViewNavigationTests {
         pane.gridColumnCount = 4
 
         pane.activeTab.files = createTestFiles(count: 12)
-        pane.cursorIndex = 4 // 第二行第一个
+        pane.cursorIndex = 4  // 第二行第一个
 
         // 向左移动应该到第一行最后一个
         let currentIndex = pane.cursorIndex
@@ -516,9 +519,9 @@ struct GridViewNavigationTests {
     @Test func gridNavigationWithDifferentColumnCount() {
         let pane = createTestPane()
         pane.viewMode = .grid
-        pane.gridColumnCount = 6 // 6列
+        pane.gridColumnCount = 6  // 6列
 
-        pane.activeTab.files = createTestFiles(count: 18) // 3行 x 6列
+        pane.activeTab.files = createTestFiles(count: 18)  // 3行 x 6列
         pane.cursorIndex = 0
 
         // 向下移动一行（6个位置）
@@ -536,14 +539,14 @@ struct GridViewNavigationTests {
 
         // 10个文件：第一行4个，第二行4个，第三行2个
         pane.activeTab.files = createTestFiles(count: 10)
-        pane.cursorIndex = 6 // 第二行第三个
+        pane.cursorIndex = 6  // 第二行第三个
 
         // 向下移动应该到第三行的最后一个（索引9）
         let currentIndex = pane.cursorIndex
         let newIndex = min(pane.activeTab.files.count - 1, currentIndex + pane.gridColumnCount)
         pane.cursorIndex = newIndex
 
-        #expect(pane.cursorIndex == 9) // 应该是最后一个有效索引
+        #expect(pane.cursorIndex == 9)  // 应该是最后一个有效索引
     }
 }
 
@@ -594,10 +597,11 @@ struct ParentDirectoryItemTests {
         let service = FileSystemService.shared
 
         // 测试非根目录应该包含 ".." 项
-        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+            .first!
         let result = await service.loadDirectoryWithPermissionCheck(at: documentsPath)
 
-        if case let .success(files) = result {
+        if case .success(let files) = result {
             // 非根目录的第一个项目应该是 ".."
             if let firstItem = files.first {
                 #expect(firstItem.isParentDirectory == true)
@@ -613,7 +617,7 @@ struct ParentDirectoryItemTests {
         let rootPath = URL(fileURLWithPath: "/")
         let result = await service.loadDirectoryWithPermissionCheck(at: rootPath)
 
-        if case let .success(files) = result {
+        if case .success(let files) = result {
             // 根目录的第一个项目不应该是 ".."
             if let firstItem = files.first {
                 #expect(firstItem.isParentDirectory == false)
@@ -791,7 +795,7 @@ struct AppStateTests {
         state.showToast("Test message")
 
         // 等待异步更新完成
-        try await Task.sleep(nanoseconds: 100_000_000) // 0.1 秒
+        try await Task.sleep(nanoseconds: 100_000_000)  // 0.1 秒
 
         #expect(state.toastMessage == "Test message")
     }
@@ -813,7 +817,7 @@ struct VisualModeTests {
     }
 
     func createTestFileItems(count: Int) -> [FileItem] {
-        (0 ..< count).map { index in
+        (0..<count).map { index in
             FileItem(
                 id: "file-\(index)",
                 name: "File \(index).txt",
@@ -866,7 +870,7 @@ struct VisualModeTests {
 
         // 设置测试文件
         pane.activeTab.files = createTestFileItems(count: 5)
-        pane.cursorIndex = 2 // 从第 3 个文件开始
+        pane.cursorIndex = 2  // 从第 3 个文件开始
 
         // 进入 Visual 模式并开始选择
         state.enterMode(.visual)
@@ -886,7 +890,7 @@ struct VisualModeTests {
 
         // 设置测试文件
         pane.activeTab.files = createTestFileItems(count: 5)
-        pane.cursorIndex = 1 // 从第 2 个文件开始
+        pane.cursorIndex = 1  // 从第 2 个文件开始
 
         // 进入 Visual 模式
         state.enterMode(.visual)
@@ -918,7 +922,7 @@ struct VisualModeTests {
 
         // 设置测试文件
         pane.activeTab.files = createTestFileItems(count: 5)
-        pane.cursorIndex = 3 // 从第 4 个文件开始
+        pane.cursorIndex = 3  // 从第 4 个文件开始
 
         // 进入 Visual 模式
         state.enterMode(.visual)
@@ -950,7 +954,7 @@ struct VisualModeTests {
 
         // 设置测试文件
         pane.activeTab.files = createTestFileItems(count: 5)
-        pane.cursorIndex = 2 // 从第 3 个文件开始（锚点）
+        pane.cursorIndex = 2  // 从第 3 个文件开始（锚点）
 
         // 进入 Visual 模式
         state.enterMode(.visual)
@@ -1067,7 +1071,7 @@ struct VisualModeTests {
 
         // 设置测试文件
         pane.activeTab.files = createTestFileItems(count: 3)
-        pane.cursorIndex = 0 // 从第一个文件开始
+        pane.cursorIndex = 0  // 从第一个文件开始
 
         state.enterMode(.visual)
         pane.startVisualSelection()
@@ -1248,7 +1252,8 @@ struct BatchRenameTests {
         formatter.dateFormat = "yyyyMMdd"
         let dateString = formatter.string(from: Date())
 
-        let processedReplace = replaceText
+        let processedReplace =
+            replaceText
             .replacingOccurrences(of: "{n}", with: String(format: "%03d", index + 1))
             .replacingOccurrences(of: "{date}", with: dateString)
 
@@ -1406,7 +1411,7 @@ struct BatchRenameTests {
         // 测试无效正则表达式返回原始文件名
         let result = generateNewName(
             originalName: "file.txt",
-            findText: "[invalid", // 无效的正则表达式
+            findText: "[invalid",  // 无效的正则表达式
             replaceText: "new",
             useRegex: true,
             index: 0
@@ -1656,7 +1661,7 @@ struct CommandModeTests {
         let state = AppState()
 
         // 多次进入退出循环
-        for i in 0 ..< 5 {
+        for i in 0..<5 {
             state.enterMode(.command)
             #expect(state.mode == .command)
 
@@ -1875,7 +1880,9 @@ struct FilterModeTests {
         // 模拟过滤操作
         state.currentPane.activeTab.unfilteredFiles = testFiles
         let filter = "doc"
-        state.currentPane.activeTab.files = testFiles.filter { $0.name.lowercased().contains(filter.lowercased()) }
+        state.currentPane.activeTab.files = testFiles.filter {
+            $0.name.lowercased().contains(filter.lowercased())
+        }
         state.filterInput = filter
 
         // 验证文件被过滤
@@ -1907,7 +1914,9 @@ struct FilterModeTests {
 
         // 模拟过滤
         let filter = "image"
-        state.currentPane.activeTab.files = testFiles.filter { $0.name.lowercased().contains(filter.lowercased()) }
+        state.currentPane.activeTab.files = testFiles.filter {
+            $0.name.lowercased().contains(filter.lowercased())
+        }
         state.filterInput = filter
 
         // 验证过滤后只有1个文件
@@ -1973,7 +1982,9 @@ struct FilterModeTests {
 
         // 过滤
         let filter = "image"
-        state.currentPane.activeTab.files = testFiles.filter { $0.name.lowercased().contains(filter.lowercased()) }
+        state.currentPane.activeTab.files = testFiles.filter {
+            $0.name.lowercased().contains(filter.lowercased())
+        }
         state.filterInput = filter
         state.enterMode(.filter)
 
@@ -1986,7 +1997,7 @@ struct FilterModeTests {
 
         // 验证
         #expect(state.mode == .normal)
-        #expect(state.currentPane.activeTab.files.count == 1) // 保持过滤结果
+        #expect(state.currentPane.activeTab.files.count == 1)  // 保持过滤结果
         #expect(state.currentPane.activeTab.unfilteredFiles.isEmpty)
     }
 
@@ -2031,11 +2042,13 @@ struct FilterModeTests {
 
         state.currentPane.activeTab.files = testFiles
         state.currentPane.activeTab.unfilteredFiles = testFiles
-        state.currentPane.cursorIndex = 3 // 设置一个非零的光标位置
+        state.currentPane.cursorIndex = 3  // 设置一个非零的光标位置
 
         // 过滤后光标应重置为0
         let filter = "doc"
-        state.currentPane.activeTab.files = testFiles.filter { $0.name.lowercased().contains(filter.lowercased()) }
+        state.currentPane.activeTab.files = testFiles.filter {
+            $0.name.lowercased().contains(filter.lowercased())
+        }
         state.currentPane.cursorIndex = 0
 
         #expect(state.currentPane.cursorIndex == 0)
@@ -2055,7 +2068,7 @@ struct FilterModeTests {
 
         // 设置过滤后的状态
         state.currentPane.activeTab.unfilteredFiles = testFiles
-        state.currentPane.activeTab.files = [testFiles[0]] // 只保留一个
+        state.currentPane.activeTab.files = [testFiles[0]]  // 只保留一个
         state.currentPane.cursorIndex = 0
 
         // 调用恢复方法
@@ -2073,7 +2086,7 @@ struct FilterModeTests {
         // 设置过滤后的状态，光标超出范围
         state.currentPane.activeTab.unfilteredFiles = testFiles
         state.currentPane.activeTab.files = testFiles
-        state.currentPane.cursorIndex = 10 // 超出范围
+        state.currentPane.cursorIndex = 10  // 超出范围
 
         // 调用恢复方法
         state.restoreUnfilteredFiles()
@@ -2220,7 +2233,9 @@ struct FilterModeTests {
         // 普通模式："doc" 会匹配包含 doc 的文件
         state.filterUseRegex = false
         let normalFilter = "doc"
-        let normalFiltered = testFiles.filter { $0.name.lowercased().contains(normalFilter.lowercased()) }
+        let normalFiltered = testFiles.filter {
+            $0.name.lowercased().contains(normalFilter.lowercased())
+        }
 
         // 应该匹配 document.txt, Document.pdf, Documents
         #expect(normalFiltered.count == 3)
@@ -2308,7 +2323,7 @@ struct ThemeTests {
         _ = Theme.textPrimary
         _ = Theme.textSecondary
 
-        #expect(true) // 如果能到达这里，说明颜色都存在
+        #expect(true)  // 如果能到达这里，说明颜色都存在
     }
 
     @Test func themeModeValues() {
@@ -2430,7 +2445,7 @@ struct SettingsTests {
         #expect(settings.themeModeEnum == .auto)
 
         settings.themeMode = "invalid"
-        #expect(settings.themeModeEnum == .auto) // 默认回退到 auto
+        #expect(settings.themeModeEnum == .auto)  // 默认回退到 auto
     }
 
     @Test func terminalSettingsAvailableTerminals() {
@@ -2444,7 +2459,8 @@ struct SettingsTests {
 
     @Test func terminalOptionInstalled() {
         // 系统终端应该总是已安装
-        let systemTerminal = TerminalOption(id: "terminal", name: "Terminal", bundleId: "com.apple.Terminal")
+        let systemTerminal = TerminalOption(
+            id: "terminal", name: "Terminal", bundleId: "com.apple.Terminal")
         #expect(systemTerminal.isInstalled == true)
     }
 
@@ -2499,7 +2515,7 @@ struct ScrollSyncTests {
 
     func createManyTestFiles(_ count: Int) -> [FileItem] {
         let now = Date()
-        return (0 ..< count).map { i in
+        return (0..<count).map { i in
             FileItem(
                 id: "file-\(i)",
                 name: "file\(i).txt",
@@ -2516,7 +2532,8 @@ struct ScrollSyncTests {
     }
 
     @Test func cursorFileIdUpdatesWithCursorIndex() {
-        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let pane = PaneState(
+            side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
         let files = createManyTestFiles(50)
         pane.activeTab.files = files
 
@@ -2534,7 +2551,8 @@ struct ScrollSyncTests {
     }
 
     @Test func cursorIndexUpdatesWithCursorFileId() {
-        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let pane = PaneState(
+            side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
         let files = createManyTestFiles(50)
         pane.activeTab.files = files
 
@@ -2547,15 +2565,16 @@ struct ScrollSyncTests {
     }
 
     @Test func cursorNavigationDownToBottom() {
-        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
-        let files = createManyTestFiles(100) // 模拟很多文件（需要滚动）
+        let pane = PaneState(
+            side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(100)  // 模拟很多文件（需要滚动）
         pane.activeTab.files = files
 
         // 模拟使用 j 键向下导航到底部
         pane.cursorIndex = 0
 
         // 逐步向下移动
-        for i in 1 ..< 100 {
+        for i in 1..<100 {
             pane.cursorIndex = i
             #expect(pane.cursorFileId == "file-\(i)")
         }
@@ -2566,7 +2585,8 @@ struct ScrollSyncTests {
     }
 
     @Test func cursorNavigationUpToTop() {
-        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let pane = PaneState(
+            side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
         let files = createManyTestFiles(100)
         pane.activeTab.files = files
 
@@ -2574,7 +2594,7 @@ struct ScrollSyncTests {
         pane.cursorIndex = 99
 
         // 模拟使用 k 键向上导航到顶部
-        for i in (0 ..< 99).reversed() {
+        for i in (0..<99).reversed() {
             pane.cursorIndex = i
             #expect(pane.cursorFileId == "file-\(i)")
         }
@@ -2585,31 +2605,34 @@ struct ScrollSyncTests {
     }
 
     @Test func cursorBoundaryAtBottom() {
-        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let pane = PaneState(
+            side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
         let files = createManyTestFiles(50)
         pane.activeTab.files = files
 
         // 尝试超出边界
-        pane.cursorIndex = 50 // 超出范围
+        pane.cursorIndex = 50  // 超出范围
 
         // cursorIndex 应该被限制在有效范围内
         #expect(pane.cursorIndex <= 49)
     }
 
     @Test func cursorBoundaryAtTop() {
-        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let pane = PaneState(
+            side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
         let files = createManyTestFiles(50)
         pane.activeTab.files = files
 
         // 尝试超出边界
-        pane.cursorIndex = -1 // 负数
+        pane.cursorIndex = -1  // 负数
 
         // cursorIndex 应该被限制在有效范围内
         #expect(pane.cursorIndex >= 0)
     }
 
     @Test func fileIdConsistencyDuringNavigation() {
-        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let pane = PaneState(
+            side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
         let files = createManyTestFiles(30)
         pane.activeTab.files = files
 
@@ -2619,7 +2642,9 @@ struct ScrollSyncTests {
         for pos in positions {
             pane.cursorIndex = pos
             let expectedFileId = "file-\(pos)"
-            #expect(pane.cursorFileId == expectedFileId, "At position \(pos), expected \(expectedFileId) but got \(pane.cursorFileId)")
+            #expect(
+                pane.cursorFileId == expectedFileId,
+                "At position \(pos), expected \(expectedFileId) but got \(pane.cursorFileId)")
         }
     }
 
@@ -2627,14 +2652,17 @@ struct ScrollSyncTests {
         // 这个测试验证 cursorFileId 的值格式与 FileItem 的 id 格式一致
         // 这对于 ScrollViewReader 的 scrollTo 功能至关重要
 
-        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let pane = PaneState(
+            side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
         let files = createManyTestFiles(10)
         pane.activeTab.files = files
 
         for (index, file) in files.enumerated() {
             pane.cursorIndex = index
             // cursorFileId 应该与文件的 id 完全相同
-            #expect(pane.cursorFileId == file.id, "cursorFileId should match file.id for scrollTo to work")
+            #expect(
+                pane.cursorFileId == file.id,
+                "cursorFileId should match file.id for scrollTo to work")
         }
     }
 
@@ -2643,7 +2671,8 @@ struct ScrollSyncTests {
     @Test func edgeScrollingDownBehavior() {
         // 测试向下导航时的滚动行为
         // 使用 anchor: nil 时，只有当项目即将超出视图时才会滚动
-        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let pane = PaneState(
+            side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
         let files = createManyTestFiles(100)
         pane.activeTab.files = files
 
@@ -2652,9 +2681,11 @@ struct ScrollSyncTests {
 
         // 模拟逐步向下移动（比如 j 键）
         // cursorFileId 应该始终跟随 cursorIndex
-        for i in 1 ... 99 {
+        for i in 1...99 {
             pane.cursorIndex = i
-            #expect(pane.cursorFileId == "file-\(i)", "cursorFileId should track cursorIndex during downward navigation")
+            #expect(
+                pane.cursorFileId == "file-\(i)",
+                "cursorFileId should track cursorIndex during downward navigation")
         }
 
         // 最终应该在最后一项
@@ -2664,7 +2695,8 @@ struct ScrollSyncTests {
 
     @Test func edgeScrollingUpBehavior() {
         // 测试向上导航时的滚动行为
-        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let pane = PaneState(
+            side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
         let files = createManyTestFiles(100)
         pane.activeTab.files = files
 
@@ -2673,9 +2705,11 @@ struct ScrollSyncTests {
         #expect(pane.cursorFileId == "file-99")
 
         // 逐步向上移动（比如 k 键）
-        for i in (0 ... 98).reversed() {
+        for i in (0...98).reversed() {
             pane.cursorIndex = i
-            #expect(pane.cursorFileId == "file-\(i)", "cursorFileId should track cursorIndex during upward navigation")
+            #expect(
+                pane.cursorFileId == "file-\(i)",
+                "cursorFileId should track cursorIndex during upward navigation")
         }
 
         // 最终应该在第一项
@@ -2686,7 +2720,8 @@ struct ScrollSyncTests {
     @Test func scrollTargetIdMatchesFileId() {
         // 验证 scroll target (cursorFileId) 与实际文件 id 格式完全匹配
         // 这是 scrollTo(id, anchor: nil) 正常工作的关键
-        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let pane = PaneState(
+            side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
         let files = createManyTestFiles(50)
         pane.activeTab.files = files
 
@@ -2699,22 +2734,25 @@ struct ScrollSyncTests {
 
             // cursorFileId 必须与文件的 id 完全相同
             // 这样 ScrollViewReader.scrollTo(cursorFileId) 才能正确定位
-            #expect(pane.cursorFileId == file.id, "Scroll target must match file.id exactly at position \(pos)")
+            #expect(
+                pane.cursorFileId == file.id,
+                "Scroll target must match file.id exactly at position \(pos)")
         }
     }
 
     @Test func continuousNavigationWithoutJump() {
         // 测试连续导航时不会出现跳跃
         // 这验证了使用 anchor: nil 时的平滑滚动体验
-        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
-        let files = createManyTestFiles(200) // 大量文件
+        let pane = PaneState(
+            side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let files = createManyTestFiles(200)  // 大量文件
         pane.activeTab.files = files
 
         pane.cursorIndex = 0
         var previousIndex = 0
 
         // 向下连续移动 50 次
-        for _ in 1 ... 50 {
+        for _ in 1...50 {
             let newIndex = previousIndex + 1
             pane.cursorIndex = newIndex
 
@@ -2726,7 +2764,7 @@ struct ScrollSyncTests {
         }
 
         // 向上连续移动 50 次
-        for _ in 1 ... 50 {
+        for _ in 1...50 {
             let newIndex = previousIndex - 1
             pane.cursorIndex = newIndex
 
@@ -2740,7 +2778,8 @@ struct ScrollSyncTests {
 
     @Test func edgeCasesForScrolling() {
         // 测试边界情况
-        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
+        let pane = PaneState(
+            side: .left, initialPath: URL(fileURLWithPath: "/"), drive: createTestDrive())
         let files = createManyTestFiles(10)
         pane.activeTab.files = files
 
@@ -2783,7 +2822,7 @@ struct MouseClickTests {
 
     func createTestFiles(_ count: Int) -> [FileItem] {
         let now = Date()
-        return (0 ..< count).map { i in
+        return (0..<count).map { i in
             FileItem(
                 id: "file-\(i)",
                 name: "file\(i).txt",
@@ -2801,7 +2840,7 @@ struct MouseClickTests {
 
     func createTestFolders(_ count: Int) -> [FileItem] {
         let now = Date()
-        return (0 ..< count).map { i in
+        return (0..<count).map { i in
             FileItem(
                 id: "folder-\(i)",
                 name: "folder\(i)",
@@ -2819,7 +2858,8 @@ struct MouseClickTests {
 
     @Test func singleClickSelectsFile() {
         // 模拟单击选中文件
-        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        let pane = PaneState(
+            side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
         pane.activeTab.files = createTestFiles(10)
 
         // 初始光标在位置 0
@@ -2834,7 +2874,8 @@ struct MouseClickTests {
     }
 
     @Test func clickOnDifferentFilesUpdatesCursor() {
-        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        let pane = PaneState(
+            side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
         pane.activeTab.files = createTestFiles(20)
 
         // 模拟连续点击不同文件
@@ -2848,7 +2889,8 @@ struct MouseClickTests {
     }
 
     @Test func clickOnFolderSelectsFolder() {
-        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        let pane = PaneState(
+            side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
         pane.activeTab.files = createTestFolders(5)
 
         // 单击选中文件夹
@@ -2874,7 +2916,8 @@ struct MouseClickTests {
     }
 
     @Test func cursorIndexSyncWithFileId() {
-        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        let pane = PaneState(
+            side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
         pane.activeTab.files = createTestFiles(15)
 
         // 通过 cursorIndex 设置
@@ -2887,7 +2930,8 @@ struct MouseClickTests {
     }
 
     @Test func clickInListViewMode() {
-        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        let pane = PaneState(
+            side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
         pane.viewMode = .list
         pane.activeTab.files = createTestFiles(10)
 
@@ -2899,7 +2943,8 @@ struct MouseClickTests {
     }
 
     @Test func clickInGridViewMode() {
-        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        let pane = PaneState(
+            side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
         pane.viewMode = .grid
         pane.gridColumnCount = 4
         pane.activeTab.files = createTestFiles(16)
@@ -2912,9 +2957,10 @@ struct MouseClickTests {
     }
 
     @Test func clickOnFirstFile() {
-        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        let pane = PaneState(
+            side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
         pane.activeTab.files = createTestFiles(10)
-        pane.cursorIndex = 5 // 从中间开始
+        pane.cursorIndex = 5  // 从中间开始
 
         // 点击第一个文件
         pane.cursorIndex = 0
@@ -2924,9 +2970,10 @@ struct MouseClickTests {
     }
 
     @Test func clickOnLastFile() {
-        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        let pane = PaneState(
+            side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
         pane.activeTab.files = createTestFiles(10)
-        pane.cursorIndex = 0 // 从开头开始
+        pane.cursorIndex = 0  // 从开头开始
 
         // 点击最后一个文件
         pane.cursorIndex = 9
@@ -2936,11 +2983,12 @@ struct MouseClickTests {
     }
 
     @Test func rapidClicksOnDifferentFiles() {
-        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        let pane = PaneState(
+            side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
         pane.activeTab.files = createTestFiles(100)
 
         // 模拟快速连续点击
-        for i in 0 ..< 100 {
+        for i in 0..<100 {
             pane.cursorIndex = i
             #expect(pane.cursorIndex == i)
         }
@@ -2950,7 +2998,8 @@ struct MouseClickTests {
     }
 
     @Test func clickWithEmptyFileList() {
-        let pane = PaneState(side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
+        let pane = PaneState(
+            side: .left, initialPath: URL(fileURLWithPath: "/test"), drive: createTestDrive())
         pane.activeTab.files = []
 
         // 尝试设置光标（空列表应该保持在 0 或安全值）
@@ -3055,7 +3104,7 @@ struct BookmarkItemTests {
 struct BookmarkManagerTests {
     @Test func bookmarkManagerAddBookmark() {
         let manager = BookmarkManager()
-        manager.bookmarks = [] // 清空初始书签
+        manager.bookmarks = []  // 清空初始书签
 
         let bookmark = BookmarkItem(
             name: "Test",
@@ -3095,7 +3144,7 @@ struct BookmarkManagerTests {
         let bookmark2 = BookmarkItem(name: "Second", path: path, type: .folder)
 
         manager.add(bookmark1)
-        manager.add(bookmark2) // 相同路径不应重复添加
+        manager.add(bookmark2)  // 相同路径不应重复添加
 
         #expect(manager.bookmarks.count == 1)
         #expect(manager.bookmarks.first?.name == "First")
@@ -3241,7 +3290,7 @@ struct GitFileStatusTests {
             _ = status.color
         }
 
-        #expect(true) // 所有颜色定义都存在
+        #expect(true)  // 所有颜色定义都存在
     }
 }
 
@@ -3428,8 +3477,8 @@ struct GitServiceTests {
 
         // 测试当前项目目录（应该是 Git 仓库）
         let projectPath = URL(fileURLWithPath: #file)
-            .deletingLastPathComponent() // Zenith CommanderTests
-            .deletingLastPathComponent() // Zenith Commander
+            .deletingLastPathComponent()  // Zenith CommanderTests
+            .deletingLastPathComponent()  // Zenith Commander
 
         if service.isGitRepository(at: projectPath) {
             let info = service.getRepositoryInfo(at: projectPath)
@@ -3555,7 +3604,8 @@ struct AppSettingsGitTests {
                 showIgnoredFiles: true
             ),
             rsync: RsyncSettings(enabled: true),
-            fzf: .default
+            fzf: .default,
+            ai: .default
         )
 
         // 编码
@@ -3626,7 +3676,7 @@ struct PaneStateGitInfoTests {
 struct AppStateGitHistoryTests {
     @Test func showGitHistoryForRepoUpdatesState() {
         let state = AppState()
-        let path = URL(fileURLWithPath: "/") // Just a path
+        let path = URL(fileURLWithPath: "/")  // Just a path
 
         // Call the method
         state.showGitHistoryForRepo(at: path)
