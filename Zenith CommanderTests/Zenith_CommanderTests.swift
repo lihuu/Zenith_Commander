@@ -2455,6 +2455,8 @@ struct SettingsTests {
         #expect(terminals.first?.id == "terminal")
         #expect(terminals.first?.name == "Terminal")
         #expect(terminals.first?.bundleId == "com.apple.Terminal")
+        #expect(terminals.contains { $0.id == "ghostty" })
+        #expect(terminals.contains { $0.bundleId == "com.mitchellh.ghostty" })
     }
 
     @Test func terminalOptionInstalled() {

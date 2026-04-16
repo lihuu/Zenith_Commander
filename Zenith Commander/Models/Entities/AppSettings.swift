@@ -145,6 +145,7 @@ struct TerminalSettings: Codable, Equatable {
         TerminalOption(id: "warp", name: "Warp", bundleId: "dev.warp.Warp-Stable"),
         TerminalOption(id: "alacritty", name: "Alacritty", bundleId: "org.alacritty"),
         TerminalOption(id: "kitty", name: "Kitty", bundleId: "net.kovidgoyal.kitty"),
+        TerminalOption(id: "ghostty", name: "Ghostty", bundleId: "com.mitchellh.ghostty"),
         TerminalOption(id: "hyper", name: "Hyper", bundleId: "co.zeit.hyper"),
     ]
 

@@ -415,6 +415,7 @@ struct TerminalOptionButton: View {
             case "warp": "bolt.horizontal"
             case "alacritty": "a.square"
             case "kitty": "cat"
+            case "ghostty": "terminal"
             case "hyper": "h.square"
             default: "terminal"
         }

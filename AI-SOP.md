@@ -2,286 +2,199 @@
 
 Zenith Commander -- AI Engineering Standard Operating Procedure
 
-This document defines the **strict, non-overlapping collaboration
-rules** between the following AI tools:
+This document defines how AI assistants should work in this repository.
+`AGENTS.md` remains the single source of truth for architecture, code style,
+localization, testing, and project-specific engineering rules.
 
-- GitHub Copilot
-- OpenAI Codex (CLI)
-- Gemini CLI
+This SOP is optimized for the current workflow:
 
-This SOP is designed to maximize:
-
-- ✅ Engineering efficiency
-- ✅ Codex credit efficiency
-- ✅ Architectural consistency
-- ✅ Build & release reliability
-
-AGENTS.md is the **single source of truth for all code rules**.
-AI-SOP.md defines **how tools are used**.
+- OpenAI Codex is the primary development agent.
+- Codex may inspect code, edit files, run commands, build, test, and debug.
+- Other AI tools may be used as optional helpers, but they do not own fixed,
+  exclusive phases of the workflow.
 
 ---
 
-## 1. Core Role Definition (Never Change)
+## 1. Core Operating Model
 
-| Tool       | Role                                     | Forbidden To Do        |
-| ---------- | ---------------------------------------- | ---------------------- |
-| Copilot    | Local code generation & logic assistance | Project-wide refactors |
-| Codex      | Cross-file & structural refactors        | Build / test / debug   |
-| Gemini CLI | Execution & automation                   | Business logic design  |
+Codex is allowed to perform end-to-end development work:
 
-### One-line Rule:
+- understand requirements
+- inspect the codebase
+- modify production code
+- update or add tests
+- run builds
+- run targeted tests
+- debug failures
+- summarize results and residual risks
 
-> Copilot writes. Codex restructures. Gemini executes.
+Codex must keep changes minimal, scoped, and consistent with `AGENTS.md`.
 
----
+### One-line Rule
 
-## 2. Global Safety Rules
-
-These rules are absolute and never violated:
-
-- Codex MUST NOT run:
-  - build
-  - test
-  - dev server
-  - docker
-- Gemini MUST NOT modify production source code.
-- Copilot MUST NOT perform multi-module refactors.
-- All tools MUST follow AGENTS.md strictly.
+> Codex develops, verifies, and reports. Other agents assist only when useful.
 
 ---
 
-## 3. Daily Development Workflow (Mandatory)
+## 2. Source Of Truth
 
-### Phase 0 -- Design & Clarification
-
-Tools allowed:
-
-- Human
-- Copilot
-
-Tasks:
-
-- Feature understanding
-- Interaction design
-- Logic sketching
-
-Codex & Gemini are forbidden here.
+- `AGENTS.md` defines project rules.
+- `AI-SOP.md` defines workflow rules.
+- If this SOP conflicts with `AGENTS.md`, follow `AGENTS.md`.
+- If the user gives an explicit instruction for the current task, follow the
+  user's instruction unless it would be unsafe or destructive.
 
 ---
 
-### Phase 1 -- Local Implementation (Copilot Only)
+## 3. Development Workflow
 
-Allowed:
+### Phase 0 -- Understand
 
-- SwiftUI Views
-- Service functions
-- Async/await logic
-- Tests
-- Documentation comments
+Codex should clarify the requested behavior when needed, then inspect the
+relevant code paths before making changes.
 
-Forbidden:
+Required behavior:
 
-- Large architectural change
-- Multi-module refactor
+- identify the files and modules likely affected
+- avoid broad refactors unless explicitly requested
+- preserve existing architecture and layering
+- follow localization rules from `AGENTS.md`
 
----
+### Phase 1 -- Implement
 
-### Phase 2 -- Structural Decision Gate
+Codex may edit production code, tests, and project files.
 
-Ask these 3 questions:
+Rules:
 
-1.  Does this change affect multiple files?
-2.  Does this affect architecture or layering?
-3.  Does this require global rule sync?
+- keep the change focused on the requested behavior
+- do not move files across layers without explicit instruction
+- do not silently change unrelated behavior
+- do not delete files unless explicitly requested
+- do not revert user changes or unrelated dirty worktree changes
 
-If ANY answer is "Yes" → Codex stage allowed.
+### Phase 2 -- Verify
 
----
+After production code or test changes, Codex must run verification before
+claiming completion.
 
-### Phase 3 -- Structural Refactor (Codex Only)
+Default verification:
 
-Codex may be used ONLY for:
+- run a build when code or project files changed
+- run only the tests directly related to the modified code or affected feature
+  area
 
-- Cross-file refactors
-- Rule synchronization
-- Architecture cleanup
-- Naming unification
-- API migration
+Examples of related tests:
 
-Codex Prompt MUST:
+- modified service/model/view tests
+- plugin tests for the modified plugin
+- targeted UI tests for the changed user flow
+- focused regression tests for the bug being fixed
 
-- Reference AGENTS.md
-- Be deterministic
-- Be one-shot
-- Forbid testing and building
+Do not run the full test suite by default during feature development.
 
-After completion:
-✅ Codex must be stopped immediately.
+Run the full test suite only when:
 
----
+- the user explicitly requests it
+- preparing for release, merge, or PR
+- the change is broad enough that targeted tests cannot provide useful coverage
+- targeted tests pass but there is a credible risk outside the touched area
 
-### Phase 4 -- Build & Verification (Gemini CLI Only)
+### Phase 3 -- Report
 
-All commands go to Gemini:
+Codex must report:
 
-```bash
-xcodebuild build
-xcodebuild test
-./build-dmg.sh
-docker-compose up -d
-```
+- what changed
+- where it changed
+- what verification was run
+- pass/fail status
+- known failures or residual risks
 
-If failure:
-
-- Human + Copilot fix
-- Gemini reruns
-- Codex is forbidden
+Do not claim a fix is complete without verification evidence.
 
 ---
 
-### Phase 5 -- Pre-Release Global Audit (Optional Codex)
+## 4. Test Execution Delegation
 
-Only if:
+When sub agents are available, Codex should prefer delegating verification to a
+lightweight test sub agent.
 
-- All tests pass
-- No functional bugs remain
+Default test sub agent model:
 
-Allowed:
+- `gpt-5.4-mini`
 
-- Architecture audit
-- Convention audit
-- Dead code scan
+The test sub agent should only report:
 
-Forbidden:
+- command executed
+- pass/fail status
+- failing test names and key error lines when failures exist
 
-- New features
-- Behavioral changes
+The test sub agent should not:
 
----
+- modify files
+- propose implementation changes unless explicitly asked
+- run unrelated full-suite verification by default
 
-### Phase 6 -- Packaging & Release (Gemini Only)
-
-Final release is always executed by Gemini:
-
-```bash
-./build-dmg.sh
-```
+Codex remains responsible for interpreting failures and deciding next steps.
 
 ---
 
-## 4. Codex Usage Blacklist (Instant Credit Killer)
+## 5. Command Execution Rules
 
-Codex MUST NEVER be used for:
+Codex may run local commands needed for development and verification, including:
 
-- Debugging build failures
-- Running tests
-- Running dev servers
-- Trial-and-error fixes
-- Log exploration
-- Environment setup
+- `rg`
+- `swift`
+- `xcodebuild`
+- targeted test commands
+- formatting or linting commands when appropriate
+- diagnostic commands needed for debugging
 
-Codex is a **CTO-level structural tool**, not a technician.
+Safety rules:
 
----
-
-## 5. Copilot Golden Rules
-
-Copilot is used for:
-
-- Function writing
-- View writing
-- Test writing
-- Code explanation
-- Local refactors
-- Async logic generation
-
-Copilot must NOT:
-
-- Redesign architecture
-- Modify cross-module contracts
-- Perform bulk renaming across modules
+- prefer non-destructive commands
+- do not run destructive git commands unless explicitly requested
+- do not use `git reset --hard` or `git checkout --` without explicit approval
+- do not modify permissions, delete files, or rewrite git history unless the
+  task explicitly requires it and the user has approved it
+- do not run network-dependent tests unless explicitly required
 
 ---
 
-## 6. Gemini CLI Golden Rules
+## 6. Debugging Rules
 
-Gemini is used for:
+Codex may debug build failures, test failures, and runtime behavior.
 
-- Build
-- Test
-- Docker
-- CI simulation
-- Packaging
-- Log analysis
-- Automation scripts
+Debugging expectations:
 
-Gemini must NOT:
+- reproduce or gather evidence before fixing
+- identify the failing layer or code path
+- make the smallest useful change
+- add or update a focused regression test when applicable
+- rerun the relevant verification after the fix
 
-- Rewrite business logic
-- Perform architectural changes
-- Modify core rules
-- Gemini MUST NOT “add extra steps” that the user didn’t ask for.
-- Gemini MUST NOT modify source code files, Only the user did ask for.
-- Gemini MUST ask for confirmation BEFORE executing any command that:
-  - deletes files (rm, rm -rf, trash, shred, etc.)
-  - modifies permissions (chmod, chown)
-  - modifies git state (git reset, git clean, git push, git rebase)
-- If the user provides an explicit shell command, Gemini MUST:
-  - Show the exact command it will execute
-  - Ask for a simple yes/no confirmation
-  - Execute only that command after confirmation
+Avoid trial-and-error patches without understanding the failure.
 
 ---
 
-## 7. Codex Credit Protection Rules
+## 7. Optional Helper Tools
 
-Before running Codex, ALL must be true:
+Other AI tools can be used when helpful, but no tool has exclusive ownership of
+implementation, testing, or execution.
 
-- [ ] Design confirmed
-- [ ] No ambiguity remains
-- [ ] Change is deterministic
-- [ ] No command execution needed
-- [ ] Only 1 Codex session active
-- [ ] AGENTS.md rules identified
+Recommended usage:
 
-If ANY unchecked → Codex is forbidden.
+- Copilot: local autocomplete or small code suggestions
+- Gemini CLI: optional external execution or comparison when explicitly useful
+- Codex sub agents: focused testing, review, or bounded parallel investigation
 
----
-
-## 8. Mental Model Summary
-
-Copilot = Hands\
-Codex = Brain\
-Gemini = Legs
-
-Hands build.\
-Brain restructures.\
-Legs execute.
+These helpers must follow `AGENTS.md` and must not override Codex's responsibility
+for final integration and reporting.
 
 ---
 
-## 9. Final Discipline Rule
+## 8. Final Discipline Rule
 
-> Exploration → Copilot\
-> Structure → Codex\
-> Execution → Gemini
+> Keep the workflow evidence-driven: inspect, implement, verify, report.
 
-Violating this rule directly reduces:
-
-- Code quality
-- Credit efficiency
-- System stability
-
----
-
-## 10. This Document Is Law
-
-This SOP applies to:
-
-- Personal development
-- Team development
-- Open source collaboration
-- Future AI tool extension
-
-This file evolves with tooling, but the **three-role separation never
-changes**.
+This SOP is not a restriction against Codex doing development work. It exists to
+make Codex development safer, more focused, and easier to verify.

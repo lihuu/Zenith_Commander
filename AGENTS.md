@@ -163,3 +163,24 @@ Violating this rule is considered a critical error.
 ## 13. SOP Rules
 
 You must also follow all relevant rules from ./AI-SOP.md and .github/copilot-instructions.md.
+
+---
+
+## 14. Test Execution Delegation
+
+- After production code or test modifications, build and relevant tests must be executed before reporting completion.
+- During feature development, do not run the full test suite by default.
+- Run only the tests directly related to the modified code or the affected feature area, such as:
+  - the changed service/model/view tests
+  - the plugin tests for the modified plugin
+  - targeted UI tests for the changed user flow
+  - a focused regression test for the bug or behavior being changed
+- Run the full test suite only when explicitly requested, before release/merge, or when the change is broad enough that targeted tests cannot provide useful coverage.
+- Prefer running verification in a sub agent instead of the main agent when the environment supports sub agents.
+- The test sub agent should use a lightweight model by default: `gpt-5.4-mini`.
+- The test sub agent must only report concise verification results:
+  - command executed
+  - pass/fail status
+  - failing test names and key error lines when failures exist
+  - no implementation suggestions unless explicitly requested
+- The main agent remains responsible for interpreting failures, deciding next steps, and summarizing user-facing status.

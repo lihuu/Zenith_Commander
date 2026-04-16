@@ -5,6 +5,7 @@
 //  Launch AI CLI tools inside the user's terminal
 //
 
+import AppKit
 import Foundation
 
 protocol AIServiceProviding {
@@ -15,6 +16,9 @@ protocol AIServiceProviding {
 
 protocol AITerminalLaunching {
     func launch(scriptAt scriptURL: URL, terminal: TerminalOption) throws
+    func launchWarp(configurationName: String, terminal: TerminalOption) throws
+    func launchKitty(command: String, at directory: URL, terminal: TerminalOption) throws
+    func launchGhostty(command: String, at directory: URL, terminal: TerminalOption) throws
 }
 
 struct DefaultAITerminalLauncher: AITerminalLaunching {
@@ -29,6 +33,134 @@ struct DefaultAITerminalLauncher: AITerminalLaunching {
         guard process.terminationStatus == 0 else {
             throw AIServiceError.failedToLaunchTerminal
         }
+    }
+
+    func launchWarp(configurationName: String, terminal: TerminalOption) throws {
+        guard let launchURI = makeWarpLaunchURI(configurationName: configurationName) else {
+            throw AIServiceError.failedToLaunchTerminal
+        }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        process.arguments = ["-b", terminal.bundleId, launchURI.absoluteString]
+
+        try process.run()
+        process.waitUntilExit()
+
+        guard process.terminationStatus == 0 else {
+            throw AIServiceError.failedToLaunchTerminal
+        }
+    }
+
+    func launchKitty(command: String, at directory: URL, terminal: TerminalOption) throws {
+        guard let kittyExecutable = resolveKittyExecutablePath(terminal: terminal) else {
+            throw AIServiceError.failedToLaunchTerminal
+        }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: kittyExecutable)
+        process.arguments = [
+            "--detach",
+            "--single-instance",
+            "--working-directory", directory.path,
+            "/bin/zsh", "-ilc", "\(command)\nexec /bin/zsh -il",
+        ]
+
+        try process.run()
+        process.waitUntilExit()
+
+        guard process.terminationStatus == 0 else {
+            throw AIServiceError.failedToLaunchTerminal
+        }
+    }
+
+    func launchGhostty(command: String, at directory: URL, terminal: TerminalOption) throws {
+        guard let applicationPath = resolveGhosttyApplicationPath(terminal: terminal) else {
+            throw AIServiceError.failedToLaunchTerminal
+        }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        process.arguments = makeGhosttyLaunchArguments(
+            command: command,
+            at: directory,
+            applicationPath: applicationPath
+        )
+
+        try process.run()
+        process.waitUntilExit()
+
+        guard process.terminationStatus == 0 else {
+            throw AIServiceError.failedToLaunchTerminal
+        }
+    }
+
+    func makeGhosttyLaunchArguments(
+        command: String,
+        at directory: URL,
+        applicationPath: String
+    ) -> [String] {
+        [
+            "-na", applicationPath,
+            "--args",
+            "-e",
+            "/bin/zsh", "-ilc", makeInteractiveZshCommand(command: command, at: directory),
+        ]
+    }
+
+    private func resolveKittyExecutablePath(terminal: TerminalOption) -> String? {
+        var candidatePaths: [String] = []
+
+        if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: terminal.bundleId) {
+            let executable = appURL
+                .appendingPathComponent("Contents/MacOS/kitty")
+                .path
+            candidatePaths.append(executable)
+        }
+
+        candidatePaths.append(contentsOf: ExternalToolchain.candidatePaths.map { "\($0)kitty" })
+        candidatePaths.append("/Applications/kitty.app/Contents/MacOS/kitty")
+
+        return ToolPathUtils.resolveFirstExecutablePath(candidatePaths: candidatePaths)
+    }
+
+    private func resolveGhosttyApplicationPath(terminal: TerminalOption) -> String? {
+        var candidatePaths: [String] = []
+
+        if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: terminal.bundleId) {
+            candidatePaths.append(appURL.path)
+        }
+
+        candidatePaths.append("/Applications/Ghostty.app")
+
+        return candidatePaths.first {
+            FileManager.default.fileExists(atPath: $0)
+        }
+    }
+
+    private func makeInteractiveZshCommand(command: String, at directory: URL) -> String {
+        let escapedDirectory = shellEscaped(directory.path)
+        return """
+            cd '\(escapedDirectory)'
+            \(command)
+            exec /bin/zsh -il
+            """
+    }
+
+    private func shellEscaped(_ value: String) -> String {
+        value.replacingOccurrences(of: "'", with: "'\\''")
+    }
+
+    private func makeWarpLaunchURI(configurationName: String) -> URL? {
+        guard let encodedName = percentEncodeURIComponent(configurationName) else {
+            return nil
+        }
+        return URL(string: "warp://launch/\(encodedName)")
+    }
+
+    private func percentEncodeURIComponent(_ value: String) -> String? {
+        let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~*'()")
+        return value.addingPercentEncoding(withAllowedCharacters: allowed)
     }
 }
 
@@ -46,6 +178,7 @@ final class AIService: AIServiceProviding {
     private let launcher: AITerminalLaunching
     private let terminalProvider: () -> TerminalOption
     private let temporaryDirectoryProvider: () -> URL
+    private let warpLaunchConfigurationDirectoryProvider: () -> URL
 
     init(
         launcher: AITerminalLaunching = DefaultAITerminalLauncher(),
@@ -54,11 +187,17 @@ final class AIService: AIServiceProviding {
         },
         temporaryDirectoryProvider: @escaping () -> URL = {
             FileManager.default.temporaryDirectory
+        },
+        warpLaunchConfigurationDirectoryProvider: @escaping () -> URL = {
+            FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(".warp", isDirectory: true)
+                .appendingPathComponent("launch_configurations", isDirectory: true)
         }
     ) {
         self.launcher = launcher
         self.terminalProvider = terminalProvider
         self.temporaryDirectoryProvider = temporaryDirectoryProvider
+        self.warpLaunchConfigurationDirectoryProvider = warpLaunchConfigurationDirectoryProvider
     }
 
     func openToolInTerminal(tool: AIToolConfig, at directory: URL) throws {
@@ -74,30 +213,23 @@ final class AIService: AIServiceProviding {
             throw AIServiceError.toolNotInstalled
         }
 
-        let tempScript = temporaryDirectoryProvider()
-            .appendingPathComponent("zenith_ai_\(UUID().uuidString).command")
-
-        let scriptContent = makeLaunchScript(
-            tool: tool,
-            executableName: executableName,
-            directory: directory,
-            scriptPath: tempScript.path
-        )
-
-        do {
-            try scriptContent.write(to: tempScript, atomically: true, encoding: .utf8)
-            try FileManager.default.setAttributes(
-                [.posixPermissions: 0o755],
-                ofItemAtPath: tempScript.path
+        let terminal = terminalProvider()
+        switch terminal.id {
+        case "warp":
+            try openToolInWarp(tool: tool, at: directory, terminal: terminal)
+        case "terminal":
+            try openToolInMacTerminal(
+                tool: tool,
+                executableName: executableName,
+                at: directory,
+                terminal: terminal
             )
-        } catch {
-            throw AIServiceError.failedToCreateScript
-        }
-
-        do {
-            try launcher.launch(scriptAt: tempScript, terminal: terminalProvider())
-        } catch {
-            throw AIServiceError.failedToLaunchTerminal
+        case "kitty":
+            try openToolInKitty(tool: tool, at: directory, terminal: terminal)
+        case "ghostty":
+            try openToolInGhostty(tool: tool, at: directory, terminal: terminal)
+        default:
+            try openToolWithScript(tool: tool, executableName: executableName, at: directory, terminal: terminal)
         }
     }
 
@@ -174,5 +306,182 @@ final class AIService: AIServiceProviding {
 
     private func shellEscaped(_ value: String) -> String {
         value.replacingOccurrences(of: "'", with: "'\\''")
+    }
+
+    private func openToolWithScript(
+        tool: AIToolConfig,
+        executableName: String,
+        at directory: URL,
+        terminal: TerminalOption
+    ) throws {
+        let tempScript = temporaryDirectoryProvider()
+            .appendingPathComponent("zenith_ai_\(UUID().uuidString).command")
+
+        let scriptContent = makeLaunchScript(
+            tool: tool,
+            executableName: executableName,
+            directory: directory,
+            scriptPath: tempScript.path
+        )
+
+        try writeScriptAndLaunch(
+            scriptContent: scriptContent,
+            scriptURL: tempScript,
+            terminal: terminal
+        )
+    }
+
+    private func openToolInMacTerminal(
+        tool: AIToolConfig,
+        executableName: String,
+        at directory: URL,
+        terminal: TerminalOption
+    ) throws {
+        let tempScript = temporaryDirectoryProvider()
+            .appendingPathComponent("zenith_ai_\(UUID().uuidString).command")
+
+        let scriptContent = makeTerminalLaunchScript(
+            tool: tool,
+            executableName: executableName,
+            directory: directory,
+            scriptPath: tempScript.path
+        )
+
+        try writeScriptAndLaunch(
+            scriptContent: scriptContent,
+            scriptURL: tempScript,
+            terminal: terminal
+        )
+    }
+
+    private func writeScriptAndLaunch(
+        scriptContent: String,
+        scriptURL: URL,
+        terminal: TerminalOption
+    ) throws {
+        do {
+            try scriptContent.write(to: scriptURL, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes(
+                [.posixPermissions: 0o755],
+                ofItemAtPath: scriptURL.path
+            )
+        } catch {
+            throw AIServiceError.failedToCreateScript
+        }
+
+        do {
+            try launcher.launch(scriptAt: scriptURL, terminal: terminal)
+        } catch {
+            throw AIServiceError.failedToLaunchTerminal
+        }
+    }
+
+    private func makeTerminalLaunchScript(
+        tool: AIToolConfig,
+        executableName _: String,
+        directory: URL,
+        scriptPath: String
+    ) -> String {
+        let escapedDirectory = shellEscaped(directory.path)
+        let escapedScriptPath = shellEscaped(scriptPath)
+        let escapedCommand = shellEscaped(
+            tool.command.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+
+        return """
+            #!/bin/zsh
+            cd '\(escapedDirectory)'
+            rm -f '\(escapedScriptPath)'
+            /bin/zsh -ilc '\(escapedCommand)'
+            exec /bin/zsh -il
+            """
+    }
+
+    private func openToolInWarp(
+        tool: AIToolConfig,
+        at directory: URL,
+        terminal: TerminalOption
+    ) throws {
+        let configurationName = "Zenith Commander \(tool.displayName)"
+        let configurationDirectory = warpLaunchConfigurationDirectoryProvider()
+        let configurationURL = configurationDirectory
+            .appendingPathComponent("zenith_ai_\(UUID().uuidString).yaml")
+
+        let configuration = makeWarpLaunchConfiguration(
+            name: configurationName,
+            tool: tool,
+            directory: directory
+        )
+
+        do {
+            try FileManager.default.createDirectory(
+                at: configurationDirectory,
+                withIntermediateDirectories: true
+            )
+            try configuration.write(to: configurationURL, atomically: true, encoding: .utf8)
+        } catch {
+            throw AIServiceError.failedToCreateScript
+        }
+
+        do {
+            try launcher.launchWarp(configurationName: configurationName, terminal: terminal)
+        } catch {
+            throw AIServiceError.failedToLaunchTerminal
+        }
+    }
+
+    private func openToolInKitty(
+        tool: AIToolConfig,
+        at directory: URL,
+        terminal: TerminalOption
+    ) throws {
+        let command = tool.command.trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            try launcher.launchKitty(command: command, at: directory, terminal: terminal)
+        } catch {
+            throw AIServiceError.failedToLaunchTerminal
+        }
+    }
+
+    private func openToolInGhostty(
+        tool: AIToolConfig,
+        at directory: URL,
+        terminal: TerminalOption
+    ) throws {
+        let command = tool.command.trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            try launcher.launchGhostty(command: command, at: directory, terminal: terminal)
+        } catch {
+            throw AIServiceError.failedToLaunchTerminal
+        }
+    }
+
+    private func makeWarpLaunchConfiguration(
+        name: String,
+        tool: AIToolConfig,
+        directory: URL
+    ) -> String {
+        let escapedLaunchName = yamlSingleQuoted(name)
+        let escapedName = yamlSingleQuoted(tool.displayName)
+        let escapedCommand = yamlSingleQuoted(
+            tool.command.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+        let escapedDirectory = yamlSingleQuoted(directory.path)
+
+        return """
+            ---
+            name: '\(escapedLaunchName)'
+            windows:
+              - tabs:
+                  - title: '\(escapedName)'
+                    layout:
+                      cwd: '\(escapedDirectory)'
+                      commands:
+                        - exec: '\(escapedCommand)'
+            """
+    }
+
+    private func yamlSingleQuoted(_ value: String) -> String {
+        value.replacingOccurrences(of: "'", with: "''")
     }
 }
