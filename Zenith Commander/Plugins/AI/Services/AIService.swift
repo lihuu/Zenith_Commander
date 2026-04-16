@@ -100,11 +100,11 @@ struct DefaultAITerminalLauncher: AITerminalLaunching {
         at directory: URL,
         applicationPath: String
     ) -> [String] {
-        [
+        let escapedDir = shellEscaped(directory.path)
+        return [
             "-na", applicationPath,
             "--args",
-            "-e",
-            "/bin/zsh", "-ilc", makeInteractiveZshCommand(command: command, at: directory),
+            "--command=/bin/zsh -c \"cd '\(escapedDir)' && \(command); exec /bin/zsh -il\"",
         ]
     }
 
@@ -136,15 +136,6 @@ struct DefaultAITerminalLauncher: AITerminalLaunching {
         return candidatePaths.first {
             FileManager.default.fileExists(atPath: $0)
         }
-    }
-
-    private func makeInteractiveZshCommand(command: String, at directory: URL) -> String {
-        let escapedDirectory = shellEscaped(directory.path)
-        return """
-            cd '\(escapedDirectory)'
-            \(command)
-            exec /bin/zsh -il
-            """
     }
 
     private func shellEscaped(_ value: String) -> String {

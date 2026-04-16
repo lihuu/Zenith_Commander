@@ -188,7 +188,7 @@ final class AIServiceTests: XCTestCase {
         XCTAssertEqual(launcher.launchedGhosttyCommand, "claude")
     }
 
-    func testGhosttyLaunchArgumentsUseApplicationPathAndInteractiveZshCommand() {
+    func testGhosttyLaunchArgumentsEmbedCdInCommandForWorkingDirectory() {
         let launcher = DefaultAITerminalLauncher()
         let directory = URL(fileURLWithPath: "/tmp/Project O'Neil")
 
@@ -198,15 +198,14 @@ final class AIServiceTests: XCTestCase {
             applicationPath: "/Applications/Ghostty.app"
         )
 
+        XCTAssertEqual(arguments.count, 4)
         XCTAssertEqual(arguments[0], "-na")
         XCTAssertEqual(arguments[1], "/Applications/Ghostty.app")
         XCTAssertEqual(arguments[2], "--args")
-        XCTAssertEqual(arguments[3], "-e")
-        XCTAssertEqual(arguments[4], "/bin/zsh")
-        XCTAssertEqual(arguments[5], "-ilc")
-        XCTAssertTrue(arguments[6].contains("cd '/tmp/Project O'\\''Neil'"))
-        XCTAssertTrue(arguments[6].contains("gemini"))
-        XCTAssertTrue(arguments[6].contains("exec /bin/zsh -il"))
+        XCTAssertEqual(
+            arguments[3],
+            "--command=/bin/zsh -c \"cd '/tmp/Project O'\\''Neil' && gemini; exec /bin/zsh -il\""
+        )
     }
 }
 
