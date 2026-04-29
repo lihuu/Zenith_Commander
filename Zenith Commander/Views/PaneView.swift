@@ -191,7 +191,7 @@ struct PaneView: View {
                 LazyVStack(spacing: 0) {
                     // 排序列标题
                     SortHeaderView(sortOption: $pane.tabs[pane.activeTabIndex].sortOption)
-                    
+
                     ForEach(
                         Array(pane.activeTab.files.enumerated()),
                         id: \.element.id
@@ -510,21 +510,7 @@ struct PaneView: View {
         }
 
         // Plugin context menu items
-        ForEach(
-            Array(PluginManager.shared.contextMenuItems().enumerated()),
-            id: \.offset
-        ) { _, item in
-            switch item {
-            case .item(let contextItem):
-                Button(contextItem.title) {
-                    Task { @MainActor in
-                        await contextItem.action()
-                    }
-                }
-            case .separator:
-                Divider()
-            }
-        }
+        pluginContextMenuItems(for: .fileItem)
     }
 
     /// 目录级右键菜单（空白处右键）
@@ -571,17 +557,33 @@ struct PaneView: View {
         }
 
         // Plugin context menu items
+        pluginContextMenuItems(for: .directory)
+    }
+
+    @ViewBuilder
+    private func pluginContextMenuItems(for placement: ContextMenuPlacement) -> some View {
         ForEach(
-            Array(PluginManager.shared.contextMenuItems().enumerated()),
+            Array(
+                PluginManager.shared.contextMenuItems(
+                    for: ContextMenuContext(placement: placement)
+                ).enumerated()
+            ),
             id: \.offset
         ) { _, item in
             switch item {
             case .item(let contextItem):
-                Button(contextItem.title) {
+                Button {
                     Task { @MainActor in
                         await contextItem.action()
                     }
+                } label: {
+                    if let icon = contextItem.icon {
+                        Label(contextItem.title, systemImage: icon)
+                    } else {
+                        Text(contextItem.title)
+                    }
                 }
+                .disabled(!contextItem.isEnabled)
             case .separator:
                 Divider()
             }
@@ -623,7 +625,7 @@ struct PaneView: View {
             await performTransfer(validURLs, to: destination, operation: operation)
         }
     }
-    
+
     /// 执行异步传输操作
     private func performTransfer(
         _ sources: [URL],
@@ -633,10 +635,10 @@ struct PaneView: View {
         // 检查是否为本地传输（只有本地传输支持撤销）
         let isLocalTransfer = sources.allSatisfy { $0.isLocal } && destination.isLocal
         let undoManager: UndoManager? = isLocalTransfer ? appState.undoManager : nil
-        
+
         // Convert TransferOperation to TransferOp for new API
         let transferOp: TransferOp = operation == .copy ? .copy : .move
-        
+
         do {
             let result = try await TransferService.shared.transfer(
                 sources: sources,
@@ -644,7 +646,7 @@ struct PaneView: View {
                 operation: transferOp,
                 undoManager: undoManager
             )
-            
+
             await MainActor.run {
                 if result.failedCount > 0 {
                     let errorMsg = result.errors.first?.localizedDescription ?? "Unknown error"
@@ -654,10 +656,10 @@ struct PaneView: View {
                 } else if result.successCount > 0 {
                     // 成功传输，显示提示
                     let actionName = operation == .copy ? "Copied" : "Moved"
-                    var message = "\(actionName) \(result.successCount) item(s)"
+                    let message = "\(actionName) \(result.successCount) item(s)"
                     appState.showToast(message)
                 }
-                
+
                 // 刷新目录
                 loadCurrentDirectoryWithPermissionCheck()
             }
@@ -670,7 +672,7 @@ struct PaneView: View {
             }
         }
     }
-    
+
     /// 生成唯一的目标 URL（如果已存在同名文件）
     private func generateUniqueURL(for url: URL) -> URL {
         var resultURL = url
@@ -681,7 +683,8 @@ struct PaneView: View {
         let parentDir = url.deletingLastPathComponent()
 
         while FileManager.default.fileExists(atPath: resultURL.path) {
-            let newName = ext.isEmpty
+            let newName =
+                ext.isEmpty
                 ? "\(baseName) \(counter)"
                 : "\(baseName) \(counter).\(ext)"
             resultURL = parentDir.appendingPathComponent(newName)

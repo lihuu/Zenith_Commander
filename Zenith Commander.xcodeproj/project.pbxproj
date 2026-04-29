@@ -7,20 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		1C10E8182F0BFC52008564FC /* FinderSyncExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1C10E8112F0BFC52008564FC /* FinderSyncExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		1C985B972EE2DEC2009794E9 /* mft.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1C985B962EE2DEC2009794E9 /* mft.xcframework */; };
 		1C985B982EE2DEC2009794E9 /* mft.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1C985B962EE2DEC2009794E9 /* mft.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		9ADCE878A81748389AA39790 /* FinderRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46E2FB0C6E0149B180B19D13 /* FinderRequest.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		1C10E8162F0BFC52008564FC /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 1C790B6E2ED8169E005B181E /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 1C10E8102F0BFC52008564FC;
-			remoteInfo = FinderSyncExtension;
-		};
 		1C790B842ED816A0005B181E /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 1C790B6E2ED8169E005B181E /* Project object */;
@@ -44,7 +35,6 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				1C10E8182F0BFC52008564FC /* FinderSyncExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -63,7 +53,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		1C10E8112F0BFC52008564FC /* FinderSyncExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FinderSyncExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		1C5C09442EFAE71B00F025FF /* Zenith Commander.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Zenith Commander.xctestplan"; sourceTree = "<group>"; };
 		1C790B762ED8169E005B181E /* Zenith Commander.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Zenith Commander.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1C790B832ED816A0005B181E /* Zenith CommanderTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Zenith CommanderTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -72,25 +61,7 @@
 		46E2FB0C6E0149B180B19D13 /* FinderRequest.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FinderRequest.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		1C10E81C2F0BFC52008564FC /* Exceptions for "FinderSyncExtension" folder in "FinderSyncExtension" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 1C10E8102F0BFC52008564FC /* FinderSyncExtension */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		1C10E8122F0BFC52008564FC /* FinderSyncExtension */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				1C10E81C2F0BFC52008564FC /* Exceptions for "FinderSyncExtension" folder in "FinderSyncExtension" target */,
-			);
-			path = FinderSyncExtension;
-			sourceTree = "<group>";
-		};
 		1C790B782ED8169E005B181E /* Zenith Commander */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "Zenith Commander";
@@ -109,13 +80,6 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		1C10E80E2F0BFC52008564FC /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		1C790B732ED8169E005B181E /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -149,7 +113,6 @@
 				1C790B782ED8169E005B181E /* Zenith Commander */,
 				1C790B862ED816A0005B181E /* Zenith CommanderTests */,
 				1C790B902ED816A0005B181E /* Zenith CommanderUITests */,
-				1C10E8122F0BFC52008564FC /* FinderSyncExtension */,
 				1C985B952EE2DEC2009794E9 /* Frameworks */,
 				1C790B772ED8169E005B181E /* Products */,
 			);
@@ -161,7 +124,6 @@
 				1C790B762ED8169E005B181E /* Zenith Commander.app */,
 				1C790B832ED816A0005B181E /* Zenith CommanderTests.xctest */,
 				1C790B8D2ED816A0005B181E /* Zenith CommanderUITests.xctest */,
-				1C10E8112F0BFC52008564FC /* FinderSyncExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -185,28 +147,6 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		1C10E8102F0BFC52008564FC /* FinderSyncExtension */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 1C10E81D2F0BFC52008564FC /* Build configuration list for PBXNativeTarget "FinderSyncExtension" */;
-			buildPhases = (
-				1C10E80D2F0BFC52008564FC /* Sources */,
-				1C10E80E2F0BFC52008564FC /* Frameworks */,
-				1C10E80F2F0BFC52008564FC /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				1C10E8122F0BFC52008564FC /* FinderSyncExtension */,
-			);
-			name = FinderSyncExtension;
-			packageProductDependencies = (
-			);
-			productName = FinderSyncExtension;
-			productReference = 1C10E8112F0BFC52008564FC /* FinderSyncExtension.appex */;
-			productType = "com.apple.product-type.app-extension";
-		};
 		1C790B752ED8169E005B181E /* Zenith Commander */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 1C790B972ED816A0005B181E /* Build configuration list for PBXNativeTarget "Zenith Commander" */;
@@ -220,7 +160,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				1C10E8172F0BFC52008564FC /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				1C790B782ED8169E005B181E /* Zenith Commander */,
@@ -288,9 +227,6 @@
 				LastSwiftUpdateCheck = 2620;
 				LastUpgradeCheck = 2620;
 				TargetAttributes = {
-					1C10E8102F0BFC52008564FC = {
-						CreatedOnToolsVersion = 26.2;
-					};
 					1C790B752ED8169E005B181E = {
 						CreatedOnToolsVersion = 26.1.1;
 					};
@@ -325,19 +261,11 @@
 				1C790B752ED8169E005B181E /* Zenith Commander */,
 				1C790B822ED816A0005B181E /* Zenith CommanderTests */,
 				1C790B8C2ED816A0005B181E /* Zenith CommanderUITests */,
-				1C10E8102F0BFC52008564FC /* FinderSyncExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		1C10E80F2F0BFC52008564FC /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		1C790B742ED8169E005B181E /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -362,14 +290,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		1C10E80D2F0BFC52008564FC /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				9ADCE878A81748389AA39790 /* FinderRequest.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		1C790B722ED8169E005B181E /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -394,11 +314,6 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		1C10E8172F0BFC52008564FC /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 1C10E8102F0BFC52008564FC /* FinderSyncExtension */;
-			targetProxy = 1C10E8162F0BFC52008564FC /* PBXContainerItemProxy */;
-		};
 		1C790B852ED816A0005B181E /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 1C790B752ED8169E005B181E /* Zenith Commander */;
@@ -412,72 +327,6 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		1C10E81A2F0BFC52008564FC /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = FinderSyncExtension/FinderSyncExtension.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1.4.2;
-				DEVELOPMENT_TEAM = G6U5X85VQ3;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_HARDENED_RUNTIME = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = FinderSyncExtension/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = FinderSyncExtension;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@executable_path/../../../../Frameworks",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 26.2;
-				MARKETING_VERSION = 1.4.2;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.lihuu.top.Zenith-Commander.FinderSyncExtension";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Debug;
-		};
-		1C10E81B2F0BFC52008564FC /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = FinderSyncExtension/FinderSyncExtension.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1.4.2;
-				DEVELOPMENT_TEAM = G6U5X85VQ3;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_HARDENED_RUNTIME = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = FinderSyncExtension/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = FinderSyncExtension;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@executable_path/../../../../Frameworks",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 26.2;
-				MARKETING_VERSION = 1.4.2;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.lihuu.top.Zenith-Commander.FinderSyncExtension";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Release;
-		};
 		1C790B952ED816A0005B181E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -517,7 +366,7 @@
 				DEVELOPMENT_TEAM = G6U5X85VQ3;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -585,7 +434,7 @@
 				DEVELOPMENT_TEAM = G6U5X85VQ3;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -617,7 +466,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Zenith Commander/Zenith_Commander.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1.4.2;
+				CURRENT_PROJECT_VERSION = 1.5.1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = G6U5X85VQ3;
 				ENABLE_APP_INTENTS_COMPUTATION = NO;
@@ -634,7 +483,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.4.2;
+				MARKETING_VERSION = 1.5.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.lihuu.top.Zenith-Commander";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -659,7 +508,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Zenith Commander/Zenith_Commander.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1.4.2;
+				CURRENT_PROJECT_VERSION = 1.5.1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = G6U5X85VQ3;
 				ENABLE_APP_INTENTS_COMPUTATION = NO;
@@ -676,7 +525,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.4.2;
+				MARKETING_VERSION = 1.5.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.lihuu.top.Zenith-Commander";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -777,15 +626,6 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		1C10E81D2F0BFC52008564FC /* Build configuration list for PBXNativeTarget "FinderSyncExtension" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				1C10E81A2F0BFC52008564FC /* Debug */,
-				1C10E81B2F0BFC52008564FC /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		1C790B712ED8169E005B181E /* Build configuration list for PBXProject "Zenith Commander" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

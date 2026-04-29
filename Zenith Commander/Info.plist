@@ -13,5 +13,17 @@
             </array>
         </dict>
     </array>
+    <key>NSDesktopFolderUsageDescription</key>
+    <string>Zenith Commander needs access to your Desktop folder to manage files.</string>
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>Zenith Commander needs access to your Documents folder to manage files.</string>
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>Zenith Commander needs access to your Downloads folder to manage files.</string>
+    <key>NSFullDiskAccessUsageDescription</key>
+    <string>Zenith Commander needs Full Disk Access to provide the best file management experience across your entire system.</string>
+    <key>NSRemovableVolumesUsageDescription</key>
+    <string>Zenith Commander needs access to external drives to manage files on removable media.</string>
+    <key>NSNetworkVolumesUsageDescription</key>
+    <string>Zenith Commander needs access to network drives to manage files on remote servers.</string>
 </dict>
 </plist>

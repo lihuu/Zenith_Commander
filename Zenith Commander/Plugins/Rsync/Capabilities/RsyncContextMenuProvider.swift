@@ -14,7 +14,7 @@ final class RsyncContextMenuProvider: ContextMenuProvider {
         pluginContext = context
     }
 
-    func menuItems() -> [MenuElement] {
+    func menuItems(for context: ContextMenuContext) -> [MenuElement] {
         guard SettingsManager.shared.settings.rsync.enabled else {
             return []
         }
@@ -28,7 +28,7 @@ final class RsyncContextMenuProvider: ContextMenuProvider {
                     action: { [weak self] in
                         await self?.handleConfigureSync()
                     }
-                )),
+                ))
         ]
     }
 

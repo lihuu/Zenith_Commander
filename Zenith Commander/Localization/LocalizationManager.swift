@@ -183,6 +183,29 @@ enum LocalizedStringKey: String, CaseIterable {
     case settingsRsyncInstalled
     case settingsRsyncNotInstalled
 
+    // MARK: - AI Settings
+
+    case settingsAI
+    case settingsAIEnabled
+    case settingsAIEnabledDescription
+    case aiAddTool
+    case aiToolName
+    case aiToolCommand
+    case aiToolInstalled
+    case aiToolNotInstalled
+    case aiOpenToolHere
+    case aiCommandHelp
+    case aiDisabled
+    case aiNoToolsConfigured
+    case aiAvailableTools
+    case aiUnknownTool
+    case aiOpenedTool
+    case aiToolUnavailable
+    case aiInvalidCommand
+    case aiLaunchFailed
+    case aiRequiresLocalPath
+    case aiNewToolDefaultName
+
     // MARK: - Git 状态显示
 
     case gitStatusModified
@@ -595,6 +618,29 @@ class LocalizedStrings {
             .settingsRsyncInstalled: "Rsync is installed",
             .settingsRsyncNotInstalled: "Rsync is not installed",
 
+            // AI Settings
+            .settingsAI: "AI Tools",
+            .settingsAIEnabled: "Enable AI Tools",
+            .settingsAIEnabledDescription:
+                "Show AI tools in directory context menus and command mode",
+            .aiAddTool: "Add AI Tool",
+            .aiToolName: "Tool Name",
+            .aiToolCommand: "Command",
+            .aiToolInstalled: "Installed",
+            .aiToolNotInstalled: "Not Installed",
+            .aiOpenToolHere: "Open %@ Here",
+            .aiCommandHelp: "Launch an AI tool in the current directory: ai <tool>",
+            .aiDisabled: "AI tools are disabled",
+            .aiNoToolsConfigured: "No AI tools are configured",
+            .aiAvailableTools: "Available AI tools: %@",
+            .aiUnknownTool: "Unknown AI tool: %@",
+            .aiOpenedTool: "Opened %@ in Terminal",
+            .aiToolUnavailable: "%@ is not installed",
+            .aiInvalidCommand: "%@ command is invalid",
+            .aiLaunchFailed: "Failed to open %@",
+            .aiRequiresLocalPath: "AI tools are only available in local directories",
+            .aiNewToolDefaultName: "AI Tool %d",
+
             // Git 状态显示
             .gitStatusModified: "Modified",
             .gitStatusAdded: "Added",
@@ -961,6 +1007,28 @@ class LocalizedStrings {
             .settingsRsyncEnabledDescription: "启用 Rsync 相关功能（右键菜单、快捷键）",
             .settingsRsyncInstalled: "Rsync 已安装",
             .settingsRsyncNotInstalled: "Rsync 未安装",
+
+            // AI 设置
+            .settingsAI: "AI 工具",
+            .settingsAIEnabled: "启用 AI 工具",
+            .settingsAIEnabledDescription: "在目录右键菜单和命令模式中显示 AI 工具",
+            .aiAddTool: "添加 AI 工具",
+            .aiToolName: "工具名称",
+            .aiToolCommand: "命令",
+            .aiToolInstalled: "已安装",
+            .aiToolNotInstalled: "未安装",
+            .aiOpenToolHere: "在此打开 %@",
+            .aiCommandHelp: "在当前目录启动 AI 工具：ai <tool>",
+            .aiDisabled: "AI 工具已禁用",
+            .aiNoToolsConfigured: "尚未配置 AI 工具",
+            .aiAvailableTools: "可用 AI 工具：%@",
+            .aiUnknownTool: "未知 AI 工具：%@",
+            .aiOpenedTool: "已在终端中打开 %@",
+            .aiToolUnavailable: "%@ 未安装",
+            .aiInvalidCommand: "%@ 命令无效",
+            .aiLaunchFailed: "打开 %@ 失败",
+            .aiRequiresLocalPath: "AI 工具仅支持本地目录",
+            .aiNewToolDefaultName: "AI 工具 %d",
 
             // Git 状态显示
             .gitStatusModified: "已修改",

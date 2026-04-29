@@ -6,6 +6,7 @@
 //
 
 import XCTest
+
 @testable import Zenith_Commander
 
 @MainActor
@@ -91,6 +92,8 @@ class LocalizationTests: XCTestCase {
         XCTAssertEqual(strings.get(.contextMoveToTrash, for: .english), "Move to Trash")
         XCTAssertEqual(strings.get(.contextNewFile, for: .english), "New File")
         XCTAssertEqual(strings.get(.contextNewFolder, for: .english), "New Folder")
+        XCTAssertEqual(strings.get(.settingsAI, for: .english), "AI Tools")
+        XCTAssertEqual(strings.get(.aiOpenToolHere, for: .english), "Open %@ Here")
     }
 
     func testContextMenuStringsChinese() {
@@ -103,6 +106,8 @@ class LocalizationTests: XCTestCase {
         XCTAssertEqual(strings.get(.contextMoveToTrash, for: .chinese), "移到废纸篓")
         XCTAssertEqual(strings.get(.contextNewFile, for: .chinese), "新建文件")
         XCTAssertEqual(strings.get(.contextNewFolder, for: .chinese), "新建文件夹")
+        XCTAssertEqual(strings.get(.settingsAI, for: .chinese), "AI 工具")
+        XCTAssertEqual(strings.get(.aiOpenToolHere, for: .chinese), "在此打开 %@")
     }
 
     // MARK: - AppLanguage 测试

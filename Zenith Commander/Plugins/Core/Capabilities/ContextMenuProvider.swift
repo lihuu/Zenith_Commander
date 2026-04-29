@@ -7,6 +7,15 @@
 
 import SwiftUI
 
+enum ContextMenuPlacement {
+    case fileItem
+    case directory
+}
+
+struct ContextMenuContext {
+    let placement: ContextMenuPlacement
+}
+
 /// A single context menu item
 struct ContextMenuItem: Identifiable {
     let id: String
@@ -59,7 +68,7 @@ protocol ContextMenuProvider: PluginCapability {
     /// Returns menu items for the given context
     /// - Parameter context: Current selection and navigation context
     /// - Returns: Array of menu elements to display
-    func menuItems() -> [MenuElement]
+    func menuItems(for context: ContextMenuContext) -> [MenuElement]
 }
 
 extension ContextMenuProvider {

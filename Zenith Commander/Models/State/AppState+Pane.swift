@@ -302,12 +302,26 @@ extension AppState {
             return
         }
 
-        guard file.isFolder else {
+        // Handle both folders and symlinks
+        var targetPath = file.path
+        var shouldNavigate = file.isFolder
+        
+        if file.isSymlink {
+            // Resolve symlink and check if target is a directory
+            let resolvedPath = file.path.resolvingSymlinksInPath()
+            var isDir: ObjCBool = false
+            if FileManager.default.fileExists(atPath: resolvedPath.path, isDirectory: &isDir), isDir.boolValue {
+                targetPath = resolvedPath
+                shouldNavigate = true
+            }
+        }
+        
+        guard shouldNavigate else {
             env.fileSystem.openFile(file)
             return
         }
 
-        let newPath = file.path
+        let newPath = targetPath
         let files = await env.fileSystem.loadDirectory(at: newPath)
 
         pane.activeTab.currentPath = newPath
@@ -462,7 +476,8 @@ extension AppState {
 
     /// 处理双击
     /// - 文件夹：进入目录
-    /// - 文件：使用默认应用打开
+    /// - 软链接指向目录：进入目录
+    /// - 文件/软链接指向文件：使用默认应用打开
     func handleMouseDoubleClick(fileId: String, paneSide: PaneSide) async {
         setActivePane(paneSide)
         let pane = paneSide == .left ? leftPane : rightPane
@@ -470,9 +485,23 @@ extension AppState {
         guard let file = pane.activeTab.files.first(where: { $0.id == fileId })
         else { return }
 
-        if file.isFolder {
+        // Handle both folders and symlinks
+        var targetPath = file.path
+        var shouldNavigate = file.isFolder
+        
+        if file.isSymlink {
+            // Resolve symlink and check if target is a directory
+            let resolvedPath = file.path.resolvingSymlinksInPath()
+            var isDir: ObjCBool = false
+            if FileManager.default.fileExists(atPath: resolvedPath.path, isDirectory: &isDir), isDir.boolValue {
+                targetPath = resolvedPath
+                shouldNavigate = true
+            }
+        }
+
+        if shouldNavigate {
             // 进入目录
-            let newPath = file.path
+            let newPath = targetPath
             let files = await env.fileSystem.loadDirectory(at: newPath)
 
             pane.activeTab.currentPath = newPath

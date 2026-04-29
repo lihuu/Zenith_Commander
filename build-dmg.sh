@@ -44,14 +44,25 @@ if [ -d "$APP_SOURCE_DIR" ]; then
   rm -rf "$APP_SOURCE_DIR"
 fi
 
-# 将构建输出，重命名为Release目录（输出目录是：Zenith Commander 开头的一个目录）
-BUILT_APP_DIR=$(find ./build -type d -name "${APP_NAME}*" | head -n 1)
-if [ -z "$BUILT_APP_DIR" ]; then
-  echo "❌ 错误: 未找到构建输出目录。请确保 Xcode 构建已完成。"
+# 获取构建输出的 .app 文件路径
+# 优先查找 Products/Release 目录
+BUILT_APP_PATH=$(find ./build -type d -name "${APP_NAME}.app" -path "*/Build/Products/Release/*" | head -n 1)
+
+if [ -z "$BUILT_APP_PATH" ]; then
+    # 如果没找到，尝试更宽泛的查找 (排除 Intermediates)
+    BUILT_APP_PATH=$(find ./build -type d -name "${APP_NAME}.app" ! -path "*/Intermediates.noindex/*" | head -n 1)
+fi
+
+echo "BUILT_APP_PATH: $BUILT_APP_PATH"
+
+if [ -z "$BUILT_APP_PATH" ] || [ ! -d "$BUILT_APP_PATH" ]; then
+  echo "❌ 错误: 未找到构建成功的 .app 文件。请确保 Xcode 构建已完成。"
   exit 1
 fi
-mv "$BUILT_APP_DIR" "$APP_SOURCE_DIR"
 
+# 准备打包源目录
+mkdir -p "$APP_SOURCE_DIR"
+cp -R "$BUILT_APP_PATH" "$APP_SOURCE_DIR/"
 
 # 检查源文件是否存在
 APP_PATH="${APP_SOURCE_DIR}/${APP_NAME}.app"
