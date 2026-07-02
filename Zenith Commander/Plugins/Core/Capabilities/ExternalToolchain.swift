@@ -18,11 +18,7 @@ struct ExternalToolchain: Sendable {
     let gitPath: String?
     let rsyncPath: String?
 
-    static let candidatePaths = [
-        "/opt/homebrew/bin/",
-        "/usr/local/bin/",
-        "/usr/bin/",
-    ]
+    static let candidatePaths = ToolPathUtils.candidatePaths
 
     init() {
         rgPath = Self.resolveTool("rg")

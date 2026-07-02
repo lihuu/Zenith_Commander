@@ -80,7 +80,8 @@ final class AIServiceTests: XCTestCase {
         let launcher = RecordingAITerminalLauncher()
         let temporaryDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("zc-ai-tests-\(UUID().uuidString)", isDirectory: true)
-        let warpConfigurationsDirectory = temporaryDirectory
+        let warpConfigurationsDirectory =
+            temporaryDirectory
             .appendingPathComponent("warp-launch-configs", isDirectory: true)
         try FileManager.default.createDirectory(
             at: temporaryDirectory,

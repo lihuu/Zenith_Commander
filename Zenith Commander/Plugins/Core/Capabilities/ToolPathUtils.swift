@@ -11,6 +11,8 @@ import os.log
 /// 工具路径解析工具
 struct ToolPathUtils {
     static let candidatePaths = [
+        "\(FileManager.default.homeDirectoryForCurrentUser.path)/.volta/bin/",
+        "\(FileManager.default.homeDirectoryForCurrentUser.path)/.local/bin/",
         "/opt/homebrew/bin/",
         "/usr/local/bin/",
         "/usr/bin/",

@@ -54,7 +54,6 @@ final class AIContextMenuProvider: ContextMenuProvider {
                             tool.displayName
                         ),
                         icon: tool.icon,
-                        isEnabled: service.isToolInstalled(tool),
                         action: { [weak self] in
                             await self?.handleOpenTool(tool)
                         }

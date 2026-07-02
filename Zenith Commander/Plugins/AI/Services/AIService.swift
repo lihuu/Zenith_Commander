@@ -111,8 +111,11 @@ struct DefaultAITerminalLauncher: AITerminalLaunching {
     private func resolveKittyExecutablePath(terminal: TerminalOption) -> String? {
         var candidatePaths: [String] = []
 
-        if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: terminal.bundleId) {
-            let executable = appURL
+        if let appURL = NSWorkspace.shared.urlForApplication(
+            withBundleIdentifier: terminal.bundleId)
+        {
+            let executable =
+                appURL
                 .appendingPathComponent("Contents/MacOS/kitty")
                 .path
             candidatePaths.append(executable)
@@ -127,7 +130,9 @@ struct DefaultAITerminalLauncher: AITerminalLaunching {
     private func resolveGhosttyApplicationPath(terminal: TerminalOption) -> String? {
         var candidatePaths: [String] = []
 
-        if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: terminal.bundleId) {
+        if let appURL = NSWorkspace.shared.urlForApplication(
+            withBundleIdentifier: terminal.bundleId)
+        {
             candidatePaths.append(appURL.path)
         }
 
@@ -150,7 +155,8 @@ struct DefaultAITerminalLauncher: AITerminalLaunching {
     }
 
     private func percentEncodeURIComponent(_ value: String) -> String? {
-        let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~*'()")
+        let allowed = CharacterSet(
+            charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~*'()")
         return value.addingPercentEncoding(withAllowedCharacters: allowed)
     }
 }
@@ -220,7 +226,8 @@ final class AIService: AIServiceProviding {
         case "ghostty":
             try openToolInGhostty(tool: tool, at: directory, terminal: terminal)
         default:
-            try openToolWithScript(tool: tool, executableName: executableName, at: directory, terminal: terminal)
+            try openToolWithScript(
+                tool: tool, executableName: executableName, at: directory, terminal: terminal)
         }
     }
 
@@ -229,9 +236,12 @@ final class AIService: AIServiceProviding {
             return false
         }
 
-        let candidatePaths = ExternalToolchain.candidatePaths.map {
-            "\($0)\(executableName)"
-        }
+        let candidatePaths = ToolPathUtils.generateCandidatePaths(
+            executableName: executableName,
+            additionalPaths: ExternalToolchain.candidatePaths.map {
+                "\($0)\(executableName)"
+            }
+        )
         if let resolvedPath = ToolPathUtils.resolveFirstExecutablePath(
             candidatePaths: candidatePaths
         ) {
@@ -395,7 +405,8 @@ final class AIService: AIServiceProviding {
     ) throws {
         let configurationName = "Zenith Commander \(tool.displayName)"
         let configurationDirectory = warpLaunchConfigurationDirectoryProvider()
-        let configurationURL = configurationDirectory
+        let configurationURL =
+            configurationDirectory
             .appendingPathComponent("zenith_ai_\(UUID().uuidString).yaml")
 
         let configuration = makeWarpLaunchConfiguration(

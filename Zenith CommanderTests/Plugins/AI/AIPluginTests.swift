@@ -58,6 +58,22 @@ final class AIPluginTests: XCTestCase {
         XCTAssertTrue(menuItem.isEnabled)
     }
 
+    func testContextMenuProviderDoesNotProbeToolInstallationDuringMenuConstruction() {
+        let service = StubAIService(installedToolIDs: [])
+        let provider = AIContextMenuProvider(
+            context: makeContext(path: "/tmp/project"),
+            settingsProvider: {
+                AISettings(enabled: true, tools: [AIToolConfig.defaultTools[0]])
+            },
+            service: service
+        )
+
+        let items = provider.menuItems(for: ContextMenuContext(placement: .directory))
+
+        XCTAssertEqual(items.count, 2)
+        XCTAssertEqual(service.installationProbeCount, 0)
+    }
+
     func testCommandProviderLaunchesRequestedTool() async throws {
         let service = StubAIService(installedToolIDs: ["gemini"])
         let provider = AICommandProvider(
@@ -131,6 +147,7 @@ private final class StubAIService: AIServiceProviding {
     let installedToolIDs: Set<String>
     var openedTool: AIToolConfig?
     var openedDirectory: URL?
+    private(set) var installationProbeCount = 0
 
     init(installedToolIDs: Set<String>) {
         self.installedToolIDs = installedToolIDs
@@ -142,7 +159,8 @@ private final class StubAIService: AIServiceProviding {
     }
 
     func isToolInstalled(_ tool: AIToolConfig) -> Bool {
-        installedToolIDs.contains(tool.id)
+        installationProbeCount += 1
+        return installedToolIDs.contains(tool.id)
     }
 
     func errorMessage(for error: Error, tool: AIToolConfig) -> String {
