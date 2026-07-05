@@ -701,9 +701,13 @@ enum ClipboardOperation {
 }
 
 // MARK: - 安全数组访问扩展
-
+//
+// 此扩展必须显式标记为 nonisolated：AppState 类是 @MainActor，但 Array[safe:] 是
+// 通用、无状态的工具，测试和 nonisolated 上下文都需要调用。不加 nonisolated 会让
+// 测试 target 在 nonisolated 上下文中引用时编译失败（"Main actor-isolated subscript
+// 'subscript(safe:)' can not be referenced from a nonisolated context"）。
 extension Array {
-    subscript(safe index: Int) -> Element? {
+    nonisolated subscript(safe index: Int) -> Element? {
         indices.contains(index) ? self[index] : nil
     }
 }
