@@ -20,7 +20,7 @@ The AI assistant must follow all rules in this document when modifying the codeb
 - SwiftUI
 - AppKit
 - Xcode 15+
-- Embedded SFTP framework: `mft` (libssh + OpenSSL)
+- Embedded SFTP framework: `mft` (libssh + OpenSSL) — git submodule at `./mft`; clone with `git submodule update --init --recursive`
 - Shell: zsh/bash for scripts
 - Grep: using rg instead of grep for searching codebase
 
@@ -32,6 +32,12 @@ Open the project:
 
 ```bash
 open "Zenith Commander.xcodeproj"
+```
+
+Clone submodules (required for build — provides `mft` SFTP framework):
+
+```bash
+git submodule update --init --recursive
 ```
 
 Build & Run (CLI):
@@ -62,30 +68,33 @@ Create DMG:
 
 ```txt
 Zenith Commander/
-├── Models/          # 数据模型
-│   ├── AppMode.swift       # 模式定义
-│   ├── AppState.swift      # 应用状态
-│   ├── Bookmark.swift      # 书签模型
-│   ├── FileItem.swift      # 文件项模型
-│   └── Settings.swift      # 设置模型
-├── Plugins/         # 插件系统
-│   ├── Core/               # 核心架构
-│   ├── Git/                # Git 功能插件
-│   └── Rsync/              # Rsync 同步插件
-├── Services/        # 服务层
-│   ├── CommandParser.swift     # 命令解析器
-│   ├── DirectoryMonitor.swift  # 目录监控
-│   ├── FileSystemService.swift # 文件系统服务
-│   └── Logger.swift            # 日志服务
-├── Theme/           # 主题系统
-│   ├── Theme.swift         # 主题定义
-│   └── ThemeManager.swift  # 主题管理器
-└── Views/           # 视图层
-    ├── MainView.swift      # 主视图
-    ├── PaneView.swift      # 面板视图
-    ├── SettingsView.swift  # 设置视图
-    └── Components/         # UI 组件
+├── Models/              # 数据模型 (MVVM)
+│   ├── Actions/             # AppAction — dispatched through AppReducer
+│   ├── Configuration/       # Keymaps and static config
+│   ├── Entities/            # AppMode, AppSettings, BookmarkItem, Connection, DriveInfo, FileItem, SortOption
+│   └── State/               # AppState + AppReducer + AppState+*.swift extensions (Command/Filter/GitHistory/InlineEditing/Modes/Pane), PaneState, TabState
+├── Plugins/            # Loadable feature plugins (each has Capabilities/Models/Services/Views)
+│   ├── Core/                # PluginContext, PluginManager, PluginTypes, UIHost + Capabilities
+│   ├── AI/                  # AI tools plugin (terminal integration, context menu)
+│   ├── Fzf/                 # Fzf fuzzy finder plugin
+│   ├── Git/                 # Git 功能插件
+│   └── Rsync/               # Rsync 同步插件
+├── Services/           # 业务逻辑层 (no UI here)
+│   ├── CommandParser.swift / CommandExecutionService.swift
+│   ├── DirectoryMonitor.swift
+│   ├── FileSystemService.swift / GitHistoryService.swift
+│   ├── Logger.swift
+│   ├── Endpoint/           # 远程/本地端点抽象: EndpointRegistry, FileEndpoint, LocalEndpoint, SFTPEndpoint (imports mft), TransferService, GenericTransferPipeline, TransferFastPath, FileOps, FileEntry, PathRef
+│   └── Managers/           # BookmarkManager, ConnectionManager, SettingsManager
+├── Localization/       # LocalizationManager.swift (see §7 — single source of localized strings)
+├── Shared/             # 跨层共享代码
+├── Theme/              # Theme.swift / ThemeManager.swift
+└── Views/              # UI-only, declarative
+    ├── MainView / PaneView / SettingsView / ConnectionManagerView
+    └── Components/     # AsyncIconView, BatchRenameView, BookmarkBarView, BreadcrumbView, DriveSelectorView, FileGridItemView, FileRowView, HelpView, ModalView, PermissionRequestView, ResizableBottomPanel, SortHeaderView, StatusBarView, TabBarView, ToastView, WindowDragHandle
 ```
+
+Note: `AppState` is the global source of truth and is mutated **only** via `AppAction` dispatched through `AppReducer` (`Models/State/AppReducer.swift`). Logic is split into themed `AppState+*.swift` extensions — add new behavior to the matching extension rather than the base file.
 
 You must NOT move files across layers without explicit instruction.
 
@@ -94,10 +103,11 @@ You must NOT move files across layers without explicit instruction.
 ## 6. Architecture & Design Rules
 
 - The app strictly follows **MVVM**.
-- `AppState` is the **single global source of truth**.
+- `AppState` is the **single global source of truth**; state mutations flow through `AppAction` → `AppReducer` (in `Models/State/`).
 - Business logic must live in `Services/`, NOT in `Views`.
 - Views must remain UI‑only and declarative.
-- Modal interaction is driven by a **state machine** (`Normal`, `Visual`, `Command`, `Filter`, `Drives`, etc.).
+- Modal interaction is driven by a **state machine** (`Normal`, `Visual`, `Command`, `Filter`, `Drives`, etc.) in `Models/State/AppState+Modes.swift`.
+- Plugins communicate with the host only via `Plugins/Core` (`PluginContext`, `PluginTypes`, `UIHost`, declared `Capabilities`). Do not reach into `AppState`/`Services` directly from a plugin.
 
 You must NOT introduce new architectural patterns without confirmation.
 
@@ -129,9 +139,11 @@ Violating this rule is considered a critical error.
 
 ## 9. Testing Rules
 
-- All changes to `Services/` must include updated tests where applicable.
+- Tests live in `Zenith CommanderTests/` (unit) and `Zenith CommanderUITests/` (UI), registered in `Zenith Commander.xctestplan`.
+- Existing unit coverage: `AppStateDispatchTests`, `BookmarkManagerTests`, `CommandExecutionServiceTests`, `CommandParserTests`, `DragDropTests`, `FileSystemServiceTests`, `GitHistoryServiceTests`, `GitHistoryTests`, `LocalFileSystemProviderTests`, `LocalizationTests`, `PaneViewTests`, `RsyncServiceTests`, `SortOptionTests`, `SymlinkNavigationTests`, plus `Zenith CommanderTests/Plugins/` for plugin behavior.
+- All changes to `Services/` or `AppState+*.swift` reducers must include updated tests where applicable.
 - You must NOT modify production code without updating corresponding tests.
-- Tests must be deterministic and not depend on network availability unless explicitly required.
+- Tests must be deterministic and not depend on network availability unless explicitly required (SFTP/transfer tests should stub the `Endpoint` layer).
 
 ---
 
