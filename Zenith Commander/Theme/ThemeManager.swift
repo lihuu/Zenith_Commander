@@ -119,6 +119,17 @@ final class ThemeManager: ObservableObject {
     /// 当前使用的主题
     @Published private(set) var current: ThemeColors
 
+    /// 用于注入 SwiftUI 原生控件的 `colorScheme`，使 TextField / Form / Picker 等
+    /// 原生控件与 ThemeManager.mode 保持一致。`auto` 模式返回 nil（跟随系统外观）。
+    /// 注：这是修复「自定义背景 vs 原生控件颜色撕裂」的单一来源（见 AGENTS.md §6）。
+    var preferredColorScheme: ColorScheme? {
+        switch mode {
+        case .light: .light
+        case .dark: .dark
+        case .auto: nil
+        }
+    }
+
     /// 系统外观监听
     private var appearanceObserver: NSObjectProtocol?
 
