@@ -344,6 +344,9 @@ extension AppState {
             pane.activeTab.files = files
 
             pane.activeTab.currentPath = parent
+            // 与 PaneView.leaveDirectory() 的权限恢复路径保持一致：离开目录时重置排序，
+            // 避免键盘 - 与权限回退路径在 sortOption 行为上分叉。
+            pane.activeTab.sortOption = .default
             pane.clearSelections()
 
             // 在上级目录中找到之前所在的目录并选中

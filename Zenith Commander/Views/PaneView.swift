@@ -1026,6 +1026,10 @@ struct PaneView: View {
         }
     }
 
+    // 与 reducer 的 AppState.leaveDirectory() 共存：本方法专用于「权限拒绝 / 目录不存在」
+    // 的恢复路径——此时已处于 loadCurrentDirectoryWithPermissionCheck 流程内，需要走带权限
+    // 提示的加载逻辑，而非 reducer 版本的 env.fileSystem.loadDirectory（无权限处理）。
+    // 两者已对齐：离开目录都重置 sortOption = .default。键盘/通知导航请走 dispatch(.paneAsync(.leaveDirectory))。
     func leaveDirectory() {
         let currentPath = pane.activeTab.currentPath
         let parent = FileSystemService.shared.parentDirectory(of: currentPath)

@@ -169,7 +169,8 @@ struct MainView: View {
                     Color.black.opacity(0.4)
                         .ignoresSafeArea()
                         .onTapGesture {
-                            appState.showRenameModal = false
+                            // exitMode() 在 .batchRename 分支会自动清 showRenameModal（见 AppState+Modes.swift），
+                            // 不再在此直接写，避免绕过 reducer 留下不一致窗口。
                             appState.exitMode()  // 退出 BATCH_RENAME 模式
                         }
 

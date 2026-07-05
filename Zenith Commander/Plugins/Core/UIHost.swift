@@ -18,14 +18,17 @@ struct PluginSheetHost: ViewModifier {
                 item: Binding(
                     get: { appState.activeSheet },
                     set: { newValue in
-                        if newValue == nil { appState.activeSheet = nil }
+                        // SwiftUI 的 .sheet(item:) 期望 setter 同步反映新值，
+                        // 故此处分支不能走 async dispatch。这里同步写 activeSheet
+                        // 并调用 exitMode()，与 reducer 的 dismissSheet 行为对齐，
+                        // 避免「sheet 关了但 mode 仍卡在 .modal」的不一致窗口。
+                        // 打开分支由 dispatch(.ui(.showSheet)) 驱动，不在此处处理。
+                        if newValue == nil {
+                            appState.activeSheet = nil
+                            appState.exitMode()
+                        }
                     }
-                ),
-                onDismiss: {
-                    Task { @MainActor in
-                        await pluginContext.dispatch(.ui(.dismissSheet))
-                    }
-                }
+                )
             ) { request in
                 pluginManager.view(for: request)
                     ?? AnyView(Text("No UI for \(String(describing: request))"))
