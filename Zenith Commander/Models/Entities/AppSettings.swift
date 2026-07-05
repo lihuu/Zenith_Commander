@@ -91,15 +91,18 @@ struct GitSettings: Codable, Equatable {
 
 /// Rsync 设置
 struct RsyncSettings: Codable, Equatable {
-    /// 是否启用 Rsync 集成
+    /// 是否启用 Rsync 集成（用户偏好，与「rsync 是否已安装」分离）。
+    ///
+    /// 设计说明：`enabled` 只表示用户**想不想**开启集成，不应在 `.default` 里快照
+    /// `isRsyncInstalled()`。原实现把安装状态快照进 `enabled` 并持久化，导致用户首次启动
+    /// 时未装 rsync → `enabled=false` 被冻结 → 之后装了 rsync，开关仍是关（即使重启也不恢复，
+    /// 因为持久化值覆盖默认）。正确的「可用性」由 `RsyncService.shared.isRsyncInstalled()`
+    /// 实时探测；功能开关点应使用 effective gate `enabled && isRsyncInstalled()`。
     var enabled: Bool
 
-    /// 默认设置
+    /// 默认设置：用户偏好默认开启，实际可用性由安装探测决定。
     static var `default`: RsyncSettings {
-        // Default to enabled if rsync is installed
-        RsyncSettings(
-            enabled: RsyncService.shared.isRsyncInstalled()
-        )
+        RsyncSettings(enabled: true)
     }
 }
 

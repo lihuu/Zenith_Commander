@@ -15,7 +15,13 @@ final class RsyncContextMenuProvider: ContextMenuProvider {
     }
 
     func menuItems(for context: ContextMenuContext) -> [MenuElement] {
-        guard SettingsManager.shared.settings.rsync.enabled else {
+        // Effective gate = 用户偏好 && rsync 已安装（与 PaneView 的 fzf 按钮模式一致）。
+        // 单独看 settings.rsync.enabled 会在「装了 rsync 后未重启 / 卸载 rsync 后未改设置」
+        // 等场景下产生不一致菜单项。
+        guard
+            SettingsManager.shared.settings.rsync.enabled,
+            RsyncService.shared.isRsyncInstalled()
+        else {
             return []
         }
 

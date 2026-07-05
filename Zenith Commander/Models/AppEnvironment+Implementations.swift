@@ -8,7 +8,12 @@ import OSLog
 
 final class LiveSettingsAdapter: SettingsProviding {
     var rsyncEnabled: Bool {
-        get { SettingsManager.shared.settings.rsync.enabled }
+        // Effective gate = 用户偏好 && rsync 已安装。getter 反映「集成实际可用」，
+        // setter 仅写用户偏好（持久化）；可用性由 RsyncService 实时探测，避免快照漂移。
+        get {
+            SettingsManager.shared.settings.rsync.enabled
+                && RsyncService.shared.isRsyncInstalled()
+        }
         set {
             var settings = SettingsManager.shared.settings
             settings.rsync.enabled = newValue
