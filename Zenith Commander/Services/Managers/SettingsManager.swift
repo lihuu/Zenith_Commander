@@ -52,6 +52,12 @@ class SettingsManager: ObservableObject {
         _settings = Published(initialValue: AppSettings.default)
 
         loadSettings()
+
+        // 启动期一次性迁移：把老 settings.json 里的 themeMode 同步到 ThemeManager（单一运行时源）。
+        // 之后主题模式的唯一持久化是 ThemeManager 的 UserDefaults（key `themeMode`），
+        // settings.appearance.themeMode 仅保留用于 Codable 兼容，不再被任何视图绑定。
+        migrateThemeModeIfNeeded()
+
         applySettings()
     }
 
@@ -84,9 +90,26 @@ class SettingsManager: ObservableObject {
 
     /// 应用设置
     private func applySettings() {
-        // 应用主题 - 使用异步更新避免在视图更新期间修改 @Published 属性
+        // 主题模式不再在此处覆盖 ThemeManager.mode：ThemeManager.shared.mode 是主题模式的
+        // 单一运行时源（见 AGENTS.md §6），由 ThemeManager 自行持久化到 UserDefaults。
+        // 字体大小/行高等其他外观设置由各视图直接读取 settings.appearance，无需在此强制应用。
+    }
+
+    /// 启动期把老 settings.json 中的 themeMode 一次性迁移到 ThemeManager.shared.mode。
+    ///
+    /// 仅在 ThemeManager 尚未持有有效持久化值时迁移，避免覆盖用户通过 Ctrl+T 或 Settings
+    /// 最新设置的主题模式。迁移完成后 ThemeManager 的 UserDefaults 成为唯一持久化源，
+    /// `settings.appearance.themeMode` 仅保留以兼容老 settings.json 的解码。
+    private func migrateThemeModeIfNeeded() {
+        let defaults = UserDefaults.standard
+        let hasPersistedTheme = defaults.object(forKey: "themeMode") != nil
+        guard !hasPersistedTheme else { return }
+
+        let migrated = settings.appearance.themeModeEnum
+        defaults.set(migrated.rawValue, forKey: "themeMode")
+        // ThemeManager 是 @MainActor 单例，通过主线程异步访问以符合 Swift 并发约束。
         DispatchQueue.main.async {
-            ThemeManager.shared.mode = self.settings.appearance.themeModeEnum
+            ThemeManager.shared.mode = migrated
         }
     }
 

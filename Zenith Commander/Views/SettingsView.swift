@@ -103,19 +103,13 @@ struct AppearanceSection: View {
     var body: some View {
         SettingsSection(title: L(.settingsAppearance), icon: "paintbrush.fill") {
             VStack(spacing: 16) {
-                // 主题选择
+                // 主题选择 —— 主题模式的单一运行时源是 ThemeManager.shared.mode
+                // （见 AGENTS.md §6「单一全局源」）。Settings 不再在 settings.appearance.themeMode
+                // 上维护平行副本，直接绑定到 ThemeManager.mode，确保 Ctrl+T 与 Settings 双向同步。
                 ThemeSelector(selectedTheme: Binding(
-                    get: { settings.themeMode },
+                    get: { themeManager.mode },
                     set: { newValue in
-                        settings.themeMode = newValue
-                        // 同步更新 ThemeManager - 使用异步更新避免在视图更新期间修改 @Published 属性
-                        DispatchQueue.main.async {
-                            switch newValue {
-                            case "light": themeManager.mode = .light
-                            case "dark": themeManager.mode = .dark
-                            default: themeManager.mode = .auto
-                            }
-                        }
+                        themeManager.mode = newValue
                     }
                 ))
 
@@ -153,15 +147,16 @@ struct AppearanceSection: View {
 // MARK: - 主题选择器
 
 struct ThemeSelector: View {
-    @Binding var selectedTheme: String
+    @Binding var selectedTheme: ThemeMode
     @ObservedObject private var themeManager = ThemeManager.shared
     @ObservedObject private var localizationManager = LocalizationManager.shared
 
-    private var themes: [(id: String, nameKey: LocalizedStringKey, icon: String)] {
+    // 主题模式定义在 ThemeManager.ThemeMode；icon 复用其 `icon` 属性，避免重复硬编码。
+    private var themes: [(mode: ThemeMode, nameKey: LocalizedStringKey)] {
         [
-            ("light", .settingsThemeLight, "sun.max.fill"),
-            ("dark", .settingsThemeDark, "moon.fill"),
-            ("auto", .settingsThemeAuto, "circle.lefthalf.filled"),
+            (.light, .settingsThemeLight),
+            (.dark, .settingsThemeDark),
+            (.auto, .settingsThemeAuto),
         ]
     }
 
@@ -172,15 +167,15 @@ struct ThemeSelector: View {
                 .foregroundColor(themeManager.current.textSecondary)
 
             HStack(spacing: 12) {
-                ForEach(themes, id: \.id) { theme in
+                ForEach(themes, id: \.mode.rawValue) { theme in
                     ThemeButton(
-                        id: theme.id,
+                        id: theme.mode.rawValue,
                         name: L(theme.nameKey),
-                        icon: theme.icon,
-                        isSelected: selectedTheme == theme.id
+                        icon: theme.mode.icon,
+                        isSelected: selectedTheme == theme.mode
                     ) {
                         withAnimation(.easeInOut(duration: 0.2)) {
-                            selectedTheme = theme.id
+                            selectedTheme = theme.mode
                         }
                     }
                 }
