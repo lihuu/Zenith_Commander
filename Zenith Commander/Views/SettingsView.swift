@@ -33,10 +33,14 @@ struct SettingsView: View {
                     TerminalSection(settings: $settingsManager.settings.terminal)
                     
                     // 插件提供的设置区域
-                    ForEach(Array(pluginManager.allSettingsProviders().enumerated()), id: \.offset) { _, provider in
+                    // `PluginManager.register` 已是幂等的（按 plugin id 去重），
+                    // 因此 `allSettingsProviders()` 不会返回重复项；这里再用
+                    // `pluginId` 作为 ForEach 的稳定 id，避免 SwiftUI 用 `\.offset`
+                    // 在重复渲染时把同一段内容识别成不同条目造成闪烁/重影。
+                    ForEach(pluginManager.allSettingsProviders(), id: \.pluginId) { provider in
                         Divider()
                             .background(themeManager.current.borderLight)
-                        
+
                         SettingsSection(
                             title: provider.settingsTitle,
                             icon: provider.settingsIcon

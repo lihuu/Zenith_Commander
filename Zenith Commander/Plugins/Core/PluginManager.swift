@@ -17,10 +17,29 @@ final class PluginManager {
     private var keybindingProviders: [any KeybindingProvider] = []
     private var settingsProviders: [any SettingsProvider] = []
 
+    /// 已注册过的插件 id —— 保证 `register` 幂等。
+    /// 根因：`MainView.init` 内调用 `register`，而 `MainView` 会随语言切换
+    /// （`ContentView().id(localizationManager.currentLanguage.id)`）被销毁重建，
+    /// 导致 `register` 被重复调用。若不做幂等保护，`settingsProviders` 等
+    /// 数组会累积重复条目，最终在 Settings 页渲染出多份同一插件的设置区域
+    /// （见 bug：点击 Add AI Tool 后出现两个 AI Tools 区域）。
+    private var registeredPluginIDs: Set<String> = []
+
     private init() {}
 
     /// Register  plugins
     func register(_ plugin: any ZenithPlugin, context: PluginContext) {
+        // 幂等：同一插件重复 `register` 时直接跳过，避免 provider 数组累积重复条目。
+        // 这里的 key 用 `plugin.id.rawValue`（与各 `SettingsProvider.pluginId` 同源），
+        // 因此即便 `MainView` 被多次重建，也不会再向 `settingsProviders` 等数组里追加重复项。
+        guard !registeredPluginIDs.contains(plugin.id.rawValue) else {
+            context.logger.info(
+                "Plugin already registered, skipping: \(plugin.displayName)"
+            )
+            return
+        }
+        registeredPluginIDs.insert(plugin.id.rawValue)
+
         context.logger.info("Registering plugin: \(plugin.displayName)")
         for capability in plugin.makeCapabilities(context: context) {
             switch capability.type {
