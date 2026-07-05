@@ -206,6 +206,27 @@ enum LocalizedStringKey: String, CaseIterable {
     case aiRequiresLocalPath
     case aiNewToolDefaultName
 
+    // MARK: - 连接管理 (Network Connections)
+
+    case connectionManagerTitle
+    case connectionAdd
+    case connectionClose
+    case connectionAddHelp
+    case connectionCloseHelp
+    case connectionEmpty
+    case connectionEmptyHint
+    case connectionAnonymous
+    case connectionConnect
+    case connectionEdit
+    case connectionEditSectionDetails
+    case connectionFieldNameOptional
+    case connectionFieldProtocol
+    case connectionFieldHost
+    case connectionFieldPort
+    case connectionFieldUsername
+    case connectionFieldPassword
+    case connectionFieldPath
+
     // MARK: - Git 状态显示
 
     case gitStatusModified
@@ -641,6 +662,26 @@ class LocalizedStrings {
             .aiRequiresLocalPath: "AI tools are only available in local directories",
             .aiNewToolDefaultName: "AI Tool %d",
 
+            // 连接管理 (Network Connections)
+            .connectionManagerTitle: "Network Connections",
+            .connectionAdd: "Add Connection",
+            .connectionClose: "Close",
+            .connectionAddHelp: "Add Connection",
+            .connectionCloseHelp: "Close",
+            .connectionEmpty: "No Saved Connections",
+            .connectionEmptyHint: "Add Connection",
+            .connectionAnonymous: "Anonymous",
+            .connectionConnect: "Connect",
+            .connectionEdit: "Edit",
+            .connectionEditSectionDetails: "Connection Details",
+            .connectionFieldNameOptional: "Name (Optional)",
+            .connectionFieldProtocol: "Protocol",
+            .connectionFieldHost: "Host",
+            .connectionFieldPort: "Port",
+            .connectionFieldUsername: "Username",
+            .connectionFieldPassword: "Password",
+            .connectionFieldPath: "Path",
+
             // Git 状态显示
             .gitStatusModified: "Modified",
             .gitStatusAdded: "Added",
@@ -1029,6 +1070,26 @@ class LocalizedStrings {
             .aiLaunchFailed: "打开 %@ 失败",
             .aiRequiresLocalPath: "AI 工具仅支持本地目录",
             .aiNewToolDefaultName: "AI 工具 %d",
+
+            // 连接管理 (Network Connections)
+            .connectionManagerTitle: "网络连接",
+            .connectionAdd: "添加连接",
+            .connectionClose: "关闭",
+            .connectionAddHelp: "添加连接",
+            .connectionCloseHelp: "关闭",
+            .connectionEmpty: "暂无已保存的连接",
+            .connectionEmptyHint: "添加连接",
+            .connectionAnonymous: "匿名",
+            .connectionConnect: "连接",
+            .connectionEdit: "编辑",
+            .connectionEditSectionDetails: "连接详情",
+            .connectionFieldNameOptional: "名称（可选）",
+            .connectionFieldProtocol: "协议",
+            .connectionFieldHost: "主机",
+            .connectionFieldPort: "端口",
+            .connectionFieldUsername: "用户名",
+            .connectionFieldPassword: "密码",
+            .connectionFieldPath: "路径",
 
             // Git 状态显示
             .gitStatusModified: "已修改",

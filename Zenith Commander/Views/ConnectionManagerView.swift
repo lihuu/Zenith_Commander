@@ -13,6 +13,7 @@ struct ConnectionManagerView: View {
     @ObservedObject var appState: AppState
     @ObservedObject var connectionManager = ConnectionManager.shared
     @ObservedObject private var themeManager = ThemeManager.shared
+    @ObservedObject private var localizationManager = LocalizationManager.shared
     @State private var showingAddSheet = false
     @State private var editingConnection: Connection?
 
@@ -30,7 +31,7 @@ struct ConnectionManagerView: View {
             VStack(spacing: 0) {
                 // Header
                 HStack {
-                    Text("Network Connections")
+                    Text(L(.connectionManagerTitle))
                         .font(.headline)
                         .foregroundColor(themeManager.current.textPrimary)
                     Spacer()
@@ -39,14 +40,14 @@ struct ConnectionManagerView: View {
                             .foregroundColor(themeManager.current.textSecondary)
                     }
                     .buttonStyle(.plain)
-                    .help("Add Connection")
+                    .help(L(.connectionAddHelp))
 
                     Button(action: { closeModal() }) {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundColor(themeManager.current.textTertiary)
                     }
                     .buttonStyle(.plain)
-                    .help("Close")
+                    .help(L(.connectionCloseHelp))
                 }
                 .padding()
                 .background(themeManager.current.backgroundSecondary)
@@ -83,9 +84,9 @@ struct ConnectionManagerView: View {
                         Image(systemName: "network")
                             .font(.system(size: 40))
                             .foregroundColor(themeManager.current.textTertiary)
-                        Text("No Saved Connections")
+                        Text(L(.connectionEmpty))
                             .foregroundColor(themeManager.current.textSecondary)
-                        Button("Add Connection") {
+                        Button(L(.connectionEmptyHint)) {
                             showingAddSheet = true
                         }
                         .foregroundColor(themeManager.current.accent)
@@ -132,6 +133,10 @@ struct ConnectionManagerView: View {
         isPresented = false
         appState.exitMode()
     }
+
+    private func L(_ key: LocalizedStringKey) -> String {
+        localizationManager.localized(key)
+    }
 }
 
 struct ConnectionRow: View {
@@ -141,6 +146,7 @@ struct ConnectionRow: View {
     let onDelete: () -> Void
 
     @ObservedObject private var themeManager = ThemeManager.shared
+    @ObservedObject private var localizationManager = LocalizationManager.shared
 
     var body: some View {
         HStack {
@@ -153,21 +159,22 @@ struct ConnectionRow: View {
                 Text(connection.name.isEmpty ? connection.host : connection.name)
                     .font(.headline)
                     .foregroundColor(themeManager.current.textPrimary)
-                Text("\(connection.protocolType.displayName) • \(connection.username.isEmpty ? "Anonymous" : connection.username)@\(connection.host)")
+                // 协议名（FTP/SFTP/SMB）是技术术语，保持原样不本地化；用户名空时显示本地化的「匿名」。
+                Text("\(connection.protocolType.displayName) • \(connection.username.isEmpty ? L(.connectionAnonymous) : connection.username)@\(connection.host)")
                     .font(.caption)
                     .foregroundColor(themeManager.current.textSecondary)
             }
 
             Spacer()
 
-            Button("Connect") {
+            Button(L(.connectionConnect)) {
                 onConnect()
             }
             .buttonStyle(.borderedProminent)
 
             Menu {
-                Button("Edit") { onEdit() }
-                Button("Delete", role: .destructive) { onDelete() }
+                Button(L(.connectionEdit)) { onEdit() }
+                Button(L(.delete), role: .destructive) { onDelete() }
             } label: {
                 Image(systemName: "ellipsis.circle")
                     .foregroundColor(themeManager.current.textSecondary)
@@ -176,6 +183,10 @@ struct ConnectionRow: View {
             .frame(width: 20)
         }
         .padding(.vertical, 4)
+    }
+
+    private func L(_ key: LocalizedStringKey) -> String {
+        localizationManager.localized(key)
     }
 
     var iconName: String {
@@ -192,22 +203,23 @@ struct ConnectionEditView: View {
     let onSave: (Connection) -> Void
     @Environment(\.presentationMode) var presentationMode
     @ObservedObject private var themeManager = ThemeManager.shared
+    @ObservedObject private var localizationManager = LocalizationManager.shared
 
     var body: some View {
         Form {
-            Section(header: Text("Connection Details")
+            Section(header: Text(L(.connectionEditSectionDetails))
                 .foregroundColor(themeManager.current.textSecondary))
             {
-                TextField("Name (Optional)", text: $connection.name)
+                TextField(L(.connectionFieldNameOptional), text: $connection.name)
 
-                Picker("Protocol", selection: $connection.protocolType) {
+                Picker(L(.connectionFieldProtocol), selection: $connection.protocolType) {
                     ForEach(ConnectionProtocol.allCases) { type in
                         Text(type.displayName).tag(type)
                     }
                 }
 
-                TextField("Host", text: $connection.host)
-                TextField("Port", text: $connection.port)
+                TextField(L(.connectionFieldHost), text: $connection.host)
+                TextField(L(.connectionFieldPort), text: $connection.port)
                     .onChange(of: connection.protocolType) { _, newValue in
                         if connection.port.isEmpty {
                             switch newValue {
@@ -218,18 +230,18 @@ struct ConnectionEditView: View {
                         }
                     }
 
-                TextField("Username", text: $connection.username)
-                SecureField("Password", text: $connection.password)
-                TextField("Path", text: $connection.path)
+                TextField(L(.connectionFieldUsername), text: $connection.username)
+                SecureField(L(.connectionFieldPassword), text: $connection.password)
+                TextField(L(.connectionFieldPath), text: $connection.path)
             }
 
             HStack {
                 Spacer()
-                Button("Cancel") {
+                Button(L(.cancel)) {
                     presentationMode.wrappedValue.dismiss()
                 }
                 .foregroundColor(themeManager.current.textSecondary)
-                Button("Save") {
+                Button(L(.save)) {
                     onSave(connection)
                 }
                 .disabled(connection.host.isEmpty)
@@ -247,5 +259,9 @@ struct ConnectionEditView: View {
                 connection.port = "445" // SMB default
             }
         }
+    }
+
+    private func L(_ key: LocalizedStringKey) -> String {
+        localizationManager.localized(key)
     }
 }
