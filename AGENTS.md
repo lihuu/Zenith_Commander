@@ -108,6 +108,8 @@ You must NOT move files across layers without explicit instruction.
 - Views must remain UI‑only and declarative.
 - Modal interaction is driven by a **state machine** (`Normal`, `Visual`, `Command`, `Filter`, `Drives`, etc.) in `Models/State/AppState+Modes.swift`.
 - Plugins communicate with the host only via `Plugins/Core` (`PluginContext`, `PluginTypes`, `UIHost`, declared `Capabilities`). Do not reach into `AppState`/`Services` directly from a plugin.
+- **单一运行时源原则**：跨视图共享的运行时状态（如 `ThemeManager.shared.mode`）只能有一个源。Settings 视图必须 `@Binding`/`@ObservedObject` 到该源，**不得**在 `SettingsManager.settings` 里维护平行副本。Settings 与快捷键都只写该源；启动期用一次性迁移把老持久化（settings.json）灌入该源即可。这避免了「快捷键改了状态、Settings 选中态不跟随」的整类 bug。
+- **已知隔离妥协（插件层）**：当前插件 `Capabilities/` 中的 settings provider 与命令/菜单 provider 直接读取宿主 `SettingsManager.shared.settings.<x>`（如 `GitSettingsProvider`/`RsyncSettingsProvider`/`FzfSettingsProvider`/`AISettingsProvider`/`AICommandProvider`/`AIService.terminalProvider`），`GitUIContribution` 直接通过 `@EnvironmentObject` 读取 `AppState` 的 git 历史字段。这是**插件隔离层的临时缺口**，不是「单一运行时源」违规——它们读的是同一个源、不会产生用户可见的漂移 bug。在引入第三方插件或把插件拆成独立 package 前，**不强制改造**；届时应在 `Plugins/Core` 补一个 settings/state 访问 capability（如 `SettingsAccess`/`PluginStateHost`）来根治。新增插件时优先走 `PluginContext`/`Capabilities`，避免再增加对 `SettingsManager`/`AppState` 的直接依赖。
 
 You must NOT introduce new architectural patterns without confirmation.
 
