@@ -12,6 +12,7 @@ struct ConnectionManagerView: View {
     @Binding var isPresented: Bool
     @ObservedObject var appState: AppState
     @ObservedObject var connectionManager = ConnectionManager.shared
+    @ObservedObject private var themeManager = ThemeManager.shared
     @State private var showingAddSheet = false
     @State private var editingConnection: Connection?
 
@@ -31,23 +32,27 @@ struct ConnectionManagerView: View {
                 HStack {
                     Text("Network Connections")
                         .font(.headline)
+                        .foregroundColor(themeManager.current.textPrimary)
                     Spacer()
                     Button(action: { showingAddSheet = true }) {
                         Image(systemName: "plus")
+                            .foregroundColor(themeManager.current.textSecondary)
                     }
+                    .buttonStyle(.plain)
                     .help("Add Connection")
 
                     Button(action: { closeModal() }) {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(themeManager.current.textTertiary)
                     }
                     .buttonStyle(.plain)
                     .help("Close")
                 }
                 .padding()
-                .background(Color(NSColor.controlBackgroundColor))
+                .background(themeManager.current.backgroundSecondary)
 
                 Divider()
+                    .background(themeManager.current.borderLight)
 
                 // List
                 List {
@@ -70,23 +75,26 @@ struct ConnectionManagerView: View {
                     }
                 }
                 .listStyle(PlainListStyle())
+                .scrollContentBackground(.hidden)
+                .background(themeManager.current.background)
 
                 if connectionManager.connections.isEmpty {
                     VStack(spacing: 10) {
                         Image(systemName: "network")
                             .font(.system(size: 40))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(themeManager.current.textTertiary)
                         Text("No Saved Connections")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(themeManager.current.textSecondary)
                         Button("Add Connection") {
                             showingAddSheet = true
                         }
+                        .foregroundColor(themeManager.current.accent)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .frame(width: 400, height: 500)
-            .background(Color(NSColor.windowBackgroundColor))
+            .background(themeManager.current.background)
             .cornerRadius(12)
             .shadow(radius: 20)
             .transition(.scale(scale: 0.95).combined(with: .opacity))
@@ -132,18 +140,22 @@ struct ConnectionRow: View {
     let onEdit: () -> Void
     let onDelete: () -> Void
 
+    @ObservedObject private var themeManager = ThemeManager.shared
+
     var body: some View {
         HStack {
             Image(systemName: iconName)
                 .font(.title2)
                 .frame(width: 30)
+                .foregroundColor(themeManager.current.accent)
 
             VStack(alignment: .leading) {
                 Text(connection.name.isEmpty ? connection.host : connection.name)
                     .font(.headline)
+                    .foregroundColor(themeManager.current.textPrimary)
                 Text("\(connection.protocolType.displayName) • \(connection.username.isEmpty ? "Anonymous" : connection.username)@\(connection.host)")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(themeManager.current.textSecondary)
             }
 
             Spacer()
@@ -158,6 +170,7 @@ struct ConnectionRow: View {
                 Button("Delete", role: .destructive) { onDelete() }
             } label: {
                 Image(systemName: "ellipsis.circle")
+                    .foregroundColor(themeManager.current.textSecondary)
             }
             .menuStyle(BorderlessButtonMenuStyle())
             .frame(width: 20)
@@ -178,10 +191,13 @@ struct ConnectionEditView: View {
     let isNew: Bool
     let onSave: (Connection) -> Void
     @Environment(\.presentationMode) var presentationMode
+    @ObservedObject private var themeManager = ThemeManager.shared
 
     var body: some View {
         Form {
-            Section(header: Text("Connection Details")) {
+            Section(header: Text("Connection Details")
+                .foregroundColor(themeManager.current.textSecondary))
+            {
                 TextField("Name (Optional)", text: $connection.name)
 
                 Picker("Protocol", selection: $connection.protocolType) {
@@ -212,6 +228,7 @@ struct ConnectionEditView: View {
                 Button("Cancel") {
                     presentationMode.wrappedValue.dismiss()
                 }
+                .foregroundColor(themeManager.current.textSecondary)
                 Button("Save") {
                     onSave(connection)
                 }
@@ -220,6 +237,8 @@ struct ConnectionEditView: View {
             }
             .padding(.top)
         }
+        .scrollContentBackground(.hidden)
+        .background(themeManager.current.background)
         .padding()
         .frame(width: 350)
         .onAppear {
