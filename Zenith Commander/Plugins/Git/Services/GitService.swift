@@ -43,7 +43,7 @@ class GitService {
     private var repoRootCacheTimestamps: [URL: Date] = [:]
 
     /// Git 命令超时时间（秒）
-    private let commandTimeout: TimeInterval = 2.0
+    private nonisolated static let commandTimeout: TimeInterval = 2.0
 
     /// Git 可执行文件路径（解析后缓存）
     private lazy var gitExecutableURL: URL? = resolveGitExecutableURL()
@@ -566,7 +566,8 @@ class GitService {
         let request = ToolRequest(
             executable: gitURL.path,
             args: arguments,
-            workingDirectory: directory.path
+            workingDirectory: directory.path,
+            timeout: Self.commandTimeout  // 防 git 卡死冻结主线程（见 ToolRunner.runSync）
         )
 
         do {
@@ -753,7 +754,10 @@ class GitService {
         let request = ToolRequest(
             executable: gitURL.path,
             args: arguments,
-            workingDirectory: directory.path
+            workingDirectory: directory.path,
+            // 接入既有 commandTimeout 声明：git 命令 2 秒内未返回即终止，
+            // 避免卡死的 git 子进程冻结主线程（见 ToolRunner.runSync）。
+            timeout: Self.commandTimeout
         )
 
         do {

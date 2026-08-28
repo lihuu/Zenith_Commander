@@ -5,6 +5,7 @@
 //  Created by Hu Li on 12/19/25.
 //
 
+import Darwin
 import Foundation
 import Synchronization
 import os.log
@@ -13,6 +14,10 @@ struct ToolRequest {
     let executable: String
     let args: [String]
     let workingDirectory: String?
+    /// 进程执行超时（秒）。`runSync` 超过该时限会终止子进程并返回，
+    /// 防止外部命令（如 git）卡死时无限挂起调用线程（见 runSync 注释）。
+    /// 默认 8 秒；GitService 等调用方可按命令类型传入更紧的时限。
+    var timeout: TimeInterval = 8.0
 }
 
 struct ToolResponse {
@@ -122,7 +127,29 @@ struct ProcessToolRunner: ToolRunner {
         let (p, out, err) = setupProcess(for: request)
 
         try p.run()
-        p.waitUntilExit()
+
+        // 有界等待，不用 waitUntilExit()：waitUntilExit 在子进程不退出时会
+        // 无限阻塞调用线程（git 卡死 → 整个 App / 测试宿主引导冻结）。
+        // 轮询 isRunning 并按时限终止子进程，保证任何命令都能在
+        // request.timeout 内返回（AGENTS.md §11：禁止无界阻塞）。
+        let deadline = Date().addingTimeInterval(request.timeout)
+        while p.isRunning && Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+        if p.isRunning {
+            Logger.tools.warning(
+                "[ToolRunner] Command timed out after \(request.timeout)s, terminating \(request.executable)"
+            )
+            p.terminate()  // SIGTERM
+            let killDeadline = Date().addingTimeInterval(1.0)
+            while p.isRunning && Date() < killDeadline {
+                Thread.sleep(forTimeInterval: 0.05)
+            }
+            if p.isRunning {
+                kill(p.processIdentifier, SIGKILL)  // SIGKILL 兜底
+                p.waitUntilExit()
+            }
+        }
 
         let response = ProcessToolRunner.parseOutput(
             stdout: out, stderr: err, exitCode: p.terminationStatus)
