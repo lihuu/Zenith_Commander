@@ -81,3 +81,6 @@ warnings.txt
 build_final.log
 test-build.log
 warnings_final.txt
+
+# 测试运行的覆盖率数据文件（xcodebuild test 副产物）
+*.profraw
