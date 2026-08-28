@@ -25,7 +25,10 @@ final class PluginManager {
     /// （见 bug：点击 Add AI Tool 后出现两个 AI Tools 区域）。
     private var registeredPluginIDs: Set<String> = []
 
-    private init() {}
+    /// 非 private：允许单元测试创建独立实例做隔离（shared 单例在测试宿主里
+    /// 可能已被 App 启动或其他测试注册过插件，会导致「首次注册」类断言失真）。
+    /// 生产代码仍统一使用 `shared`。
+    init() {}
 
     /// Register  plugins
     func register(_ plugin: any ZenithPlugin, context: PluginContext) {

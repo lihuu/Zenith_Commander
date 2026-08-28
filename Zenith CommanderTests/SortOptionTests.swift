@@ -119,8 +119,10 @@ struct SortOptionTests {
     // MARK: - Sort Option Tests
     
     @Test func defaultSortOption() {
+        // .default 语义是「未启用排序」：field == nil 时 sortedFiles 原样返回，
+        // 离开目录时用它清除排序状态（见 SortOption.sortedFiles / leaveDirectory）
         let defaultSort = SortOption.default
-        #expect(defaultSort.field == .name)
+        #expect(defaultSort.field == nil)
         #expect(defaultSort.order == .ascending)
     }
     

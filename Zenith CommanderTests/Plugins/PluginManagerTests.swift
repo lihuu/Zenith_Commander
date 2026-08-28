@@ -23,11 +23,10 @@ import XCTest
 final class PluginManagerTests: XCTestCase {
     /// Two registrations of the same plugin must yield exactly one settings provider.
     func testRegisteringSamePluginTwiceDoesNotDuplicateSettingsProviders() {
-        let manager = PluginManager.shared
-
-        // Snapshot current counts so the test is isolated from whatever the
-        // app startup has already registered.
-        let initialCount = manager.allSettingsProviders().count
+        // 用独立实例做隔离：`shared` 在测试宿主进程里可能已被 App 启动或
+        // 其他测试注册过 AIPlugin，幂等保护会让「首次注册」变成 no-op，
+        // 使基于 delta 的断言失真（AIPlugin 已存在时 delta == 0）。
+        let manager = PluginManager()
 
         let context = makeContext()
         manager.register(AIPlugin(), context: context)
@@ -37,7 +36,7 @@ final class PluginManagerTests: XCTestCase {
         let secondCount = manager.allSettingsProviders().count
 
         XCTAssertEqual(
-            firstCount - initialCount, 1,
+            firstCount, 1,
             "First registration should add exactly one AI settings provider"
         )
         XCTAssertEqual(

@@ -103,7 +103,9 @@ final class AIServiceTests: XCTestCase {
         let tool = AIToolConfig(
             id: "gemini",
             name: "Gemini",
-            command: "gemini",
+            // 用保证存在的命令：openToolInTerminal 会做 isToolInstalled 检查，
+            // 测试目的是验证 Warp 启动配置接线，不应依赖 gemini 是否安装
+            command: "sh",
             icon: "sparkles",
             enabled: true
         )
@@ -125,7 +127,7 @@ final class AIServiceTests: XCTestCase {
         let configuration = try String(contentsOf: configurationURL, encoding: .utf8)
         XCTAssertTrue(configuration.contains("name: 'Zenith Commander Gemini'"))
         XCTAssertTrue(configuration.contains("cwd: '/tmp/Project O''Neil'"))
-        XCTAssertTrue(configuration.contains("exec: 'gemini'"))
+        XCTAssertTrue(configuration.contains("exec: 'sh'"))
     }
 
     func testOpenToolInTerminalUsesKittyLauncherWhenKittySelected() throws {
@@ -143,7 +145,9 @@ final class AIServiceTests: XCTestCase {
         let tool = AIToolConfig(
             id: "gemini",
             name: "Gemini",
-            command: "gemini",
+            // 用保证存在的命令：openToolInTerminal 会做 isToolInstalled 检查，
+            // 测试目的是验证 Kitty 启动参数接线，不应依赖 gemini 是否安装
+            command: "sh",
             icon: "sparkles",
             enabled: true
         )
@@ -155,7 +159,7 @@ final class AIServiceTests: XCTestCase {
         XCTAssertNil(launcher.launchedWarpConfigurationName)
         XCTAssertEqual(launcher.launchedKittyTerminal?.bundleId, "net.kovidgoyal.kitty")
         XCTAssertEqual(launcher.launchedKittyDirectory?.path, "/tmp/project")
-        XCTAssertEqual(launcher.launchedKittyCommand, "gemini")
+        XCTAssertEqual(launcher.launchedKittyCommand, "sh")
     }
 
     func testOpenToolInTerminalUsesGhosttyLauncherWhenGhosttySelected() throws {
