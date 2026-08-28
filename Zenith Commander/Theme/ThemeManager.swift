@@ -232,6 +232,30 @@ final class ThemeManager: ObservableObject {
     }
 }
 
+// MARK: - 呈现面级 colorScheme 对齐
+
+/// macOS 上 `.sheet` 内容承载在独立窗口中，`ContentView` 根级的
+/// `.preferredColorScheme` 对齐不会传入 sheet 窗口（见 AGENTS.md §6
+/// 「主题-原生控件对齐原则」）。因此每个独立呈现面（sheet 内容、插件面板）
+/// 的根视图需再挂一次该 modifier；来源仍是 `ThemeManager.preferredColorScheme`
+/// 单一运行时源，不是平行副本。
+private struct ThemeColorSchemeAlignment: ViewModifier {
+    @ObservedObject private var themeManager = ThemeManager.shared
+
+    func body(content: Content) -> some View {
+        content.preferredColorScheme(themeManager.preferredColorScheme)
+    }
+}
+
+extension View {
+    /// 将当前呈现面（独立窗口/sheet）的原生控件 colorScheme 对齐到 `ThemeManager.mode`。
+    /// 用于 sheet 内容根视图等不经过 `ContentView` 层级的呈现面；
+    /// 主窗口根视图的常规对齐在 `ContentView` 中完成，无需重复调用。
+    func themeAlignedColorScheme() -> some View {
+        modifier(ThemeColorSchemeAlignment())
+    }
+}
+
 // MARK: - 深色主题
 
 struct DarkTheme: ThemeColors {

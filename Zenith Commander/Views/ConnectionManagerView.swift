@@ -253,6 +253,8 @@ struct ConnectionEditView: View {
         .background(themeManager.current.background)
         .padding()
         .frame(width: 350)
+        // sheet 独立窗口不继承 ContentView 根级对齐，Form/TextField/Picker 需呈现面级对齐
+        .themeAlignedColorScheme()
         .onAppear {
             if isNew, connection.port.isEmpty {
                 // Set default port

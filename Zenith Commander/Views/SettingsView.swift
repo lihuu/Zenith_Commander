@@ -61,6 +61,9 @@ struct SettingsView: View {
         }
         .frame(width: 500, height: 680)
         .background(themeManager.current.background)
+        // sheet 是独立窗口，不继承 ContentView 根级对齐；在此把原生控件
+        // （TextField/Toggle/.bordered 按钮）的 colorScheme 对齐到 ThemeManager。
+        .themeAlignedColorScheme()
     }
 }
 

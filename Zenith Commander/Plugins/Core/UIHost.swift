@@ -30,8 +30,11 @@ struct PluginSheetHost: ViewModifier {
                     }
                 )
             ) { request in
-                pluginManager.view(for: request)
-                    ?? AnyView(Text("No UI for \(String(describing: request))"))
+                (pluginManager.view(for: request)
+                    ?? AnyView(Text("No UI for \(String(describing: request))")))
+                    // 插件 sheet 同样是独立窗口，需要呈现面级 colorScheme 对齐
+                    // （AGENTS.md §6：插件视图依赖根级对齐，不得自行 hack 原生控件颜色）。
+                    .themeAlignedColorScheme()
             }
     }
 }

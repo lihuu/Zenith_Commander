@@ -88,6 +88,8 @@ struct HelpView: View {
         }
         .frame(width: 500, height: 600)
         .background(themeManager.current.background)
+        // sheet 独立窗口不继承 ContentView 根级对齐，见 ThemeManager.themeAlignedColorScheme()
+        .themeAlignedColorScheme()
     }
 
     private func L(_ key: LocalizedStringKey) -> String {

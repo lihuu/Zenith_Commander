@@ -329,6 +329,8 @@ struct GitCommitDetailView: View {
         }
         .frame(width: 700, height: 600)
         .background(Theme.background)
+        // 提交详情 sheet 是独立窗口，不继承 ContentView 根级对齐
+        .themeAlignedColorScheme()
         .task {
             await loadDiff()
         }

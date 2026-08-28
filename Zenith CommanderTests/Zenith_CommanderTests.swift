@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 import Testing
 
 @testable import Zenith_Commander
@@ -2367,6 +2368,24 @@ struct ThemeTests {
         let manager1 = ThemeManager.shared
         let manager2 = ThemeManager.shared
         #expect(manager1 === manager2)
+    }
+
+    @MainActor
+    @Test func preferredColorSchemeMapping() {
+        // 验证 preferredColorScheme 派生属性跟随 mode（AGENTS.md §6 主题-原生控件对齐）：
+        // light/dark 分别对齐到对应 ColorScheme，auto 传 nil 跟随系统外观
+        let manager = ThemeManager.shared
+        let originalMode = manager.mode
+        defer { manager.mode = originalMode }
+
+        manager.mode = .light
+        #expect(manager.preferredColorScheme == .light)
+
+        manager.mode = .dark
+        #expect(manager.preferredColorScheme == .dark)
+
+        manager.mode = .auto
+        #expect(manager.preferredColorScheme == nil)
     }
 
     @Test func themeManagerCycleTheme() {
