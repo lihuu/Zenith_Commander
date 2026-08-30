@@ -261,6 +261,12 @@ class AppStateDispatchTests: XCTestCase {
     }
 
     func testDispatchAddBookmark() async {
+        // 显式保证面板文件列表为空：reducer 的 .addBookmark 分支走
+        // BookmarkManager.shared（真实 ~/Library/Application Support 配置），
+        // files 非空且光标有效时会把当前条目写进用户真实书签文件。
+        // 置空让 reducer 在 guard 处直接返回，本测试只验证 dispatch 不崩溃。
+        appState.currentPane.activeTab.files = []
+
         await appState.dispatch(.pane(.addBookmark))
         // Should show toast and add bookmark if applicable
         XCTAssertTrue(true, "Add bookmark action dispatched")

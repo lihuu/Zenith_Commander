@@ -3123,8 +3123,24 @@ struct BookmarkItemTests {
 
 @MainActor
 struct BookmarkManagerTests {
+    /// 隔离的 BookmarkManager：存储指向临时目录，随测试清理。
+    /// 严禁直接 `BookmarkManager()`——默认 init 指向真实
+    /// ~/Library/Application Support/ZenithCommander/bookmarks.json，
+    /// `add`/`remove` 会立即写盘。这些测试曾把 /a /b /c 等假书签
+    /// 写进用户真实配置并覆盖原有书签（见 bookmarkManagerReorder）。
+    private func makeIsolatedManager() -> (manager: BookmarkManager, cleanup: () -> Void) {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("zc-bm-tests-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return (
+            BookmarkManager(storageDirectory: dir),
+            { try? FileManager.default.removeItem(at: dir) }
+        )
+    }
+
     @Test func bookmarkManagerAddBookmark() {
-        let manager = BookmarkManager()
+        let (manager, cleanup) = makeIsolatedManager()
+        defer { cleanup() }
         manager.bookmarks = []  // 清空初始书签
 
         let bookmark = BookmarkItem(
@@ -3140,7 +3156,8 @@ struct BookmarkManagerTests {
     }
 
     @Test func bookmarkManagerRemoveBookmark() {
-        let manager = BookmarkManager()
+        let (manager, cleanup) = makeIsolatedManager()
+        defer { cleanup() }
         manager.bookmarks = []
 
         let bookmark = BookmarkItem(
@@ -3157,7 +3174,8 @@ struct BookmarkManagerTests {
     }
 
     @Test func bookmarkManagerPreventDuplicatePath() {
-        let manager = BookmarkManager()
+        let (manager, cleanup) = makeIsolatedManager()
+        defer { cleanup() }
         manager.bookmarks = []
 
         let path = URL(fileURLWithPath: "/test/duplicate")
@@ -3172,7 +3190,8 @@ struct BookmarkManagerTests {
     }
 
     @Test func bookmarkManagerReorder() {
-        let manager = BookmarkManager()
+        let (manager, cleanup) = makeIsolatedManager()
+        defer { cleanup() }
         manager.bookmarks = []
 
         let bookmark1 = BookmarkItem(name: "A", path: URL(fileURLWithPath: "/a"), type: .folder)
@@ -3192,7 +3211,8 @@ struct BookmarkManagerTests {
     }
 
     @Test func bookmarkManagerContainsPath() {
-        let manager = BookmarkManager()
+        let (manager, cleanup) = makeIsolatedManager()
+        defer { cleanup() }
         manager.bookmarks = []
 
         let path = URL(fileURLWithPath: "/test/exists")
@@ -3205,7 +3225,8 @@ struct BookmarkManagerTests {
     }
 
     @Test func bookmarkManagerAddFileItem() {
-        let manager = BookmarkManager()
+        let (manager, cleanup) = makeIsolatedManager()
+        defer { cleanup() }
         manager.bookmarks = []
 
         let homeDir = FileManager.default.homeDirectoryForCurrentUser
@@ -3218,7 +3239,8 @@ struct BookmarkManagerTests {
     }
 
     @Test func bookmarkManagerToggleBookmark() {
-        let manager = BookmarkManager()
+        let (manager, cleanup) = makeIsolatedManager()
+        defer { cleanup() }
         manager.bookmarks = []
 
         let homeDir = FileManager.default.homeDirectoryForCurrentUser
@@ -3234,7 +3256,8 @@ struct BookmarkManagerTests {
     }
 
     @Test func bookmarkManagerClearAll() {
-        let manager = BookmarkManager()
+        let (manager, cleanup) = makeIsolatedManager()
+        defer { cleanup() }
         manager.bookmarks = []
 
         manager.add(BookmarkItem(name: "A", path: URL(fileURLWithPath: "/a"), type: .folder))
